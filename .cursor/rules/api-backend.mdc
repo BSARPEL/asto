@@ -1,0 +1,17 @@
+---
+description: Asto API kuralları (chart, AI, jeton, auth)
+globs: packages/api/**/*.{ts,js}
+alwaysApply: false
+---
+
+# API (@asto/api)
+
+- Entry: `src/index.ts` → route’lar `src/routes.ts` (`/api` prefix)
+- Auth: Bearer token; `requireAuth` + `store.userFromToken`
+- Harita: `src/chart/engine.ts` — `astronomy-engine` ile geo ecliptic; whole-sign evler
+  - Güneş için `EclipticLongitude` kullanma → `GeoVector` + `Ecliptic`
+- AI: `src/ai.ts` — `OPENAI_API_KEY` yoksa `mockComplete`; prompt’a natal/transit özeti koy
+- Persist: `src/store.ts` → `data/db.json` (şifreler düz metin — sadece local MVP)
+- Jeton: `store.adjustTokens`; maliyetler `@asto/shared` TOKEN_COSTS
+- Hata: `{ error: string }` JSON, uygun HTTP status
+- Yeni endpoint eklerken mobile `lib/api.ts` ve `docs/API.md` güncelle

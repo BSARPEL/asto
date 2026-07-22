@@ -1,0 +1,17 @@
+---
+description: Expo mobil uygulama kuralları (ekranlar, auth, API client)
+globs: apps/mobile/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Mobile (Expo)
+
+- Router: `apps/mobile/app/` (Expo Router). Auth → onboarding birth → `(tabs)`
+- Tema: `constants/theme.ts` + `components/ui.tsx` (Syne / Manrope fontlar)
+- API: yalnızca `lib/api.ts` üzerinden; base URL `lib/config.ts`
+- Auth state: `lib/auth.tsx` + `lib/storage.ts` (SecureStore / AsyncStorage)
+- Doğum formu: `components/BirthForm.tsx` + `CITY_PRESETS` (@asto/shared)
+- Monetizasyon stub: `lib/monetization.ts` — gerçek SDK eklerken burayı genişlet
+- Android emülatör API: `10.0.2.2:8788`; fiziksel cihazda `EXPO_PUBLIC_API_URL`
+- Stil: StyleSheet, koyu kozmik palet; yeni ekranlarda mevcut `Screen` / `Card` / `Button` kullan
+- `@asto/shared` import et; sabitleri mobile içinde tekrar tanımlama

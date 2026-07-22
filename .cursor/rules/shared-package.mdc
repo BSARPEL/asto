@@ -1,0 +1,13 @@
+---
+description: @asto/shared paket kuralları
+globs: packages/shared/**/*.{ts,json}
+alwaysApply: false
+---
+
+# Shared (@asto/shared)
+
+- Kaynak: `src/` → build: `dist/` (`npm run build --workspace=@asto/shared`)
+- Tipler: `src/types.ts` | Sabitler: `src/constants.ts` | Export: `src/index.ts`
+- TOKEN_COSTS, TOKEN_REWARDS, IAP_PRODUCTS, CITY_PRESETS burada yaşar
+- Breaking type değişikliğinde api + mobile’ı birlikte güncelle
+- Mobile/API doğrudan `src` değil `package.json` main (`dist`) kullanır — değişince build şart
