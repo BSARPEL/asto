@@ -15,6 +15,7 @@
     "sync:shared": "node scripts/sync-shared.mjs",
     "sync:ios": "node scripts/sync-ios.mjs",
     "sync:ios:force": "node scripts/sync-ios.mjs --force",
+    "sync:skills": "node scripts/sync-agent-skills.mjs",
     "ios:prebuild": "npm run ios:prebuild --workspace=mobile",
     "ios:open": "npm run ios:open --workspace=mobile",
     "ios:device": "npm run ios:device --workspace=mobile",

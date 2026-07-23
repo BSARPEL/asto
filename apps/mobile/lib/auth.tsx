@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { Profile } from '@asto/shared';
 import { TOKEN_REWARDS } from '@asto/shared';
@@ -44,6 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [adClaimsToday, setAdClaimsToday] = useState(0);
   const maxAdsPerDay = TOKEN_REWARDS.maxRewardedAdsPerDay;
+  /** Prevents onAuthStateChanged from signing out mid login/register before Firestore profile exists. */
+  const authBusyRef = useRef(false);
 
   const refresh = useCallback(async () => {
     const user = getFirebaseAuth().currentUser;
@@ -69,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         const session = await loadSession(user.uid);
         if (!session.profile) {
+          if (authBusyRef.current) return;
           await firebaseLogout();
           return;
         }
@@ -88,25 +99,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const p = await firebaseLogin(email, password);
-    const idToken = await getFirebaseIdToken();
-    setProfile(p);
-    if (idToken) {
-      setToken(idToken);
-      await storage.setItem(TOKEN_KEY, idToken);
+    authBusyRef.current = true;
+    try {
+      const p = await firebaseLogin(email, password);
+      const idToken = await getFirebaseIdToken();
+      setProfile(p);
+      if (idToken) {
+        setToken(idToken);
+        await storage.setItem(TOKEN_KEY, idToken);
+      }
+      setAdClaimsToday(await firebaseGetAdCountToday(p.id));
+    } finally {
+      authBusyRef.current = false;
     }
-    setAdClaimsToday(await firebaseGetAdCountToday(p.id));
   }, []);
 
   const register = useCallback(async (email: string, password: string, displayName: string) => {
-    const p = await firebaseRegister(email, password, displayName);
-    const idToken = await getFirebaseIdToken();
-    setProfile(p);
-    if (idToken) {
-      setToken(idToken);
-      await storage.setItem(TOKEN_KEY, idToken);
+    authBusyRef.current = true;
+    try {
+      const p = await firebaseRegister(email, password, displayName);
+      const idToken = await getFirebaseIdToken();
+      setProfile(p);
+      if (idToken) {
+        setToken(idToken);
+        await storage.setItem(TOKEN_KEY, idToken);
+      }
+      setAdClaimsToday(0);
+    } finally {
+      authBusyRef.current = false;
     }
-    setAdClaimsToday(0);
   }, []);
 
   const logout = useCallback(async () => {

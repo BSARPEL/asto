@@ -1,0 +1,10 @@
+{
+  "general": {
+    "outputLanguage": "Turkish"
+  },
+  "context": {
+    "fileFiltering": {
+      "respectGitIgnore": true
+    }
+  }
+}

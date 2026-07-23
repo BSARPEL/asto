@@ -35,12 +35,15 @@ Kullanıcı doğum bilgisi girer → natal harita cihazda hesaplanır (Firestore
 | Firestore (server) | `packages/api/src/store-firestore.ts` |
 | Shared types | `packages/shared/src/` |
 | Cursor rules | `.cursor/rules/*.mdc` |
+| Agent skills (kaynak) | `.cursor/skills/` → `npm run sync:skills` |
+| Qwen Code | `.qwen/skills/`, `.qwen/settings.json` |
+| Claude Code | `.claude/skills/`, `CLAUDE.md`, `.claude/settings.json` |
 | İnsan dokümantasyonu | `docs/` (anahtarlar: `docs/SECRETS.md`) |
 
 ## Agent çalışma kuralları
 
 1. **Yayın odaklı düşün:** Mağaza build'leri LAN/localhost kullanmaz; AI = HTTPS Cloud Functions, veri = Firebase. Yerel API yalnızca `.env.development`.
-2. Shared sabiti değiştirirsen `npm run sync:shared` çalıştır (veya `dev:all` açıksa otomatik olur).
+2. Shared sabiti değiştirirsen `npm run sync:shared` çalıştır (veya `dev:all` açıksa otomatik olur). Skill düzenlediysen `npm run sync:skills`.
 3. `apps/mobile/app.json`, mobile `package.json` veya native paket eklersen `npm run sync:ios` çalıştır.
 4. Gezegen konumunu LLM’e hesaplatma — `computeNatalChart` engine’den ver.
 5. API secret’larını mobile’a koyma — bkz. [docs/SECRETS.md](docs/SECRETS.md).

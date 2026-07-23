@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   signInWithEmailAndPassword,
   signOut,
   type User,
@@ -11,6 +12,7 @@ import {
   getDocs,
   query,
   setDoc,
+  writeBatch,
   deleteField,
   where,
 } from 'firebase/firestore';
@@ -40,6 +42,12 @@ function authErrorMessage(code: string): string {
       return 'İnternet bağlantısı yok. Tekrar deneyin.';
     case 'auth/too-many-requests':
       return 'Çok fazla deneme. Lütfen biraz bekleyin.';
+    case 'auth/internal-error':
+      return 'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.';
+    case 'auth/operation-not-allowed':
+      return 'E-posta ile kayıt şu an kapalı. Destek ile iletişime geçin.';
+    case 'auth/app-not-authorized':
+      return 'Uygulama yapılandırması hatalı. Lütfen güncel sürümü kullanın.';
     default:
       return 'Kimlik doğrulama hatası. Tekrar deneyin.';
   }
@@ -55,8 +63,10 @@ function wrapFirestoreError(e: unknown): Error {
   if (code === 'permission-denied') {
     return new Error('Veritabanı erişim izni yok. Uygulamayı güncelleyin veya destek ile iletişime geçin.');
   }
-  const message = (e as Error)?.message;
-  return new Error(message || 'Veritabanı hatası. Tekrar deneyin.');
+  if (code === 'unavailable') {
+    return new Error('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.');
+  }
+  return new Error('Veritabanı hatası. Tekrar deneyin.');
 }
 
 export async function firebaseRegister(
@@ -87,17 +97,29 @@ export async function firebaseRegister(
     updatedAt: now,
   };
 
+  const userRef = doc(db, FIRESTORE_COLLECTIONS.users, user.uid);
   const ledgerRef = doc(collection(db, FIRESTORE_COLLECTIONS.ledger));
-  try {
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.users, user.uid), forFirestore(profile));
-    await setDoc(ledgerRef, forFirestore({
+  const batch = writeBatch(db);
+  batch.set(userRef, forFirestore(profile));
+  batch.set(
+    ledgerRef,
+    forFirestore({
       id: ledgerRef.id,
       userId: user.uid,
       delta: TOKEN_REWARDS.signupBonus,
       reason: 'signup_bonus',
       createdAt: now,
-    }));
+    }),
+  );
+
+  try {
+    await batch.commit();
   } catch (e) {
+    try {
+      await deleteUser(user);
+    } catch {
+      /* auth user may already be gone */
+    }
     throw wrapFirestoreError(e);
   }
 
@@ -109,10 +131,14 @@ export async function firebaseLogin(email: string, password: string): Promise<Pr
   try {
     const cred = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
     const profile = await firebaseGetProfile(cred.user.uid);
-    if (!profile) throw new Error('Kullanıcı profili bulunamadı');
+    if (!profile) {
+      throw new Error(
+        'Hesap bulundu ama profil oluşturulmamış. Kayıt sırasında bağlantı kesilmiş olabilir — farklı e-posta ile tekrar kayıt olun veya destek ile iletişime geçin.',
+      );
+    }
     return profile;
   } catch (e) {
-    if (e instanceof Error && e.message === 'Kullanıcı profili bulunamadı') throw e;
+    if (e instanceof Error && e.message.includes('profil oluşturulmamış')) throw e;
     const code = (e as { code?: string })?.code ?? '';
     if (code === 'permission-denied') throw wrapFirestoreError(e);
     throw wrapAuthError(e);
