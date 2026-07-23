@@ -56,6 +56,16 @@ Tipler: `packages/shared/src/firestore-schema.ts`
 - Mobil: Firebase Auth + `firebase/firestore.rules` (kullanıcı kendi verisine erişir).
 - AI API: Admin SDK — tüm koleksiyonlara sunucu erişimi; istemci Bearer = Firebase ID token.
 - Eski `sessions` / `users_by_email` koleksiyonları legacy JSON store içindi; Firestore modunda kullanılmaz.
+- **Bilinen açık:** `users` write kuralı `tokenBalance` / `isSubscribed` alanlarını kısıtlamıyor. Jeton işlemleri `firebaseAdjustTokens` transaction ile yapılır; kuralların sıkılaştırılması önerilir.
+
+## Kayıt akışı (mobil)
+
+1. Firebase Auth `createUserWithEmailAndPassword`
+2. `writeBatch`: `users/{uid}` + `ledger` (signup_bonus)
+3. Hata → `deleteUser` (Auth geri alınır)
+4. `auth.tsx` `authBusyRef` — kayıt sırasında `onAuthStateChanged` erken logout yapmaz
+
+Test: `npm run test:auth`
 
 ## Supabase (isteğe bağlı)
 

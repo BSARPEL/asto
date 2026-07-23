@@ -28,10 +28,12 @@ Skill güncellemesi: `npm run sync:skills`
 
 `.cursor/rules/*.mdc` — dosya-türüne özel kurallar (mobile, api, shared).
 
-## Doğrulama
+## Dokümantasyon
 
-```bash
-npm run dev:all
-node scripts/test-mobile-auth-flow.mjs
-npm run ios:archive:store
-```
+| Dosya | İçerik |
+|-------|--------|
+| [README.md](./README.md) | Developer dosya haritası (ana giriş) |
+| [docs/README.md](./docs/README.md) | Tüm doküman indeksi |
+| [docs/MOBILE.md](./docs/MOBILE.md) | Mobil detay |
+| [docs/TESTING.md](./docs/TESTING.md) | Test scriptleri |
+| [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Sorun giderme |

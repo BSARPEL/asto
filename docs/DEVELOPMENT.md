@@ -27,7 +27,13 @@ cp packages/api/.env.example packages/api/.env
 | `npm run ios:prebuild` | Native `ios/` projesi (Metro gerekmez) |
 | `npm run ios:open` | Xcode workspace aç |
 | `npm run ios:device` | CLI ile cihaza Release build |
+| `npm run sync:shared` | Shared derle + mobile/api kopyala |
+| `npm run sync:skills` | Agent skills → qwen/claude/agents |
+| `npm run sync:ios` | Native iOS sync (config değişince) |
 | `npm run build --workspace=@asto/shared` | Shared derle |
+| `npm run test:auth` | Auth + Firestore E2E |
+| `npm run test:ai` | AI API E2E |
+| `npm run test:journey` | Tam kullanıcı yolculuğu |
 | `npx tsc --noEmit` (api veya mobile dizininde) | Tip kontrolü |
 
 ## Ortam değişkenleri
@@ -135,6 +141,8 @@ Chart unit smoke:
 npm run test:birth
 ```
 
+Detay: [TESTING.md](./TESTING.md) | Sorunlar: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+
 ## EAS / App Store
 
 **Mağaza sürümü** yerel ağa bağlı değildir; API internette HTTPS ile yayında olmalıdır.
@@ -163,7 +171,17 @@ Production checklist: şifre hash, Supabase/Postgres, RevenueCat webhook, AdMob 
 3. `docs/API.md` endpoint değiştiyse güncelle  
 4. Commit mesajında neden’i yaz  
 
-## Cursor
+## Cursor / Claude / Qwen
 
-Proje kuralları: `.cursor/rules/*.mdc`  
-Agent özeti: kök `AGENTS.md`
+| Konum | İçerik |
+|-------|--------|
+| `.cursor/rules/*.mdc` | Dosya-türü kuralları |
+| `.cursor/skills/` | Agent skills (kaynak) |
+| `.qwen/skills/` | Qwen Code (sync) |
+| `.claude/skills/` | Claude Code (sync) |
+| `AGENTS.md` | Agent özet rehberi |
+| `CLAUDE.md` | Claude Code bağlamı |
+
+Skill düzenledikten sonra: `npm run sync:skills`
+
+Mobil detay: [MOBILE.md](./MOBILE.md)

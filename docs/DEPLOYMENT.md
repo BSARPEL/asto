@@ -96,4 +96,5 @@ npm run ios:open
 - [ ] Privacy / Terms güncel
 - [ ] RevenueCat + AdMob production anahtarları
 
-Detaylı geliştirme: [DEVELOPMENT.md](./DEVELOPMENT.md)
+Detaylı geliştirme: [DEVELOPMENT.md](./DEVELOPMENT.md)  
+Test: [TESTING.md](./TESTING.md) | Sorunlar: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)

@@ -38,7 +38,7 @@ Kullanıcı doğum bilgisi girer → natal harita cihazda hesaplanır (Firestore
 | Agent skills (kaynak) | `.cursor/skills/` → `npm run sync:skills` |
 | Qwen Code | `.qwen/skills/`, `.qwen/settings.json` |
 | Claude Code | `.claude/skills/`, `CLAUDE.md`, `.claude/settings.json` |
-| İnsan dokümantasyonu | `docs/` (anahtarlar: `docs/SECRETS.md`) |
+| İnsan dokümantasyonu | `docs/` — indeks: `docs/README.md` |
 
 ## Agent çalışma kuralları
 
@@ -80,7 +80,12 @@ Smoke (Firebase modu): register → doğum haritası → günlük öngörü (AI)
 
 ## Daha fazla
 
+- [README.md](README.md) — developer dosya haritası
+- [docs/README.md](docs/README.md) — dokümantasyon indeksi
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/MOBILE.md](docs/MOBILE.md)
 - [docs/API.md](docs/API.md)
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - [docs/SECRETS.md](docs/SECRETS.md)
+- [docs/TESTING.md](docs/TESTING.md)
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)

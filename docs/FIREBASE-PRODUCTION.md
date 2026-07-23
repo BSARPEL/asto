@@ -106,6 +106,11 @@ npm run ios:archive:store
 | AI prompt / route değişti | `npm run deploy:ai-api` |
 | Mobil UI değişti | `npm run ios:archive:store` |
 | Firestore şema/kural | `npm run deploy:firestore-rules` |
+| Dokümantasyon | `docs/README.md` indeksine bakın |
+
+## Sorun giderme (özet)
+
+Detaylı tablo: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 
 ## Yerel geliştirme (opsiyonel)
 

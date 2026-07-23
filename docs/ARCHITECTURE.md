@@ -45,8 +45,9 @@ Yerel geliştirmede AI API `npm run api` (port 8788). **Production: yalnızca Fi
 | `lib/birth-service.ts` | Harita hesapla + Firestore kaydet |
 | `lib/firebase-data.ts` | Partner, okuma önbelleği, jeton |
 | `lib/ai-service.ts` | Firebase veri + AI üretimini birleştirir |
-| `lib/ai-api.ts` | AI endpoint HTTP çağrıları |
-| `lib/config.ts` | `EXPO_PUBLIC_AI_API_URL`, `usesFirebaseDirect()` |
+| `lib/ai-api.ts` | AI endpoint HTTP çağrıları (Cloud Functions) |
+| `lib/ai-direct.ts` | Doğrudan Gemini (yalnızca yerel `EXPO_PUBLIC_GEMINI_API_KEY`) |
+| `lib/config.ts` | `EXPO_PUBLIC_AI_API_URL`, `usesFirebaseDirect()`, `usesDirectGemini()` |
 | `lib/monetization.ts` | IAP / AdMob (Firebase veya stub) |
 
 **Akış:** `index` → login/register → birth onboarding → tabs.
@@ -100,5 +101,19 @@ Production: RevenueCat + AdMob (şu an kısmen simüle).
 ## Güvenlik notları
 
 - Mobil: Firebase Auth; AI API: Firebase ID token doğrulama (Admin SDK)  
-- Gemini anahtarı yalnızca sunucuda  
-- Legacy JSON store (`STORE_BACKEND=json`) yalnızca yerel dev için
+- Gemini anahtarı yalnızca sunucuda (`packages/api/.env` → Cloud Functions)  
+- Legacy JSON store (`STORE_BACKEND=json`) yalnızca yerel dev için  
+- Kayıt: `firebase-profile.ts` atomik `writeBatch` + hata durumunda `deleteUser`  
+- Firestore `users` kuralları jeton alanlarını henüz kısıtlamıyor — production öncesi sıkılaştırılmalı (bkz. [TROUBLESHOOTING.md](./TROUBLESHOOTING.md))
+
+## Agent / AI IDE yapılandırması
+
+| Konum | Araç |
+|-------|------|
+| `.cursor/rules/*.mdc` | Cursor kuralları |
+| `.cursor/skills/` | Agent skills (kaynak) |
+| `.qwen/skills/` | Qwen Code |
+| `.claude/skills/` | Claude Code |
+| `AGENTS.md`, `CLAUDE.md` | Oturum bağlamı |
+
+Skill sync: `npm run sync:skills`

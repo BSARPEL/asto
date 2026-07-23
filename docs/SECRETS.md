@@ -138,7 +138,7 @@ Deploy: `firebase login` → `npm run deploy:ai-api`
 
 ---
 
-## 5. İlk kurulum checklist
+## İlk kurulum checklist
 
 ```bash
 # 1. API env
@@ -147,19 +147,23 @@ cp packages/api/.env.example packages/api/.env
 # Admin SDK JSON → packages/api/.secrets/firebase-adminsdk.json
 
 # 2. Mobil env (mağaza)
-cp apps/mobile/.env.production apps/mobile/.env
+cp apps/mobile/.env.production.example apps/mobile/.env
 
 # 3. Test
 npm run api                    # GET http://localhost:8788/api/health → ai: true
-npm run test:ai                # Firebase token + yerel/remote AI API
+npm run test:auth              # Firebase auth + Firestore
+npm run test:ai                # Firebase token + AI API
 
 # 4. Production AI API
 firebase login
 npm run deploy:ai-api
+npm run deploy:firestore-rules
 
 # 5. Mağaza archive
 npm run ios:archive:store
 ```
+
+Tam developer rehberi: [README.md](../README.md) | Test: [TESTING.md](./TESTING.md)
 
 ---
 
@@ -169,3 +173,5 @@ npm run ios:archive:store
 - Gemini anahtarını mobil `EXPO_PUBLIC_GEMINI_API_KEY` içine koymayın (mağaza build'i bundle'dan da okunabilir)
 - Commit öncesi: `npm run check:secrets`
 - Anahtar sızdıysa: Google AI Studio'dan yeni anahtar → `packages/api/.env` → `npm run deploy:ai-api`; Git geçmişinden temizlemek için `git filter-repo` veya BFG gerekebilir
+
+Sorun giderme: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)

@@ -1,33 +1,75 @@
 # API Referansı
 
-Base URL: `http://localhost:8788/api` (yerel) veya `EXPO_PUBLIC_AI_API_URL` (mobil production)
+Base URL:
 
-## Mobil hangi endpoint’leri kullanır?
+- Yerel: `http://localhost:8788/api`
+- Production: `https://europe-west1-bn-astro.cloudfunctions.net/astoApi/api`
+- Mobil: `EXPO_PUBLIC_AI_API_URL` (`lib/config.ts`)
 
-| Mobil modül | Endpoint’ler |
+## Mobil hangi endpoint'leri kullanır?
+
+| Mobil modül | Endpoint'ler |
 |-------------|--------------|
 | `lib/ai-api.ts` | `GET /health`, `POST /readings/daily`, `POST /readings/chart-narrative`, `POST /conversations/ask`, `POST /partners/:id/analyze`, `POST /partners/:id/ask` |
+| `lib/ai-direct.ts` | Gemini doğrudan (yerel `.env` — Cloud Functions yerine) |
 | Firebase SDK | Auth, profil, doğum, partner CRUD, jeton, okuma önbelleği |
 
-Auth (AI): `Authorization: Bearer <Firebase ID token>`
+**Auth (AI routes):** `Authorization: Bearer <Firebase ID token>`
 
-Legacy REST (`routes/legacy-routes.ts`): `/auth/*`, `/me`, `PUT /me/birth`, partner CRUD, `/tokens/*` — yalnızca JSON store / eski istemciler.
+Legacy REST (`routes/legacy-routes.ts`): `/auth/*`, `/me`, `PUT /me/birth`, partner CRUD, `/tokens/*` — yalnızca JSON store / eski istemciler. **Mobil production bunları kullanmaz.**
 
 Başarısız yanıtlar: `{ "error": "mesaj" }`
 
-## Health
+---
+
+## AI routes (production — `ai-routes.ts`)
 
 ### `GET /health`
 
-Auth yok. AI API durumu.
+Auth yok.
 
 ```json
-{ "ok": true, "service": "asto-ai-api", "ai": true, "provider": "gemini", "model": "gemini-flash-latest" }
+{ "ok": true, "service": "asto-ai-api", "ai": true, "provider": "gemini", "model": "gemini-2.5-flash-lite" }
 ```
 
-## Auth (legacy — JSON store)
+### `POST /readings/daily`
 
-Mobil production **Firebase Auth** kullanır; aşağıdaki endpoint’ler yalnızca legacy REST içindir.
+Body: `{ "force"?: boolean }`  
+Natal chart gerekir. Aynı gün cache → `cached: true`.
+
+→ `{ "reading", "conversation", "cached", "cost", "today", "profile" }`
+
+### `POST /readings/chart-narrative`
+
+Body: `{ "force"?: boolean }`  
+Jeton: 2 (abone: 0). Cache: `profile.chartNarrative`.
+
+→ `{ "text", "profile", "cost", "cached" }`
+
+### `POST /conversations/ask`
+
+Body: `{ "question", "conversationId?" }`  
+Jeton: 1 (abone: 0).
+
+→ `{ "conversation", "profile", "cost" }`
+
+### `POST /partners/:id/analyze`
+
+Body: `{ "force"?: boolean }`  
+Jeton: 3 (abone: 0). Sinastri skoru + AI yorumu partner kaydına yazılır.
+
+→ `{ "partner", "synastry", "conversation", "profile", "cost", "cached" }`
+
+### `POST /partners/:id/ask`
+
+Body: `{ "question", "conversationId?" }`  
+Önce sinastri analizi gerekir.
+
+→ `{ "conversation", "profile", "cost" }`
+
+---
+
+## Legacy REST (JSON store / dev only)
 
 ### `POST /auth/register`
 
