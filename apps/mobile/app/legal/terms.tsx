@@ -7,7 +7,7 @@ export default function TermsScreen() {
       <ScreenScroll contentContainerStyle={{ gap: spacing.md }}>
         <Title>Kullanım şartları</Title>
         <Body muted>
-          Asto eğlence ve kişisel farkındalık amaçlı astroloji içerikleri sunar. Yorumlar tıbbi,
+          BN Astro eğlence ve kişisel farkındalık amaçlı astroloji içerikleri sunar. Yorumlar tıbbi,
           hukuki veya finansal tavsiye değildir. Jetonlar ve abonelikler dijital içerik olup ilgili
           mağaza iade kurallarına tabidir.
         </Body>

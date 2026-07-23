@@ -15,6 +15,7 @@ import {
   SectionTitle,
   SuccessBanner,
   TokenBadge,
+  TrustNote,
   tabScrollStyle,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
@@ -49,17 +50,17 @@ export default function TokensScreen() {
     <Card compact accent={colors.success}>
       <View style={styles.plusRow}>
         <PlusBadge />
-        <SectionTitle compact>Asto Plus aktif</SectionTitle>
+        <SectionTitle compact>BN Astro Plus aktif</SectionTitle>
       </View>
-      <Body style={styles.mutedSm}>Soru ve analizler jeton düşmez.</Body>
+      <Body style={styles.mutedSm}>Soru ve sinastri analizlerinde jeton düşmez.</Body>
     </Card>
   ) : (
     <Card compact accent={colors.accent}>
-      <SectionTitle compact>Aylık abonelik</SectionTitle>
+      <SectionTitle compact>BN Astro Plus</SectionTitle>
       <Text style={styles.price}>{IAP_PRODUCTS.monthly.priceLabel}</Text>
-      <Text style={styles.mutedSm}>Sınırsız soru ve ilişki analizi</Text>
+      <Text style={styles.mutedSm}>Sınırsız soru ve ilişki analizi — stüdyo erişimi</Text>
       <View style={styles.perks}>
-        {['Sınırsız soru', 'Sınırsız analiz', 'Öncelikli yorum'].map((p) => (
+        {['Sınırsız soru', 'Sınırsız sinastri', 'Öncelikli yorum'].map((p) => (
           <Text key={p} style={styles.perk}>
             · {p}
           </Text>
@@ -95,6 +96,7 @@ export default function TokensScreen() {
         compact
         label="Ödüllü reklam izle"
         loading={loading === 'ad'}
+        variant="ghost"
         onPress={() =>
           run('ad', async () => {
             const res = await monetization.showRewardedAd(profile!.id);
@@ -102,7 +104,6 @@ export default function TokensScreen() {
             setInfo(`+${res.reward} jeton kazandın.`);
           })
         }
-        icon="▶"
       />
     </Card>
   );
@@ -111,11 +112,15 @@ export default function TokensScreen() {
     <Screen>
       <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
-          compact
-          eyebrow="Mağaza"
+          eyebrow="Stüdyo bakiyesi"
           title="Jeton"
+          subtitle="Öngörü, soru ve sinastri için"
           right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
         />
+
+        <TrustNote>
+          Jetonlar yorum üretimi içindir; harita hesabı her zaman ücretsiz kalır.
+        </TrustNote>
 
         <ResponsiveSplit leading={subscriptionCard} trailing={adCard} />
 

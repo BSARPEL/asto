@@ -46,9 +46,11 @@ export default function RegisterScreen() {
     <>
       {!isWide ? (
         <>
-          <BrandMark />
-          <Title>Asto’ya katıl</Title>
-          <Subtitle>Kayıt olunca 5 jeton hediye. Doğum haritanı sonra gireceksin.</Subtitle>
+          <BrandMark size="lg" />
+          <Title>Gökyüzüne katıl</Title>
+          <Subtitle>
+            Haritanı çıkar, günlük gökyüzünü oku, ilişki bağlarını keşfet.
+          </Subtitle>
         </>
       ) : (
         <Title style={{ marginBottom: spacing.md }}>Kayıt ol</Title>
@@ -74,6 +76,7 @@ export default function RegisterScreen() {
       />
       <ErrorText>{error}</ErrorText>
       <Button label="Kayıt ol" onPress={onSubmit} loading={loading} />
+      <Subtitle style={styles.bonusHint}>Başlangıç hediyesi: 5 jeton</Subtitle>
       <View style={styles.footer}>
         <Link href="/(auth)/login" style={styles.link}>
           Zaten hesabın var mı? Giriş yap
@@ -108,7 +111,13 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center' },
-  footer: { marginTop: spacing.lg, gap: 12 },
+  bonusHint: {
+    marginTop: spacing.sm,
+    marginBottom: 0,
+    textAlign: 'center',
+    fontSize: 13,
+  },
+  footer: { marginTop: spacing.md, gap: 12 },
   link: { color: colors.teal, fontFamily: fonts.bodySemi, fontSize: 15 },
   linkMuted: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 },
 });

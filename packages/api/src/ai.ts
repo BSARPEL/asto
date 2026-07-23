@@ -49,7 +49,7 @@ function runtime() {
             {
               role: 'system',
               content:
-                'Sen Asto adlı bir astroloji danışmanısın. Türkçe, sıcak ama abartısız bir dille yazarsın.',
+                'Sen BN Astro adlı bir astroloji danışmanısın. Türkçe, sıcak ama abartısız bir dille yazarsın.',
             },
             { role: 'user', content: userPrompt },
           ],

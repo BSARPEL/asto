@@ -35,12 +35,14 @@ import {
   enterChatUser,
 } from '@/components/motion';
 import {
+  accentGradient,
   colors,
   contentMaxWidth,
   fonts,
   getLayoutSize,
   pageGutter,
   radii,
+  screenGradient,
   shadowSoft,
   spacing,
   splitLayoutMinWidth,
@@ -140,13 +142,13 @@ export function tabScrollStyle() {
 function Starfield() {
   const dots = useMemo(
     () =>
-      Array.from({ length: 28 }, (_, i) => ({
+      Array.from({ length: 42 }, (_, i) => ({
         id: i,
         left: `${(i * 37 + 11) % 100}%` as `${number}%`,
         top: `${(i * 53 + 7) % 100}%` as `${number}%`,
-        size: i % 5 === 0 ? 2.5 : i % 3 === 0 ? 1.8 : 1.2,
-        opacity: 0.15 + (i % 4) * 0.08,
-        delayMs: (i * 97) % 2200,
+        size: i % 7 === 0 ? 2.8 : i % 4 === 0 ? 2 : 1.3,
+        opacity: 0.22 + (i % 5) * 0.1,
+        delayMs: (i * 97) % 2800,
       })),
     [],
   );
@@ -189,12 +191,13 @@ export function Screen({
   return (
     <View style={[styles.screenRoot, style]}>
       <LinearGradient
-        colors={['#FAF8F4', '#F5F0E6', '#F8F5EF', '#FAF8F4']}
-        locations={[0, 0.4, 0.75, 1]}
+        colors={[...screenGradient]}
+        locations={[0, 0.35, 0.7, 1]}
         style={StyleSheet.absoluteFill}
       />
       {stars ? <Starfield /> : null}
       <View pointerEvents="none" style={styles.glowTop} />
+      <View pointerEvents="none" style={styles.glowMoon} />
       <View pointerEvents="none" style={styles.glowBottom} />
       <View style={[styles.screenInner, pad]}>{children}</View>
     </View>
@@ -253,14 +256,16 @@ export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
         <SoftPulse>
           <View style={[styles.brandOrb, large && styles.brandOrbLg]}>
             <LinearGradient
-              colors={['rgba(61,154,148,0.2)', 'rgba(196,165,122,0.15)']}
+              colors={['rgba(98,189,181,0.26)', 'rgba(217,201,165,0.16)']}
               style={StyleSheet.absoluteFill}
             />
-            <Text style={[styles.brandOrbGlyph, glyphTextStyle]}>✦</Text>
+            <Text style={[styles.brandOrbGlyph, glyphTextStyle]}>☽</Text>
           </View>
         </SoftPulse>
-        <Text style={large ? typography.brandLg : typography.brand}>Asto</Text>
-        {large ? <Text style={styles.brandTag}>Astroloji · AI</Text> : null}
+        <Text style={large ? typography.brandLg : typography.brand}>BN Astro</Text>
+        {large ? (
+          <Text style={styles.brandTag}>Natal · Gökyüzü · Sinastri</Text>
+        ) : null}
       </View>
     </FadeIn>
   );
@@ -388,6 +393,62 @@ export function GlassCard({ children, style }: { children: React.ReactNode; styl
   return <View style={[styles.glassCard, style]}>{children}</View>;
 }
 
+/** İki harita birleşimi — sinastri metaforu */
+export function SynastryBond({
+  selfSun,
+  selfMoon,
+  partnerSun,
+  partnerMoon,
+  partnerName,
+  compact,
+}: {
+  selfSun?: string;
+  selfMoon?: string;
+  partnerSun: string;
+  partnerMoon: string;
+  partnerName?: string;
+  compact?: boolean;
+}) {
+  return (
+    <View style={[styles.bondRow, compact && styles.bondRowCompact]}>
+      <View style={styles.bondSide}>
+        {selfSun ? (
+          <View style={styles.bondGlyphPair}>
+            <AstroGlyph planetKey="Sun" size="sm" color={signColor(selfSun)} />
+            <AstroGlyph planetKey="Moon" size="sm" color={signColor(selfMoon || selfSun)} />
+          </View>
+        ) : (
+          <Text style={[styles.bondYou, glyphTextStyle]}>☉</Text>
+        )}
+        <Text style={styles.bondLabel}>Sen</Text>
+      </View>
+      <View style={styles.bondCenter}>
+        <View style={styles.bondLine} />
+        <Text style={[styles.bondAspect, glyphTextStyle]}>☍</Text>
+        <View style={styles.bondLine} />
+      </View>
+      <View style={styles.bondSide}>
+        <View style={styles.bondGlyphPair}>
+          <AstroGlyph planetKey="Sun" size="sm" color={signColor(partnerSun)} />
+          <AstroGlyph planetKey="Moon" size="sm" color={signColor(partnerMoon)} />
+        </View>
+        <Text style={styles.bondLabel} numberOfLines={1}>
+          {partnerName || 'Partner'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** Güven / kehanet değil notu */
+export function TrustNote({ children }: { children: React.ReactNode }) {
+  return (
+    <Text style={styles.trustNote}>
+      {children}
+    </Text>
+  );
+}
+
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
 export function Button({
@@ -438,7 +499,7 @@ export function Button({
       >
         <Animated.View style={animStyle}>
           <LinearGradient
-            colors={['#D4B896', '#C4A57A', '#B8956B']}
+            colors={[...accentGradient]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.btnGradient, compact && styles.btnGradientCompact]}
@@ -575,7 +636,7 @@ export function TokenBadge({ balance, compact }: { balance: number; compact?: bo
   return (
     <View style={[styles.tokenBadge, compact && styles.tokenBadgeCompact]}>
       <LinearGradient
-        colors={['rgba(196,165,122,0.18)', 'rgba(196,165,122,0.06)']}
+        colors={['rgba(212,196,160,0.22)', 'rgba(212,196,160,0.06)']}
         style={StyleSheet.absoluteFill}
       />
       <Text style={[styles.tokenGlyph, compact && styles.tokenGlyphCompact]}>◆</Text>
@@ -603,7 +664,7 @@ export function Avatar({ name, size = 'md' }: { name: string; size?: 'xs' | 'sm'
   return (
     <View style={[styles.avatar, { width: dim, height: dim, borderRadius: dim / 2 }]}>
       <LinearGradient
-        colors={['rgba(61,154,148,0.18)', 'rgba(196,165,122,0.12)']}
+        colors={['rgba(94,184,176,0.22)', 'rgba(212,196,160,0.14)']}
         style={StyleSheet.absoluteFill}
       />
       <Text
@@ -660,8 +721,14 @@ export function SignPill({
 }) {
   const c = accent ?? colors.teal;
   return (
-    <View style={[styles.signPill, compact && styles.signPillCompact, { borderColor: `${c}44` }]}>
-      {!compact ? <View style={[styles.signPillGlow, { backgroundColor: `${c}18` }]} /> : null}
+    <View
+      style={[
+        styles.signPill,
+        compact && styles.signPillCompact,
+        { borderColor: `${c}55`, backgroundColor: compact ? `${c}14` : colors.bgElevated },
+      ]}
+    >
+      {!compact ? <View style={[styles.signPillGlow, { backgroundColor: `${c}22` }]} /> : null}
       <AstroGlyph
         sign={signKey}
         size={compact ? 'sm' : 'lg'}
@@ -850,7 +917,7 @@ export function MessageBubble({
         <View style={[styles.bubbleHeader, compact && styles.bubbleHeaderCompact]}>
           <View style={[styles.bubbleDot, isUser ? styles.bubbleDotUser : styles.bubbleDotAssistant]} />
           <Text style={[styles.bubbleRole, compact && styles.bubbleRoleCompact, isUser && styles.bubbleRoleUser]}>
-            {isUser ? 'Sen' : 'Asto'}
+            {isUser ? 'Sen' : 'BN Astro'}
           </Text>
         </View>
       ) : null}
@@ -986,22 +1053,22 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       <View style={[styles.authWide, { paddingHorizontal: gutter }]}>
         <View style={styles.authWideLeft}>
           <BrandMark size="lg" />
-          <Title style={styles.authWideTitle}>Kişisel astroloji rehberin</Title>
+          <Title style={styles.authWideTitle}>Kişisel gökyüzü rehberin</Title>
           <Subtitle style={styles.authWideSubtitle}>
-            Natal harita, günlük öngörü ve ilişki analizi — hepsi haritana özel.
+            Natal harita, günlük gökyüzü ve sinastri — hepsi haritana özel.
           </Subtitle>
           <View style={styles.authFeatures}>
             <View style={styles.authFeatureRow}>
               <AstroGlyph planetKey="Sun" size="sm" color={colors.accentStrong} />
-              <Text style={styles.authFeature}>Natal harita</Text>
+              <Text style={styles.authFeature}>Doğum haritan</Text>
             </View>
             <View style={styles.authFeatureRow}>
               <AstroGlyph planetKey="Moon" size="sm" color={colors.teal} />
-              <Text style={styles.authFeature}>Günlük öngörü</Text>
+              <Text style={styles.authFeature}>Günlük gökyüzü</Text>
             </View>
             <View style={styles.authFeatureRow}>
-              <Text style={[styles.authFeatureGlyph, glyphTextStyle]}>◎</Text>
-              <Text style={styles.authFeature}>Sinastri</Text>
+              <Text style={[styles.authFeatureGlyph, glyphTextStyle]}>☍</Text>
+              <Text style={styles.authFeature}>İlişki sinastrisi</Text>
             </View>
           </View>
         </View>
@@ -1091,43 +1158,53 @@ const styles = StyleSheet.create({
   },
   glowTop: {
     position: 'absolute',
-    top: -100,
-    right: -60,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(61, 154, 148, 0.06)',
+    top: -120,
+    right: -80,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: colors.glowTeal,
+  },
+  glowMoon: {
+    position: 'absolute',
+    top: '18%',
+    left: -100,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: colors.glowMoon,
   },
   glowBottom: {
     position: 'absolute',
-    bottom: 60,
-    left: -80,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(196, 165, 122, 0.05)',
+    bottom: 40,
+    left: -60,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: colors.glowMoon,
   },
 
   brandWrap: { marginBottom: spacing.lg, alignItems: 'flex-start' },
   brandOrb: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.borderStrong,
+    backgroundColor: colors.bgSoft,
   },
-  brandOrbLg: { width: 64, height: 64, borderRadius: 32 },
-  brandOrbGlyph: { fontSize: 22, color: colors.accentStrong },
+  brandOrbLg: { width: 68, height: 68, borderRadius: 34 },
+  brandOrbGlyph: { fontSize: 26, color: colors.accentStrong },
   brandTag: {
     ...typography.caption,
-    marginTop: 6,
+    marginTop: 8,
     color: colors.teal,
     textTransform: 'uppercase',
-    letterSpacing: 1.6,
+    letterSpacing: 2,
   },
 
   subtitle: { ...typography.bodyMuted, marginTop: spacing.xs, marginBottom: spacing.lg },
@@ -1161,7 +1238,7 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     alignSelf: 'stretch',
     backgroundColor: colors.bgElevated,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderWidth: 1,
     borderRadius: radii.xl,
     padding: spacing.lg,
@@ -1209,12 +1286,76 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: '100%',
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: 'rgba(20, 28, 42, 0.9)',
     borderColor: colors.borderStrong,
     borderWidth: 1,
     borderRadius: radii.xl,
     padding: spacing.lg,
     ...shadowSoft,
+  },
+
+  bondRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.bgSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bondRowCompact: {
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  bondSide: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 0,
+  },
+  bondGlyphPair: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bondYou: {
+    fontSize: 16,
+    color: colors.accentStrong,
+  },
+  bondLabel: {
+    ...typography.caption,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+    maxWidth: '100%',
+  },
+  bondCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  bondLine: {
+    width: 14,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderStrong,
+  },
+  bondAspect: {
+    fontSize: 14,
+    color: colors.teal,
+  },
+  trustNote: {
+    ...typography.caption,
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+    opacity: 0.9,
   },
 
   btn: {
@@ -1271,7 +1412,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     backgroundColor: colors.bgSoft,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.md,
     color: colors.text,
     fontFamily: fonts.body,
@@ -1375,7 +1516,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 6,
     borderRadius: radii.sm,
-    backgroundColor: colors.bgSoft,
   },
   signPillGlow: {
     ...StyleSheet.absoluteFill,
@@ -1564,13 +1704,13 @@ const styles = StyleSheet.create({
   },
   bubbleUser: {
     backgroundColor: colors.userBubble,
-    borderColor: 'rgba(61, 120, 180, 0.2)',
+    borderColor: 'rgba(94, 184, 176, 0.28)',
     marginLeft: spacing.lg,
   },
   bubbleUserCompact: { marginLeft: spacing.sm },
   bubbleAssistant: {
     backgroundColor: colors.assistantBubble,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     marginRight: spacing.lg,
   },
   bubbleAssistantCompact: { marginRight: spacing.sm },

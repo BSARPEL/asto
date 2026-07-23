@@ -5,9 +5,11 @@ import { formatBirthPlace } from '@asto/shared';
 import { BirthForm } from '@/components/BirthForm';
 import {
   Avatar,
+  Body,
   Button,
   Card,
   HeaderRow,
+  HeroCard,
   InfoRow,
   PlusBadge,
   ResponsiveSplit,
@@ -17,6 +19,7 @@ import {
   SheetModal,
   SignTrio,
   TokenBadge,
+  TrustNote,
   tabScrollStyle,
 } from '@/components/ui';
 import { saveUserBirth } from '@/lib/birth-service';
@@ -29,9 +32,9 @@ export default function ProfileScreen() {
   const chart = profile?.natalChart;
 
   const identityCard = (
-    <Card compact>
+    <HeroCard>
       <View style={styles.profileRow}>
-        <Avatar name={profile?.displayName ?? 'A'} size="sm" />
+        <Avatar name={profile?.displayName ?? 'A'} size="md" />
         <View style={styles.profileMeta}>
           <Text style={styles.profileName}>{profile?.displayName}</Text>
           <Text style={styles.profileEmail}>{profile?.email}</Text>
@@ -43,15 +46,22 @@ export default function ProfileScreen() {
         </View>
       </View>
       {chart ? (
-        <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} compact />
-      ) : null}
-    </Card>
+        <>
+          <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} />
+          <Body muted style={styles.natalHint}>
+            Natal kimliğin — Güneş, Ay ve yükselen.
+          </Body>
+        </>
+      ) : (
+        <Body muted>Doğum bilgisi tamamlanınca burç üçlün burada görünür.</Body>
+      )}
+    </HeroCard>
   );
 
   const accountCard = (
     <Card compact>
       <SectionTitle compact>Hesap</SectionTitle>
-      <InfoRow compact label="Abonelik" value={profile?.isSubscribed ? 'Asto Plus' : 'Ücretsiz'} />
+      <InfoRow compact label="Abonelik" value={profile?.isSubscribed ? 'BN Astro Plus' : 'Ücretsiz'} />
       {profile?.birth ? (
         <>
           <InfoRow compact label="Doğum tarihi" value={profile.birth.birthDate} />
@@ -65,6 +75,9 @@ export default function ProfileScreen() {
         variant="ghost"
         onPress={() => setEditBirth(true)}
       />
+      <TrustNote>
+        Harita cihazında hesaplanır; yorumlar rehberlik amaçlıdır.
+      </TrustNote>
     </Card>
   );
 
@@ -72,9 +85,9 @@ export default function ProfileScreen() {
     <Screen>
       <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
-          compact
-          eyebrow="Hesap"
+          eyebrow="Natal kimlik"
           title={profile?.displayName ?? 'Profil'}
+          subtitle="Doğum verisi ve hesap"
           right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
         />
 
@@ -144,6 +157,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   badgeRow: { marginTop: 6 },
+  natalHint: { fontSize: 13, marginTop: spacing.sm },
   link: {
     color: colors.teal,
     fontFamily: fonts.bodySemi,

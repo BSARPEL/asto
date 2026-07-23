@@ -1,5 +1,5 @@
 /**
- * Subtle motion primitives for Asto UI.
+ * Subtle motion primitives for BN Astro UI.
  * Prefer presence (fade/slide) and feedback (press/pulse) — avoid noisy loops.
  */
 import { useEffect } from 'react';

@@ -1,9 +1,5 @@
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 import { createGeminiRuntime, isGeminiApiKey, type AiRuntime } from '@asto/shared';
-import { PRODUCTION_AI_API_URL } from '@/constants/endpoints';
-
-const AI_API_PORT = 8788;
 
 export type AppEnv = 'development' | 'staging' | 'production';
 
@@ -15,69 +11,18 @@ export const APP_ENV: AppEnv =
 
 export const IS_PRODUCTION = APP_ENV === 'production';
 
-function devMetroHost(): string | null {
-  if (!__DEV__ || IS_PRODUCTION) return null;
-  const hostUri =
-    Constants.expoConfig?.hostUri ??
-    (Constants as { expoGoConfig?: { debuggerHost?: string } }).expoGoConfig?.debuggerHost;
-  if (!hostUri) return null;
-  const host = hostUri.split(':')[0];
-  if (!host || host === 'localhost' || host === '127.0.0.1') return null;
-  return host;
-}
-
-function stripTrailingSlash(url: string) {
-  return url.replace(/\/$/, '');
-}
-
-function isLocalUrl(url: string): boolean {
-  return /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(
-    url,
-  );
-}
-
 /**
- * AI sunucusu (Cloud Functions + Gemini).
- * Mağaza sürümü: yalnızca HTTPS production URL — LAN/localhost asla kullanılmaz.
+ * @deprecated Cloud Functions AI API kullanılmıyor — doğrudan Gemini.
+ * Geriye dönük uyumluluk için boş bırakılabilir.
  */
-function resolveAiApiUrl(): string {
-  const fromExtra = Constants.expoConfig?.extra?.aiApiUrl as string | undefined;
-  const fromEnv =
-    process.env.EXPO_PUBLIC_AI_API_URL ||
-    process.env.EXPO_PUBLIC_API_URL ||
-    fromExtra;
-
-  if (fromEnv) {
-    const url = stripTrailingSlash(fromEnv);
-    if (IS_PRODUCTION && isLocalUrl(url)) {
-      console.warn('[config] Production build cannot use LAN AI URL — using Cloud Functions.');
-      return PRODUCTION_AI_API_URL;
-    }
-    return url;
-  }
-
-  // Release bundle without explicit env → production Cloud Functions
-  if (IS_PRODUCTION || !__DEV__) {
-    return PRODUCTION_AI_API_URL;
-  }
-
-  // Yerel geliştirme (Expo Go / simülatör) — opsiyonel localhost
-  const metroHost = devMetroHost();
-  if (metroHost) return `http://${metroHost}:${AI_API_PORT}/api`;
-  if (Platform.OS === 'android') return `http://10.0.2.2:${AI_API_PORT}/api`;
-  return `http://127.0.0.1:${AI_API_PORT}/api`;
-}
-
-export const AI_API_URL = resolveAiApiUrl();
+export const AI_API_URL = '';
 
 export function isAiApiConfigured(): boolean {
-  if (!AI_API_URL.length) return false;
-  if (IS_PRODUCTION || !__DEV__) return AI_API_URL.startsWith('https://');
-  return true;
+  return false;
 }
 
 export function usesEmbeddedBundle(): boolean {
-  return !devMetroHost();
+  return true;
 }
 
 /** Firebase Auth + Firestore — kayıt, profil, harita, partner verisi */
@@ -90,7 +35,7 @@ export function usesFirebaseDirect(): boolean {
   return Boolean(apiKey && appId);
 }
 
-/** Google AI Studio — doğrudan Gemini (Firebase'den bağımsız). */
+/** Google AI Studio — doğrudan Gemini (Cloud Functions yok). */
 export function getGeminiApiKey(): string {
   const fromExtra = Constants.expoConfig?.extra?.geminiApiKey as string | undefined;
   return (
@@ -122,7 +67,7 @@ export function getGeminiKeyIssue(): string | null {
 }
 
 export function isAiAvailable(): boolean {
-  return usesDirectGemini() || isAiApiConfigured();
+  return usesDirectGemini();
 }
 
 let geminiRuntime: AiRuntime | undefined;
@@ -141,8 +86,8 @@ export function getGeminiRuntime(): AiRuntime {
 }
 
 /**
- * Mobil: doğrudan Gemini — EXPO_PUBLIC_GEMINI_API_KEY varsa (gitignore .env).
- * Cloud Functions deploy edildiğinde anahtarı mobil .env'den kaldırın.
+ * Mobil: doğrudan Gemini — EXPO_PUBLIC_GEMINI_API_KEY (gitignore .env).
+ * Cloud Functions / astoApi kullanılmaz.
  */
 export function usesDirectGemini(): boolean {
   return isGeminiApiKey(getGeminiApiKey());

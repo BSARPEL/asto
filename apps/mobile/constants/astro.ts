@@ -3,20 +3,20 @@ import type { PlanetName, ZodiacSign } from '@asto/shared';
 import { PLANET_LABELS_TR } from '@asto/shared';
 import { colors } from './theme';
 
-/** Burç renkleri — kart vurguları ve pill arka planları */
+/** Burç renkleri — gece temasında okunaklı doygun tonlar */
 export const SIGN_COLORS: Record<ZodiacSign, string> = {
-  Koç: '#D4624F',
-  Boğa: '#5A9E78',
-  İkizler: '#4A9A94',
-  Yengeç: '#6B8FC9',
-  Aslan: '#D4A04A',
-  Başak: '#7DA85E',
-  Terazi: '#B87AAB',
-  Akrep: '#9A5DBF',
-  Yay: '#D4854A',
-  Oğlak: '#6B7FA0',
-  Kova: '#4A9FD4',
-  Balık: '#5A9DBF',
+  Koç: '#E87A68',
+  Boğa: '#6DB890',
+  İkizler: '#5EB8B0',
+  Yengeç: '#7BA3D9',
+  Aslan: '#E0B45A',
+  Başak: '#8FBF6E',
+  Terazi: '#C490B8',
+  Akrep: '#B07AD4',
+  Yay: '#E09A5A',
+  Oğlak: '#8A9BB8',
+  Kova: '#5AB0E0',
+  Balık: '#6AABB8',
 };
 
 export const SIGN_GLYPHS: Record<ZodiacSign, string> = {

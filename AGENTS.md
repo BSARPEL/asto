@@ -15,7 +15,7 @@ Kullanıcı doğum bilgisi girer → natal harita cihazda hesaplanır (Firestore
 | Katman | Env | Mobil modüller | Sorumluluk |
 |--------|-----|----------------|------------|
 | **Firebase** | `EXPO_PUBLIC_FIREBASE_*`, `EXPO_PUBLIC_DATA_BACKEND=firebase` | `firebase*.ts`, `birth-service.ts`, `auth.tsx`, `monetization.ts` | Auth, profil, harita kaydı, partner CRUD, önbellek, jeton |
-| **AI API** | `EXPO_PUBLIC_AI_API_URL` | `ai-api.ts`, `ai-service.ts` | Gemini: günlük öngörü, harita yorumu, soru-cevap, sinastri |
+| **AI API** | `EXPO_PUBLIC_GEMINI_API_KEY` (doğrudan Gemini) | `ai-direct.ts`, `ai-service.ts` | Gemini: günlük öngörü, harita yorumu, soru-cevap, sinastri — Cloud Functions yok |
 
 ## Hızlı harita
 

@@ -8,6 +8,7 @@ import {
   EmptyState,
   ErrorText,
   HeaderRow,
+  HeroCard,
   PlanetRow,
   PlanetTableHeader,
   PlusBadge,
@@ -18,6 +19,7 @@ import {
   SignTrio,
   Skeleton,
   TokenBadge,
+  TrustNote,
   tabScrollStyle,
 } from '@/components/ui';
 import { AstroGlyph } from '@/components/AstroGlyph';
@@ -174,9 +176,9 @@ export default function ChartScreen() {
         }
       >
         <HeaderRow
-          compact
-          eyebrow="Natal harita"
+          eyebrow="Natal harita · kesin hesap"
           title={profile?.displayName ?? 'Haritam'}
+          subtitle="Güneş, Ay ve yükselen — haritanın omurgası"
           right={
             <View style={styles.headerRight}>
               <TokenBadge compact balance={profile?.tokenBalance ?? 0} />
@@ -185,17 +187,20 @@ export default function ChartScreen() {
           }
         />
 
-        <Card compact>
-          <SectionTitle compact>Büyük üçlü</SectionTitle>
-          <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} compact />
-        </Card>
+        <HeroCard accent={colors.accent}>
+          <SectionTitle compact>Güneş · Ay · Yükselen</SectionTitle>
+          <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} />
+        </HeroCard>
 
         <ResponsiveSplit leading={planetsCard} trailing={anglesCard} />
 
         {narrative ? (
           <Card compact style={styles.narrativeCard}>
-            <SectionTitle compact>AI yorum{narrativeCached ? ' · kayıtlı' : ''}</SectionTitle>
+            <SectionTitle compact>
+              Harita yorumu{narrativeCached ? ' · kaydedildi' : ''}
+            </SectionTitle>
             <Body style={styles.narrativeBody}>{narrative}</Body>
+            <TrustNote>Yorum harita verine dayalıdır; kehanet değildir.</TrustNote>
           </Card>
         ) : loading ? (
           <Card compact>
@@ -206,7 +211,6 @@ export default function ChartScreen() {
         ) : null}
 
         <Button
-          compact
           label={narrativeLabel}
           onPress={() => onNarrative(Boolean(narrative))}
           loading={loading}

@@ -44,7 +44,7 @@ export default function LoginScreen() {
           <BrandMark size="lg" />
           <Title>Yıldızlara hoş geldin</Title>
           <Subtitle>
-            Haritana göre günlük öngörü ve ilişki yorumları için giriş yap.
+            Kişisel gökyüzü rehberin — natal harita, günlük öngörü ve sinastri.
           </Subtitle>
         </>
       ) : (

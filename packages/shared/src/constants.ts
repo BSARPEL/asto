@@ -1,4 +1,4 @@
-export const APP_NAME = 'Asto';
+export const APP_NAME = 'BN Astro';
 
 export const TOKEN_COSTS = {
   askQuestion: 1,

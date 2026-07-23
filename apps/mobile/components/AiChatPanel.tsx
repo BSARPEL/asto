@@ -36,7 +36,7 @@ function TypingBubble() {
       <SoftPulse>
         <ActivityIndicator size="small" color={colors.teal} />
       </SoftPulse>
-      <Text style={styles.typingText}>Asto yazıyor…</Text>
+      <Text style={styles.typingText}>BN Astro yazıyor…</Text>
     </Animated.View>
   );
 }

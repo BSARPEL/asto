@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /**
  * App Store / TestFlight archive öncesi doğrulama.
+ * AI: doğrudan Gemini (Cloud Functions gerekmez).
  */
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MOBILE_ENV_PATH, parseEnvFile } from './load-mobile-env.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PRODUCTION_AI_API_URL =
-  'https://europe-west1-bn-astro.cloudfunctions.net/astoApi/api';
 
 const env = parseEnvFile(MOBILE_ENV_PATH);
 let failed = false;
@@ -31,21 +30,16 @@ if (env.EXPO_PUBLIC_APP_ENV !== 'production') {
 }
 
 const geminiKey = (env.EXPO_PUBLIC_GEMINI_API_KEY || '').trim();
-const aiUrl = (env.EXPO_PUBLIC_AI_API_URL || PRODUCTION_AI_API_URL).trim();
+const geminiLooksValid =
+  /^AIza[\w-]{20,}/.test(geminiKey) || /^AQ\.[\w-]{20,}/.test(geminiKey);
 
-if (geminiKey) {
-  console.warn(
-    '⚠ EXPO_PUBLIC_GEMINI_API_KEY tanımlı — doğrudan Gemini (geçici). Cloud Functions deploy sonrası kaldırın.',
-  );
-  ok(`Doğrudan Gemini (${geminiKey.slice(0, 8)}…)`);
+if (!geminiKey) {
+  fail('EXPO_PUBLIC_GEMINI_API_KEY gerekli (doğrudan Gemini — Cloud Functions yok)');
+} else if (!geminiLooksValid) {
+  fail('EXPO_PUBLIC_GEMINI_API_KEY geçersiz format');
 } else {
-  ok('Mobilde Gemini anahtarı yok (Cloud Functions)');
-}
-
-if (!geminiKey && !aiUrl.startsWith('https://')) {
-  fail('EXPO_PUBLIC_AI_API_URL HTTPS olmalı veya EXPO_PUBLIC_GEMINI_API_KEY gerekli');
-} else if (!geminiKey) {
-  ok(`AI API: ${aiUrl}`);
+  console.warn('⚠ Gemini anahtarı mobil .env içinde — git\'e commit etmeyin.');
+  ok(`Doğrudan Gemini (${geminiKey.slice(0, 8)}…)`);
 }
 
 if (env.EXPO_PUBLIC_DATA_BACKEND !== 'firebase') {
@@ -61,8 +55,8 @@ if (!env.EXPO_PUBLIC_FIREBASE_API_KEY || !env.EXPO_PUBLIC_FIREBASE_APP_ID) {
 }
 
 if (failed) {
-  console.error('\nDüzeltme: cp apps/mobile/.env.production.example apps/mobile/.env');
-  console.error('Gemini anahtarı: packages/api/.env → npm run deploy:ai-api\n');
+  console.error('\nDüzeltme: apps/mobile/.env içine EXPO_PUBLIC_GEMINI_API_KEY ekleyin (gitignore).');
+  console.error('Anahtar: https://aistudio.google.com/apikey\n');
   process.exit(1);
 }
 

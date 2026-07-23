@@ -27,6 +27,7 @@ import {
   SectionTitle,
   Skeleton,
   TokenBadge,
+  TrustNote,
   tabScrollStyle,
 } from '@/components/ui';
 import { AstroGlyph } from '@/components/AstroGlyph';
@@ -206,7 +207,7 @@ export default function ForecastScreen() {
         <AstroGlyph planetKey="Moon" size="sm" color={colors.teal} />
         <View style={styles.dailyMeta}>
           <View style={styles.dailyTitleRow}>
-            <SectionTitle compact>Bugünün öngörüsü</SectionTitle>
+            <SectionTitle compact>Bugünün gökyüzü</SectionTitle>
             {isTodayReading && !loadingDaily ? (
               <Chip
                 label={readingCached ? 'Güncel' : 'Yeni'}
@@ -244,7 +245,10 @@ export default function ForecastScreen() {
           <Skeleton height={12} width="70%" />
         </View>
       ) : (
-        <Body muted>Bugünün öngörüsünü almak için aşağıdaki butona dokun. İlk öngörü gün içinde ücretsiz.</Body>
+        <Body muted>
+          Bugünün gökyüzünü natal haritanla birlikte okumak için öngörüyü aç. İlk öngörü gün içinde
+          ücretsiz.
+        </Body>
       )}
       <View style={styles.fetchBtn}>
         <Button
@@ -253,17 +257,21 @@ export default function ForecastScreen() {
           onPress={() => fetchDaily(isTodayReading)}
           loading={fetchingDaily}
           variant={isTodayReading ? 'ghost' : 'primary'}
-          icon="✦"
         />
       </View>
+      {isTodayReading && reading ? (
+        <TrustNote>
+          Günlük öngörü rehberliktir; harita verisine dayanır, kesin kehanet değildir.
+        </TrustNote>
+      ) : null}
     </Card>
   );
 
   const askCard = (
     <Card compact style={styles.chatCard}>
-      <SectionTitle compact>Sorunu sor</SectionTitle>
+      <SectionTitle compact>Haritana sor</SectionTitle>
       <Body muted style={styles.askHint}>
-        Günlük öngörüyle aynı sohbette devam eder.
+        Günlük öngörüyle aynı sohbette devam eder — soruların natal bağlama oturur.
       </Body>
       <View style={styles.chatHost}>
         <AiChatPanel
@@ -280,8 +288,8 @@ export default function ForecastScreen() {
               ? 'Haritana özel bir soru yaz…'
               : 'Haritana özel bir soru yaz… (1 jeton)'
           }
-          emptyTitle="Öngörü sohbeti"
-          emptyBody="Günlük öngörünle ilgili veya haritana dair sorularını buradan sorabilirsin."
+          emptyTitle="Harita sohbeti"
+          emptyBody="Günlük gökyüzü veya natal haritan hakkında sakin, net sorular sor."
         />
       </View>
     </Card>
@@ -301,9 +309,9 @@ export default function ForecastScreen() {
           }
         >
           <HeaderRow
-            compact
-            eyebrow="Günlük"
+            eyebrow="Transit · natal bağlam"
             title="Öngörü"
+            subtitle={todayLabel()}
             right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
           />
 

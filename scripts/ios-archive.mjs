@@ -52,36 +52,20 @@ console.log(`[ios-archive] workspace=${workspace} scheme=${scheme}`);
 const buildEnv = loadMobileEnv();
 const isProduction = buildEnv.EXPO_PUBLIC_APP_ENV === 'production';
 const geminiKey = (buildEnv.EXPO_PUBLIC_GEMINI_API_KEY || '').trim();
-const aiUrl = (buildEnv.EXPO_PUBLIC_AI_API_URL || '').trim();
+const geminiLooksValid =
+  /^AIza[\w-]{20,}/.test(geminiKey) || /^AQ\.[\w-]{20,}/.test(geminiKey);
 
-if (isProduction) {
-  if (geminiKey) {
-    const geminiLooksValid =
-      /^AIza[\w-]{20,}/.test(geminiKey) || /^AQ\.[\w-]{20,}/.test(geminiKey);
-    if (!geminiLooksValid) {
-      console.error('[ios-archive] HATA: EXPO_PUBLIC_GEMINI_API_KEY geçersiz format.');
-      process.exit(1);
-    }
-    console.warn(
-      `[ios-archive] UYARI: Doğrudan Gemini (${geminiKey.slice(0, 8)}…) — Cloud Functions deploy sonrası anahtarı kaldırın.`,
-    );
-  } else if (!aiUrl.startsWith('https://')) {
-    console.error('[ios-archive] HATA: Production için EXPO_PUBLIC_AI_API_URL (HTTPS) veya GEMINI_API_KEY gerekli.');
-    process.exit(1);
-  } else {
-    console.log(`[ios-archive] Production AI API: ${aiUrl}`);
-  }
-} else if (geminiKey) {
-  const geminiLooksValid =
-    /^AIza[\w-]{20,}/.test(geminiKey) || /^AQ\.[\w-]{20,}/.test(geminiKey);
-  if (!geminiLooksValid) {
-    console.error('[ios-archive] HATA: EXPO_PUBLIC_GEMINI_API_KEY geçersiz format.');
-    process.exit(1);
-  }
-  console.log(`[ios-archive] Dev: doğrudan Gemini (${geminiKey.slice(0, 8)}…)`);
-} else if (!aiUrl) {
-  console.warn('[ios-archive] UYARI: AI yapılandırılmamış (Gemini veya AI API URL yok).');
+if (!geminiKey || !geminiLooksValid) {
+  console.error(
+    '[ios-archive] HATA: EXPO_PUBLIC_GEMINI_API_KEY gerekli (doğrudan Gemini — Cloud Functions yok).',
+  );
+  process.exit(1);
 }
+
+console.log(
+  `[ios-archive] ${isProduction ? 'Production' : 'Dev'}: doğrudan Gemini (${geminiKey.slice(0, 8)}…)`,
+);
+console.warn('[ios-archive] Gemini anahtarını git\'e commit etmeyin.');
 
 const result = spawnSync(
   'xcodebuild',

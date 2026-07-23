@@ -16,7 +16,6 @@ import type { Conversation, Partner } from '@asto/shared';
 import { AiChatPanel } from '@/components/AiChatPanel';
 import { AiMarkdown } from '@/components/AiMarkdown';
 import { BirthForm } from '@/components/BirthForm';
-import { AstroGlyph } from '@/components/AstroGlyph';
 import {
   Avatar,
   Body,
@@ -32,11 +31,12 @@ import {
   ScoreBar,
   SectionTitle,
   SheetModal,
+  SynastryBond,
   TokenBadge,
+  TrustNote,
   tabScrollStyle,
   useLayout,
 } from '@/components/ui';
-import { signColor } from '@/constants/astro';
 import * as aiService from '@/lib/ai-service';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
@@ -75,6 +75,8 @@ function PartnerCard({
   active,
   loading,
   isSubscribed,
+  selfSun,
+  selfMoon,
   onSelect,
   onAnalyze,
   onEdit,
@@ -84,13 +86,13 @@ function PartnerCard({
   active: boolean;
   loading: boolean;
   isSubscribed: boolean;
+  selfSun?: string;
+  selfMoon?: string;
   onSelect: () => void;
   onAnalyze: (force: boolean) => void;
   onEdit: () => void;
   onOpenReading: () => void;
 }) {
-  const sunC = signColor(partner.natalChart.sunSign);
-  const moonC = signColor(partner.natalChart.moonSign);
   const hasAnalysis = Boolean(partner.analysis);
 
   return (
@@ -107,16 +109,14 @@ function PartnerCard({
               {partner.birth.birthDate} · {partner.birth.birthTime} ·{' '}
               {formatBirthPlace(partner.birth)}
             </Text>
-            <View style={styles.signRow}>
-              <View style={styles.signItem}>
-                <AstroGlyph planetKey="Sun" size="sm" color={sunC} />
-                <Text style={[styles.signText, { color: sunC }]}>{partner.natalChart.sunSign}</Text>
-              </View>
-              <View style={styles.signItem}>
-                <AstroGlyph planetKey="Moon" size="sm" color={moonC} />
-                <Text style={[styles.signText, { color: moonC }]}>{partner.natalChart.moonSign}</Text>
-              </View>
-            </View>
+            <SynastryBond
+              compact
+              selfSun={selfSun}
+              selfMoon={selfMoon}
+              partnerSun={partner.natalChart.sunSign}
+              partnerMoon={partner.natalChart.moonSign}
+              partnerName={partner.birth.name}
+            />
             {partner.synastryScore != null ? (
               <ScoreBar score={partner.synastryScore} compact />
             ) : (
@@ -134,73 +134,84 @@ function PartnerCard({
       </Pressable>
 
       <View style={styles.actions}>
+        {hasAnalysis ? (
+          <Button compact label="Yorumu aç" onPress={onOpenReading} variant="primary" />
+        ) : (
+          <Button
+            compact
+            label={analyzeLabel(isSubscribed, false)}
+            onPress={() => onAnalyze(false)}
+            loading={loading}
+            variant="primary"
+          />
+        )}
+        <View style={styles.actionSecondary}>
           {hasAnalysis ? (
             <Button
               compact
-              label="Yorumu ve sohbeti aç"
-              onPress={onOpenReading}
-              variant="primary"
-              icon="◉"
+              label={analyzeLabel(isSubscribed, true)}
+              onPress={() => onAnalyze(true)}
+              loading={loading}
+              variant="ghost"
             />
           ) : null}
-          <Button
-            compact
-            label={analyzeLabel(isSubscribed, hasAnalysis)}
-            onPress={() => onAnalyze(hasAnalysis)}
-            loading={loading}
-            variant={hasAnalysis ? 'ghost' : 'primary'}
-            icon="◎"
-          />
-          <Button compact label="Düzenle" variant="ghost" onPress={onEdit} icon="✎" />
+          <Button compact label="Düzenle" variant="ghost" onPress={onEdit} />
         </View>
+      </View>
     </Card>
   );
 }
 
-function HistoryCard({ partner, onOpen }: { partner: Partner; onOpen: () => void }) {
-  const sunC = signColor(partner.natalChart.sunSign);
-  const moonC = signColor(partner.natalChart.moonSign);
+function HistoryCard({
+  partner,
+  selfSun,
+  selfMoon,
+  onOpen,
+}: {
+  partner: Partner;
+  selfSun?: string;
+  selfMoon?: string;
+  onOpen: () => void;
+}) {
   const dateLabel = formatHistoryDate(partner.analysisAt ?? partner.createdAt);
   const preview = analysisPreview(partner.analysis);
 
   return (
     <Card compact elevated style={styles.historyCard}>
       <View style={styles.partnerTop}>
-          <Avatar name={partner.birth.name} size="sm" />
-          <View style={styles.partnerMain}>
-            <View style={styles.nameRow}>
-              <Text style={styles.name}>{partner.birth.name}</Text>
-              {dateLabel ? <Chip label={dateLabel} compact /> : null}
-            </View>
-            <Text style={styles.meta} numberOfLines={2}>
-              {partner.birth.birthDate} · {partner.birth.birthTime} ·{' '}
-              {formatBirthPlace(partner.birth)}
-            </Text>
-            <View style={styles.signRow}>
-              <View style={styles.signItem}>
-                <AstroGlyph planetKey="Sun" size="sm" color={sunC} />
-                <Text style={[styles.signText, { color: sunC }]}>{partner.natalChart.sunSign}</Text>
-              </View>
-              <View style={styles.signItem}>
-                <AstroGlyph planetKey="Moon" size="sm" color={moonC} />
-                <Text style={[styles.signText, { color: moonC }]}>{partner.natalChart.moonSign}</Text>
-              </View>
-            </View>
-            {partner.synastryScore != null ? (
-              <ScoreBar score={partner.synastryScore} compact />
-            ) : null}
-            {preview ? (
-              <Text style={styles.historyPreview} numberOfLines={3}>
-                {preview}
-                {partner.analysis && partner.analysis.length > preview.length ? '…' : ''}
-              </Text>
-            ) : null}
+        <Avatar name={partner.birth.name} size="sm" />
+        <View style={styles.partnerMain}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{partner.birth.name}</Text>
+            {dateLabel ? <Chip label={dateLabel} compact /> : null}
           </View>
+          <Text style={styles.meta} numberOfLines={2}>
+            {partner.birth.birthDate} · {partner.birth.birthTime} ·{' '}
+            {formatBirthPlace(partner.birth)}
+          </Text>
+          <SynastryBond
+            compact
+            selfSun={selfSun}
+            selfMoon={selfMoon}
+            partnerSun={partner.natalChart.sunSign}
+            partnerMoon={partner.natalChart.moonSign}
+            partnerName={partner.birth.name}
+          />
           {partner.synastryScore != null ? (
-            <ScoreBadge score={partner.synastryScore} compact />
+            <ScoreBar score={partner.synastryScore} compact />
+          ) : null}
+          {preview ? (
+            <Text style={styles.historyPreview} numberOfLines={3}>
+              {preview}
+              {partner.analysis && partner.analysis.length > preview.length ? '…' : ''}
+            </Text>
           ) : null}
         </View>
-      <Button compact label="Yorumu ve sohbeti aç" onPress={onOpen} icon="◉" />
+        {partner.synastryScore != null ? (
+          <ScoreBadge score={partner.synastryScore} compact />
+        ) : null}
+      </View>
+      <Button compact label="Yorumu aç" onPress={onOpen} variant="primary" />
     </Card>
   );
 }
@@ -281,7 +292,7 @@ export default function RelationshipScreen() {
     const inDetailView = view === 'detail' && Boolean(selected);
     navigation.setOptions({
       headerShown: true,
-      title: inDetailView ? selected!.birth.name : 'İlişki',
+      title: inDetailView ? selected!.birth.name : 'Sinastri',
       headerBackVisible: false,
       headerLeft: inDetailView
         ? () => (
@@ -450,8 +461,18 @@ export default function RelationshipScreen() {
     />
   ) : null;
 
+  const natalChart = profile?.natalChart;
+
   const analysisContent = selected?.analysis ? (
     <>
+      <SynastryBond
+        compact
+        selfSun={natalChart?.sunSign}
+        selfMoon={natalChart?.moonSign}
+        partnerSun={selected.natalChart.sunSign}
+        partnerMoon={selected.natalChart.moonSign}
+        partnerName={selected.birth.name}
+      />
       {selected.analysisAt || selected.createdAt ? (
         <Text style={styles.analysisDate}>
           {formatHistoryDate(selected.analysisAt ?? selected.createdAt)}
@@ -461,13 +482,15 @@ export default function RelationshipScreen() {
         <Text style={styles.scoreNote}>{selected.synastryScoreNote}</Text>
       ) : null}
       <AiMarkdown content={selected.analysis} compact />
+      <TrustNote>
+        Sinastri bir rehberliktir; ilişki dinamiklerini yansıtır, kesin yargı değildir.
+      </TrustNote>
       <Button
         compact
         label={analyzeLabel(profile?.isSubscribed ?? false, true)}
         onPress={() => analyze(selected, true)}
         loading={loadingId === selected.id}
         variant="ghost"
-        icon="◎"
       />
     </>
   ) : null;
@@ -499,7 +522,6 @@ export default function RelationshipScreen() {
               label={analyzeLabel(profile?.isSubscribed ?? false, false)}
               onPress={() => analyze(selected, false)}
               loading={loadingId === selected.id}
-              icon="◎"
             />
             <Button compact label="Listeye dön" variant="ghost" onPress={goBack} />
           </Card>
@@ -525,7 +547,6 @@ export default function RelationshipScreen() {
                     label="Düzenle"
                     variant="ghost"
                     onPress={() => openEdit(selected)}
-                    icon="✎"
                   />
                 </View>
                 {analysisContent}
@@ -560,7 +581,6 @@ export default function RelationshipScreen() {
                 label="Düzenle"
                 variant="ghost"
                 onPress={() => openEdit(selected)}
-                icon="✎"
               />
             </View>
             {analysisContent}
@@ -569,7 +589,6 @@ export default function RelationshipScreen() {
             compact
             label="Sohbete geç"
             onPress={() => setDetailTab('chat')}
-            icon="◉"
           />
         </ScrollView>
       );
@@ -631,9 +650,9 @@ export default function RelationshipScreen() {
         >
           <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
-          compact
-          eyebrow="Sinastri"
-          title="İlişki"
+          eyebrow="İki harita · bir bağ"
+          title="Sinastri"
+          subtitle="Güneş–Ay karşılaştırması ve ilişki dinamiği"
           right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
         />
 
@@ -658,12 +677,12 @@ export default function RelationshipScreen() {
           <Card compact accent={colors.teal} style={styles.addCard}>
             <View style={styles.addRow}>
               <View style={styles.addIcon}>
-                <Text style={styles.addIconGlyph}>◎</Text>
+                <Text style={styles.addIconGlyph}>☍</Text>
               </View>
               <View style={styles.addCopy}>
                 <Text style={styles.addTitle}>Partner ekle</Text>
                 <Text style={styles.addSubtitle}>
-                  Doğum bilgisiyle sinastri skoru ve AI ilişki yorumu al
+                  Doğum bilgisiyle iki haritayı yan yana oku
                 </Text>
               </View>
               <View style={styles.addPlus}>
@@ -678,9 +697,9 @@ export default function RelationshipScreen() {
         {partners.length === 0 ? (
           <EmptyState
             compact
-            title="Henüz partner yok"
-            body="Yukarıdaki karttan partner ekleyerek sinastri analizine başla."
-            glyph="◎"
+            title="Sinastriye hazır"
+            body="Partnerinin doğum bilgisini ekleyerek Güneş–Ay bağını ve ilişki yorumunu aç."
+            glyph="☍"
           />
         ) : (
           <>
@@ -695,6 +714,8 @@ export default function RelationshipScreen() {
                   active={selectedId === p.id}
                   loading={loadingId === p.id}
                   isSubscribed={profile?.isSubscribed ?? false}
+                  selfSun={natalChart?.sunSign}
+                  selfMoon={natalChart?.moonSign}
                   onSelect={() => setSelectedId(p.id)}
                   onAnalyze={(force) => analyze(p, force)}
                   onEdit={() => openEdit(p)}
@@ -707,23 +728,21 @@ export default function RelationshipScreen() {
 
         {selected && !selected.analysis && hubTab === 'partners' ? (
             <Card compact style={styles.promptCard}>
-              <SectionTitle compact>{selected.birth.name} için analiz</SectionTitle>
+              <SectionTitle compact>{selected.birth.name} için sinastri</SectionTitle>
               <Body muted style={styles.promptBody}>
-                Partner kaydedildi. Sinastri yorumunu almak için karttaki butona dokun.
+                Partner kaydedildi. İki haritayı karşılaştırıp ilişki dinamiğini okumak için yorumu aç.
               </Body>
               <Button
                 compact
                 label={analyzeLabel(profile?.isSubscribed ?? false, false)}
                 onPress={() => analyze(selected, false)}
                 loading={loadingId === selected.id}
-                icon="◎"
               />
               <Button
                 compact
                 label="Bilgileri düzenle"
                 variant="ghost"
                 onPress={() => openEdit(selected)}
-                icon="✎"
               />
             </Card>
         ) : null}
@@ -733,19 +752,24 @@ export default function RelationshipScreen() {
             compact
             title="Henüz sinastri geçmişi yok"
             body="Partner ekleyip sinastri yorumu aldığında yorumlar ve sohbetler burada listelenir."
-            glyph="◎"
+            glyph="☍"
           />
         ) : (
           <>
             <ErrorText>{error}</ErrorText>
             <SectionTitle compact>Sinastri geçmişi · {historyPartners.length}</SectionTitle>
             <Body muted style={styles.historyHint}>
-              Geçmiş yorumları açıp AI ile sohbet edebilirsin; doğum bilgilerin ve partner verileri
-              sohbete otomatik eklenir.
+              Geçmiş yorumları açıp ilişki dinamiği hakkında sorular sorabilirsin.
             </Body>
             <View style={styles.list}>
               {historyPartners.map((p) => (
-                <HistoryCard key={p.id} partner={p} onOpen={() => openDetail(p.id, 'history')} />
+                <HistoryCard
+                  key={p.id}
+                  partner={p}
+                  selfSun={natalChart?.sunSign}
+                  selfMoon={natalChart?.moonSign}
+                  onOpen={() => openDetail(p.id, 'history')}
+                />
               ))}
             </View>
           </>
@@ -946,21 +970,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: 6,
   },
-  signRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 6,
-  },
-  signItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  signText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-  },
   hint: {
     fontFamily: fonts.body,
     fontSize: 11,
@@ -984,6 +993,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   actions: { marginTop: 2, gap: 6 },
+  actionSecondary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    justifyContent: 'flex-end',
+  },
   analysisHeader: {
     flexDirection: 'row',
     alignItems: 'center',

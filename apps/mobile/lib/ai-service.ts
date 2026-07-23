@@ -1,7 +1,7 @@
 import type { BirthInput, Conversation, DailyReading, Partner, Profile } from '@asto/shared';
-import { aiApi, aiApiUnavailableMessage, AiApiError } from './ai-api';
+import { AiApiError } from './ai-api';
 import * as directAi from './ai-direct';
-import { IS_PRODUCTION, isAiApiConfigured, usesDirectGemini } from './config';
+import { usesDirectGemini } from './config';
 import {
   firebaseAddPartner,
   firebaseGetConversation,
@@ -11,21 +11,18 @@ import {
 } from './firebase-data';
 import { localTodayKey } from './dates';
 
-export { AiApiError, aiApiUnavailableMessage };
+export { AiApiError };
+
+export function aiApiUnavailableMessage(): string {
+  return 'AI yapılandırılmamış. apps/mobile/.env içinde EXPO_PUBLIC_GEMINI_API_KEY gerekli (git\'e commit etmeyin).';
+}
 
 /**
- * AI katmanı:
- * 1. Doğrudan Gemini — EXPO_PUBLIC_GEMINI_API_KEY (yerel .env, gitignore)
- * 2. HTTPS AI API — Cloud Functions (deploy:ai-api)
+ * AI katmanı: doğrudan Google Gemini (Cloud Functions / astoApi yok).
  */
 
 function aiUnavailable(): never {
-  throw new AiApiError(
-    IS_PRODUCTION
-      ? 'AI yapılandırılmamış. EXPO_PUBLIC_AI_API_URL gerekli — npm run deploy:ai-api'
-      : 'AI yapılandırılmamış. Yerel: npm run api veya EXPO_PUBLIC_GEMINI_API_KEY (git\'e commit etmeyin).',
-    0,
-  );
+  throw new AiApiError(aiApiUnavailableMessage(), 0);
 }
 
 export async function loadCachedDailyReading(
@@ -49,15 +46,13 @@ export async function loadCachedDailyReading(
 }
 
 export async function generateDailyReading(_firebaseIdToken: string, force = false) {
-  if (usesDirectGemini()) return directAi.directGenerateDailyReading(force);
-  if (isAiApiConfigured()) return aiApi.generateDailyReading(_firebaseIdToken, force);
-  aiUnavailable();
+  if (!usesDirectGemini()) aiUnavailable();
+  return directAi.directGenerateDailyReading(force);
 }
 
 export async function generateChartNarrative(_firebaseIdToken: string, force = false) {
-  if (usesDirectGemini()) return directAi.directGenerateChartNarrative(force);
-  if (isAiApiConfigured()) return aiApi.chartNarrative(_firebaseIdToken, force);
-  aiUnavailable();
+  if (!usesDirectGemini()) aiUnavailable();
+  return directAi.directGenerateChartNarrative(force);
 }
 
 export async function askDailyQuestion(
@@ -65,9 +60,8 @@ export async function askDailyQuestion(
   question: string,
   conversationId?: string,
 ) {
-  if (usesDirectGemini()) return directAi.directAskDailyQuestion(question, conversationId);
-  if (isAiApiConfigured()) return aiApi.ask(_firebaseIdToken, question, conversationId);
-  aiUnavailable();
+  if (!usesDirectGemini()) aiUnavailable();
+  return directAi.directAskDailyQuestion(question, conversationId);
 }
 
 export async function listPartners(userId: string) {
@@ -89,16 +83,14 @@ export async function loadPartnerConversation(userId: string, partner: Partner) 
   if (usesDirectGemini()) {
     return directAi.directLoadPartnerReading(partner.id);
   }
-  // Offline-friendly fallback: list path already has partner; only fetch conversation
   if (!partner.conversationId) return { partner, conversation: null as Conversation | null };
   const conversation = await firebaseGetConversation(partner.conversationId, userId);
   return { partner, conversation };
 }
 
 export async function analyzePartner(_firebaseIdToken: string, partnerId: string, force = false) {
-  if (usesDirectGemini()) return directAi.directAnalyzePartner(partnerId, force);
-  if (isAiApiConfigured()) return aiApi.analyzePartner(_firebaseIdToken, partnerId, force);
-  aiUnavailable();
+  if (!usesDirectGemini()) aiUnavailable();
+  return directAi.directAnalyzePartner(partnerId, force);
 }
 
 export async function askPartnerQuestion(
@@ -107,11 +99,8 @@ export async function askPartnerQuestion(
   question: string,
   conversationId?: string,
 ) {
-  if (usesDirectGemini()) {
-    return directAi.directAskPartnerQuestion(partnerId, question, conversationId);
-  }
-  if (isAiApiConfigured()) return aiApi.askPartner(_firebaseIdToken, partnerId, question, conversationId);
-  aiUnavailable();
+  if (!usesDirectGemini()) aiUnavailable();
+  return directAi.directAskPartnerQuestion(partnerId, question, conversationId);
 }
 
 export function mergeProfile(current: Profile | null, next: Profile): Profile {
