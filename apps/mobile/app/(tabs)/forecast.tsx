@@ -263,8 +263,7 @@ export default function ForecastScreen() {
     <Card compact style={styles.chatCard}>
       <SectionTitle compact>Sorunu sor</SectionTitle>
       <Body muted style={styles.askHint}>
-        Günlük öngörüyle aynı sohbette devam eder. Yanıt gelene kadar mesajın ve “Asto yazıyor…”
-        göstergesi görünür.
+        Günlük öngörüyle aynı sohbette devam eder.
       </Body>
       <View style={styles.chatHost}>
         <AiChatPanel
@@ -344,10 +343,13 @@ const styles = StyleSheet.create({
   themes: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, width: '100%' },
   fetchBtn: { marginTop: 10 },
   askHint: { fontSize: 13, marginBottom: 6 },
-  chatCard: { marginBottom: spacing.sm },
+  chatCard: {
+    marginBottom: spacing.sm,
+    overflow: 'hidden',
+  },
   chatHost: {
-    height: 420,
-    minHeight: 320,
+    height: 380,
+    minHeight: 300,
     marginTop: spacing.xs,
   },
   skeletons: { gap: 6 },

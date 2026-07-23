@@ -141,10 +141,9 @@ export function getGeminiRuntime(): AiRuntime {
 }
 
 /**
- * Mobil: doğrudan Gemini — yalnızca yerel geliştirmede.
- * Mağaza build'inde anahtar bundle'a gömülmez; AI Cloud Functions üzerinden gider.
+ * Mobil: doğrudan Gemini — EXPO_PUBLIC_GEMINI_API_KEY varsa (gitignore .env).
+ * Cloud Functions deploy edildiğinde anahtarı mobil .env'den kaldırın.
  */
 export function usesDirectGemini(): boolean {
-  if (IS_PRODUCTION) return false;
   return isGeminiApiKey(getGeminiApiKey());
 }

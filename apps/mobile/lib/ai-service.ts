@@ -15,9 +15,8 @@ export { AiApiError, aiApiUnavailableMessage };
 
 /**
  * AI katmanı:
- * - Production: HTTPS AI API (Cloud Functions + sunucu GEMINI_API_KEY)
- * - Development: doğrudan Gemini (opsiyonel) veya yerel AI API
- * Firebase = yalnızca veri (profil, harita, jeton, önbellek)
+ * 1. Doğrudan Gemini — EXPO_PUBLIC_GEMINI_API_KEY (yerel .env, gitignore)
+ * 2. HTTPS AI API — Cloud Functions (deploy:ai-api)
  */
 
 function aiUnavailable(): never {

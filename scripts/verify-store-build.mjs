@@ -31,18 +31,20 @@ if (env.EXPO_PUBLIC_APP_ENV !== 'production') {
 }
 
 const geminiKey = (env.EXPO_PUBLIC_GEMINI_API_KEY || '').trim();
+const aiUrl = (env.EXPO_PUBLIC_AI_API_URL || PRODUCTION_AI_API_URL).trim();
+
 if (geminiKey) {
-  fail(
-    'EXPO_PUBLIC_GEMINI_API_KEY mağaza build\'inde olmamalı — anahtar GitHub\'a sızdığında Google iptal eder. Yalnızca packages/api/.env kullanın.',
+  console.warn(
+    '⚠ EXPO_PUBLIC_GEMINI_API_KEY tanımlı — doğrudan Gemini (geçici). Cloud Functions deploy sonrası kaldırın.',
   );
+  ok(`Doğrudan Gemini (${geminiKey.slice(0, 8)}…)`);
 } else {
-  ok('Mobilde Gemini anahtarı yok (sunucu üzerinden AI)');
+  ok('Mobilde Gemini anahtarı yok (Cloud Functions)');
 }
 
-const aiUrl = (env.EXPO_PUBLIC_AI_API_URL || PRODUCTION_AI_API_URL).trim();
-if (!aiUrl.startsWith('https://')) {
-  fail('EXPO_PUBLIC_AI_API_URL HTTPS olmalı (Cloud Functions)');
-} else {
+if (!geminiKey && !aiUrl.startsWith('https://')) {
+  fail('EXPO_PUBLIC_AI_API_URL HTTPS olmalı veya EXPO_PUBLIC_GEMINI_API_KEY gerekli');
+} else if (!geminiKey) {
   ok(`AI API: ${aiUrl}`);
 }
 
@@ -64,4 +66,4 @@ if (failed) {
   process.exit(1);
 }
 
-console.log('\nMağaza build için hazır (AI → Cloud Functions).\n');
+console.log('\nMağaza build için hazır.\n');

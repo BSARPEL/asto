@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TOKEN_COSTS, formatBirthPlace, type BirthInput } from '@asto/shared';
 import type { Conversation, Partner } from '@asto/shared';
 import { AiChatPanel } from '@/components/AiChatPanel';
@@ -31,7 +32,6 @@ import {
   ScoreBar,
   SectionTitle,
   SheetModal,
-  Skeleton,
   TokenBadge,
   tabScrollStyle,
   useLayout,
@@ -94,8 +94,8 @@ function PartnerCard({
   const hasAnalysis = Boolean(partner.analysis);
 
   return (
-    <Pressable onPress={onSelect}>
-      <Card compact elevated={active} accent={active ? colors.teal : undefined} style={active ? styles.cardActive : undefined}>
+    <Card compact elevated={active} accent={active ? colors.teal : undefined} style={active ? styles.cardActive : undefined}>
+      <Pressable onPress={onSelect}>
         <View style={styles.partnerTop}>
           <Avatar name={partner.birth.name} size="sm" />
           <View style={styles.partnerMain}>
@@ -131,8 +131,9 @@ function PartnerCard({
             </View>
           )}
         </View>
+      </Pressable>
 
-        <View style={styles.actions}>
+      <View style={styles.actions}>
           {hasAnalysis ? (
             <Button
               compact
@@ -152,8 +153,7 @@ function PartnerCard({
           />
           <Button compact label="Düzenle" variant="ghost" onPress={onEdit} icon="✎" />
         </View>
-      </Card>
-    </Pressable>
+    </Card>
   );
 }
 
@@ -164,9 +164,8 @@ function HistoryCard({ partner, onOpen }: { partner: Partner; onOpen: () => void
   const preview = analysisPreview(partner.analysis);
 
   return (
-    <Pressable onPress={onOpen}>
-      <Card compact elevated style={styles.historyCard}>
-        <View style={styles.partnerTop}>
+    <Card compact elevated style={styles.historyCard}>
+      <View style={styles.partnerTop}>
           <Avatar name={partner.birth.name} size="sm" />
           <View style={styles.partnerMain}>
             <View style={styles.nameRow}>
@@ -201,15 +200,15 @@ function HistoryCard({ partner, onOpen }: { partner: Partner; onOpen: () => void
             <ScoreBadge score={partner.synastryScore} compact />
           ) : null}
         </View>
-        <Button compact label="Yorumu ve sohbeti aç" onPress={onOpen} icon="◉" />
-      </Card>
-    </Pressable>
+      <Button compact label="Yorumu ve sohbeti aç" onPress={onOpen} icon="◉" />
+    </Card>
   );
 }
 
 export default function RelationshipScreen() {
   const { token, profile, setProfile } = useAuth();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { isSplitLayout, gutter } = useLayout();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -255,6 +254,9 @@ export default function RelationshipScreen() {
     if (from === 'history') setHubTab('history');
     setDetailTab('analysis');
     setError(null);
+    setQuestion('');
+    setPendingQuestion('');
+    setConversation(null);
     setView('detail');
   };
 
@@ -290,13 +292,28 @@ export default function RelationshipScreen() {
       return;
     }
 
-    let cancelled = false;
-    setLoadingConversation(true);
-    setError(null);
-
     const partnerHint = partnersRef.current.find((p) => p.id === selectedId);
+    if (!partnerHint?.analysis) {
+      setLoadingConversation(false);
+      return;
+    }
+
+    const needsLoad =
+      !conversation ||
+      (partnerHint.conversationId
+        ? conversation.id !== partnerHint.conversationId
+        : conversation.messages.length === 0);
+
+    let cancelled = false;
+    if (needsLoad) {
+      setLoadingConversation(true);
+      setError(null);
+    } else {
+      return;
+    }
+
     aiService
-      .loadPartnerConversation(profile.id, partnerHint ?? ({ id: selectedId } as Partner))
+      .loadPartnerConversation(profile.id, partnerHint)
       .then((res) => {
         if (cancelled) return;
         setPartners((prev) => {
@@ -306,7 +323,6 @@ export default function RelationshipScreen() {
         });
         setConversation(res.conversation);
         if (!res.partner.analysis) {
-          setView('hub');
           setError('Bu partner için kayıtlı sinastri yorumu bulunamadı.');
         }
       })
@@ -390,24 +406,27 @@ export default function RelationshipScreen() {
 
   const inDetail = view === 'detail';
   const messageCount = conversation?.messages?.length ?? 0;
+  const keyboardOffset = Platform.OS === 'ios' ? (inDetail ? insets.top + 8 : insets.top + 56) : 0;
 
-  const analysisCard = selected?.analysis ? (
-    <Card compact accent={colors.teal} style={styles.analysisCard}>
-      <View style={styles.analysisHeader}>
-        <SectionTitle compact>Sinastri yorumu</SectionTitle>
-        <View style={styles.analysisHeaderRight}>
-          {selected.synastryScore != null ? (
-            <Chip label={`${selected.synastryScore}/100`} active compact />
-          ) : null}
-          <Button
-            compact
-            label="Düzenle"
-            variant="ghost"
-            onPress={() => openEdit(selected)}
-            icon="✎"
-          />
-        </View>
-      </View>
+  const chatPanel = selected ? (
+    <AiChatPanel
+      messages={conversation?.messages ?? []}
+      loading={loadingConversation}
+      asking={asking}
+      pendingUserText={pendingQuestion}
+      value={question}
+      onChangeText={setQuestion}
+      onSend={() => ask(question)}
+      suggestions={SYNASTRY_SUGGESTIONS}
+      onSuggestion={ask}
+      placeholder="Sinastri hakkında mesaj yaz…"
+      emptyTitle="Sinastri sohbeti"
+      emptyBody={`${selected.birth.name} ile ilişkinize dair sorularını sor.`}
+    />
+  ) : null;
+
+  const analysisContent = selected?.analysis ? (
+    <>
       {selected.analysisAt || selected.createdAt ? (
         <Text style={styles.analysisDate}>
           {formatHistoryDate(selected.analysisAt ?? selected.createdAt)}
@@ -425,39 +444,11 @@ export default function RelationshipScreen() {
         variant="ghost"
         icon="◎"
       />
-    </Card>
-  ) : null;
-
-  const chatCard = selected ? (
-    <Card compact style={styles.chatCard}>
-      <SectionTitle compact>
-        Sinastri sohbeti{messageCount > 0 ? ` · ${messageCount}` : ''}
-      </SectionTitle>
-      <View style={styles.chatHost}>
-        <AiChatPanel
-          messages={conversation?.messages ?? []}
-          loading={loadingConversation}
-          asking={asking}
-          pendingUserText={pendingQuestion}
-          value={question}
-          onChangeText={setQuestion}
-          onSend={() => ask(question)}
-          suggestions={SYNASTRY_SUGGESTIONS}
-          onSuggestion={ask}
-          placeholder="Sinastri hakkında mesaj yaz…"
-          emptyTitle="Sinastri sohbeti"
-          emptyBody={`${selected.birth.name} ile ilişkinize dair sorularını sor. Doğum bilgileriniz, partner bilgileri ve sinastri yorumu sohbete dahil edilir.`}
-        />
-      </View>
-    </Card>
+    </>
   ) : null;
 
   const synastryDetailView = (
     <View style={[styles.detailRoot, { paddingHorizontal: gutter }]}>
-      <Pressable onPress={goBack} style={styles.backRow} hitSlop={8}>
-        <Text style={styles.backText}>← Geri</Text>
-      </Pressable>
-
       {!selected ? (
         <View style={styles.detailLoading}>
           <ActivityIndicator color={colors.teal} />
@@ -465,110 +456,126 @@ export default function RelationshipScreen() {
         </View>
       ) : (
         <>
-          <HeaderRow
-            compact
-            eyebrow="Sinastri"
-            title={selected.birth.name}
-            subtitle={`${selected.birth.birthDate} · ${formatBirthPlace(selected.birth)}`}
-            right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
-          />
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.partnerStrip}
-            keyboardShouldPersistTaps="handled"
-          >
-            {partners.map((p) => (
-              <Chip
-                key={p.id}
-                label={p.birth.name}
-                active={selectedId === p.id}
-                onPress={() => {
-                  setSelectedId(p.id);
-                  setDetailTab('analysis');
-                  if (!p.analysis) setView('hub');
-                }}
-                compact
-              />
-            ))}
-            <Chip
-              label="+ Partner"
-              onPress={() => {
-                goBack();
-                setEditingPartner(null);
-                setShowForm(true);
-              }}
-              compact
-            />
-          </ScrollView>
+          <View style={styles.detailTopBar}>
+            <Pressable onPress={goBack} style={styles.backBtn} hitSlop={8}>
+              <Text style={styles.backText}>← Geri</Text>
+            </Pressable>
+            <View style={styles.detailTopMain}>
+              <Text style={styles.detailTopName} numberOfLines={1}>
+                {selected.birth.name}
+              </Text>
+              <Text style={styles.detailTopMeta} numberOfLines={1}>
+                {selected.birth.birthDate} · {formatBirthPlace(selected.birth)}
+              </Text>
+            </View>
+            {selected.synastryScore != null ? (
+              <ScoreBadge score={selected.synastryScore} compact />
+            ) : null}
+          </View>
 
           <ErrorText>{error}</ErrorText>
 
-          {loadingConversation && !selected.analysis ? (
-            <View style={styles.detailLoading}>
-              <Skeleton height={120} />
-              <Skeleton height={80} />
-            </View>
-          ) : !selected.analysis ? (
+          {!selected.analysis ? (
             <Card compact style={styles.promptCard}>
               <SectionTitle compact>Sinastri yorumu yok</SectionTitle>
               <Body muted style={styles.promptBody}>
-                Bu partner için kayıtlı yorum bulunamadı. Listeye dönüp analiz alabilirsin.
+                Bu partner için kayıtlı yorum bulunamadı.
               </Body>
-              <Button compact label="Listeye dön" onPress={goBack} />
+              <Button
+                compact
+                label={analyzeLabel(profile?.isSubscribed ?? false, false)}
+                onPress={() => analyze(selected, false)}
+                loading={loadingId === selected.id}
+                icon="◎"
+              />
+              <Button compact label="Listeye dön" variant="ghost" onPress={goBack} />
             </Card>
+          ) : isSplitLayout ? (
+            <View style={styles.detailBody}>
+              <View style={styles.detailSplit}>
+                <View style={styles.detailSplitCol}>
+                  <ScrollView
+                    style={styles.flex}
+                    contentContainerStyle={styles.analysisScrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator
+                  >
+                    <Card compact accent={colors.teal}>
+                      <View style={styles.analysisHeader}>
+                        <SectionTitle compact>Sinastri yorumu</SectionTitle>
+                        <Button
+                          compact
+                          label="Düzenle"
+                          variant="ghost"
+                          onPress={() => openEdit(selected)}
+                          icon="✎"
+                        />
+                      </View>
+                      {analysisContent}
+                    </Card>
+                  </ScrollView>
+                </View>
+                <View style={styles.detailSplitCol}>
+                  <View style={styles.chatShell}>
+                    <Text style={styles.chatShellTitle}>
+                      Sohbet{messageCount > 0 ? ` · ${messageCount}` : ''}
+                    </Text>
+                    <View style={styles.chatShellBody}>{chatPanel}</View>
+                  </View>
+                </View>
+              </View>
+            </View>
           ) : (
             <>
-              {!isSplitLayout ? (
-                <View style={styles.detailTabs}>
-                  <Chip
-                    label="Yorum"
-                    active={detailTab === 'analysis'}
-                    onPress={() => setDetailTab('analysis')}
-                    compact
-                  />
-                  <Chip
-                    label={messageCount > 0 ? `Sohbet (${messageCount})` : 'Sohbet'}
-                    active={detailTab === 'chat'}
-                    onPress={() => setDetailTab('chat')}
-                    compact
-                  />
-                </View>
-              ) : null}
+              <View style={styles.detailTabs}>
+                <Chip
+                  label="Yorum"
+                  active={detailTab === 'analysis'}
+                  onPress={() => setDetailTab('analysis')}
+                  compact
+                />
+                <Chip
+                  label={messageCount > 0 ? `Sohbet (${messageCount})` : 'Sohbet'}
+                  active={detailTab === 'chat'}
+                  onPress={() => setDetailTab('chat')}
+                  compact
+                />
+              </View>
 
-              {isSplitLayout ? (
-                <View style={styles.detailSplit}>
-                  <View style={styles.detailSplitCol}>
-                    <ScrollView
-                      style={styles.flex}
-                      contentContainerStyle={styles.analysisScrollContent}
-                      keyboardShouldPersistTaps="handled"
-                      showsVerticalScrollIndicator
-                    >
-                      {analysisCard}
-                    </ScrollView>
+              <View style={styles.detailBody}>
+                {detailTab === 'analysis' ? (
+                  <ScrollView
+                    style={styles.flex}
+                    contentContainerStyle={styles.analysisScrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator
+                  >
+                    <Card compact accent={colors.teal}>
+                      <View style={styles.analysisHeader}>
+                        <SectionTitle compact>Sinastri yorumu</SectionTitle>
+                        <Button
+                          compact
+                          label="Düzenle"
+                          variant="ghost"
+                          onPress={() => openEdit(selected)}
+                          icon="✎"
+                        />
+                      </View>
+                      {analysisContent}
+                    </Card>
+                    <Button
+                      compact
+                      label="Sohbete geç"
+                      onPress={() => setDetailTab('chat')}
+                      icon="◉"
+                    />
+                  </ScrollView>
+                ) : (
+                  <View style={styles.chatShell}>
+                    <View style={styles.chatShellBody}>{chatPanel}</View>
                   </View>
-                  <View style={styles.detailSplitCol}>{chatCard}</View>
-                </View>
-              ) : detailTab === 'analysis' ? (
-                <ScrollView
-                  style={styles.flex}
-                  contentContainerStyle={styles.analysisScrollContent}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator
-                >
-                  {analysisCard}
-                  <Button
-                    compact
-                    label="Sohbete geç"
-                    onPress={() => setDetailTab('chat')}
-                    icon="◉"
-                  />
-                </ScrollView>
-              ) : (
-                <View style={styles.chatPane}>{chatCard}</View>
-              )}
+                )}
+              </View>
             </>
           )}
         </>
@@ -581,7 +588,7 @@ export default function RelationshipScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+        keyboardVerticalOffset={keyboardOffset}
       >
         {inDetail ? (
           synastryDetailView
@@ -738,13 +745,42 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     width: '100%',
-    paddingBottom: spacing.sm,
+  },
+  detailTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: spacing.sm,
+    flexShrink: 0,
+  },
+  backBtn: {
+    flexShrink: 0,
+  },
+  detailTopMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  detailTopName: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 17,
+    color: colors.text,
+  },
+  detailTopMeta: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  detailBody: {
+    flex: 1,
+    minHeight: 0,
   },
   detailTabs: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
     marginBottom: spacing.sm,
+    flexShrink: 0,
   },
   detailSplit: {
     flex: 1,
@@ -757,7 +793,26 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: 0,
   },
-  chatPane: {
+  chatShell: {
+    flex: 1,
+    minHeight: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.bgElevated,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  chatShellTitle: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    color: colors.text,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    flexShrink: 0,
+  },
+  chatShellBody: {
     flex: 1,
     minHeight: 0,
   },
@@ -765,29 +820,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     gap: spacing.sm,
   },
-  partnerStrip: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingBottom: spacing.sm,
-    paddingRight: spacing.sm,
-  },
-  analysisCard: {
-    marginBottom: spacing.sm,
-  },
   analysisDate: {
     fontFamily: fonts.body,
     fontSize: 11,
     color: colors.textMuted,
     marginBottom: spacing.xs,
-  },
-  chatCard: {
-    flex: 1,
-    minHeight: 0,
-  },
-  chatHost: {
-    flex: 1,
-    minHeight: 280,
-    marginTop: spacing.xs,
   },
   addCard: {
     marginBottom: spacing.sm,
@@ -943,9 +980,17 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: spacing.sm,
   },
-  backRow: {
-    alignSelf: 'flex-start',
-    marginBottom: spacing.xs,
+  detailLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+  },
+  detailLoadingText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.textMuted,
   },
   backText: {
     fontFamily: fonts.bodySemi,

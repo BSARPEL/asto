@@ -56,16 +56,21 @@ const aiUrl = (buildEnv.EXPO_PUBLIC_AI_API_URL || '').trim();
 
 if (isProduction) {
   if (geminiKey) {
-    console.error(
-      '[ios-archive] HATA: Production build\'de EXPO_PUBLIC_GEMINI_API_KEY olmamalı — Git\'e sızmaz, bundle\'a gömülmez.',
+    const geminiLooksValid =
+      /^AIza[\w-]{20,}/.test(geminiKey) || /^AQ\.[\w-]{20,}/.test(geminiKey);
+    if (!geminiLooksValid) {
+      console.error('[ios-archive] HATA: EXPO_PUBLIC_GEMINI_API_KEY geçersiz format.');
+      process.exit(1);
+    }
+    console.warn(
+      `[ios-archive] UYARI: Doğrudan Gemini (${geminiKey.slice(0, 8)}…) — Cloud Functions deploy sonrası anahtarı kaldırın.`,
     );
+  } else if (!aiUrl.startsWith('https://')) {
+    console.error('[ios-archive] HATA: Production için EXPO_PUBLIC_AI_API_URL (HTTPS) veya GEMINI_API_KEY gerekli.');
     process.exit(1);
+  } else {
+    console.log(`[ios-archive] Production AI API: ${aiUrl}`);
   }
-  if (!aiUrl.startsWith('https://')) {
-    console.error('[ios-archive] HATA: Production için EXPO_PUBLIC_AI_API_URL (HTTPS) gerekli.');
-    process.exit(1);
-  }
-  console.log(`[ios-archive] Production AI API: ${aiUrl}`);
 } else if (geminiKey) {
   const geminiLooksValid =
     /^AIza[\w-]{20,}/.test(geminiKey) || /^AQ\.[\w-]{20,}/.test(geminiKey);

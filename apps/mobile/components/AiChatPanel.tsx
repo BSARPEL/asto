@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import type { ChatMessage } from '@asto/shared';
-import { Chip, MessageBubble } from '@/components/ui';
+import { MessageBubble } from '@/components/ui';
 import { FadeIn, SoftPulse, enterChatAssistant } from '@/components/motion';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
 import Animated from 'react-native-reanimated';
@@ -73,6 +73,9 @@ export function AiChatPanel({
     ];
   }, [messages, pendingUserText, asking]);
 
+  const showEmpty = displayMessages.length === 0 && !asking && !loading;
+  const showSuggestions = showEmpty && suggestions.length > 0;
+
   useEffect(() => {
     if (displayMessages.length === 0 && !asking) return;
     const timer = setTimeout(() => {
@@ -81,6 +84,11 @@ export function AiChatPanel({
     return () => clearTimeout(timer);
   }, [displayMessages.length, asking, displayMessages[displayMessages.length - 1]?.id]);
 
+  const handleSuggestion = (text: string) => {
+    if (asking || loading) return;
+    onSuggestion?.(text);
+  };
+
   return (
     <View style={styles.root}>
       <ScrollView
@@ -88,7 +96,7 @@ export function AiChatPanel({
         style={styles.messages}
         contentContainerStyle={[
           styles.messagesContent,
-          displayMessages.length === 0 && !asking && !loading ? styles.messagesEmpty : null,
+          showEmpty ? styles.messagesEmpty : styles.messagesFilled,
         ]}
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
@@ -99,16 +107,25 @@ export function AiChatPanel({
             <ActivityIndicator color={colors.teal} />
             <Text style={styles.loadingText}>Sohbet yükleniyor…</Text>
           </View>
-        ) : displayMessages.length === 0 && !asking ? (
+        ) : showEmpty ? (
           <FadeIn from="up">
             <View style={styles.empty}>
               <Text style={styles.emptyGlyph}>✦</Text>
               <Text style={styles.emptyTitle}>{emptyTitle}</Text>
               <Text style={styles.emptyBody}>{emptyBody}</Text>
-              {suggestions.length > 0 ? (
-                <View style={styles.suggestionWrap}>
+              {showSuggestions ? (
+                <View style={styles.suggestionList}>
                   {suggestions.map((s) => (
-                    <Chip key={s} label={s} onPress={() => onSuggestion?.(s)} compact />
+                    <Pressable
+                      key={s}
+                      onPress={() => handleSuggestion(s)}
+                      style={({ pressed }) => [
+                        styles.suggestionBtn,
+                        pressed && styles.suggestionBtnPressed,
+                      ]}
+                    >
+                      <Text style={styles.suggestionText}>{s}</Text>
+                    </Pressable>
                   ))}
                 </View>
               ) : null}
@@ -128,19 +145,6 @@ export function AiChatPanel({
           </>
         )}
       </ScrollView>
-
-      {displayMessages.length > 0 && suggestions.length > 0 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.suggestionStrip}
-          keyboardShouldPersistTaps="handled"
-        >
-          {suggestions.map((s) => (
-            <Chip key={s} label={s} onPress={() => onSuggestion?.(s)} compact />
-          ))}
-        </ScrollView>
-      ) : null}
 
       <View style={styles.composer}>
         <TextInput
@@ -179,6 +183,7 @@ const styles = StyleSheet.create({
     minHeight: 0,
     width: '100%',
     maxWidth: '100%',
+    overflow: 'hidden',
   },
   messages: {
     flex: 1,
@@ -186,11 +191,16 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     paddingVertical: spacing.xs,
-    gap: 4,
+    gap: 6,
   },
   messagesEmpty: {
     flexGrow: 1,
     justifyContent: 'center',
+  },
+  messagesFilled: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    paddingBottom: spacing.xs,
   },
   centered: {
     alignItems: 'center',
@@ -209,8 +219,9 @@ const styles = StyleSheet.create({
   },
   empty: {
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
+    width: '100%',
   },
   emptyGlyph: {
     fontSize: 22,
@@ -232,17 +243,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
-  suggestionWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
+  suggestionList: {
+    width: '100%',
+    gap: 8,
     marginTop: spacing.xs,
   },
-  suggestionStrip: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingBottom: spacing.xs,
+  suggestionBtn: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.bgSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  suggestionBtnPressed: {
+    backgroundColor: colors.tealDim,
+    borderColor: 'rgba(61, 154, 148, 0.35)',
+  },
+  suggestionText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.text,
+    textAlign: 'left',
   },
   typingBubble: {
     alignSelf: 'flex-start',
@@ -256,7 +280,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radii.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    maxWidth: '70%',
+    maxWidth: '85%',
   },
   typingText: {
     fontFamily: fonts.body,
@@ -264,6 +288,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   composer: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
@@ -271,12 +296,13 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingTop: spacing.sm,
     marginTop: spacing.xs,
+    backgroundColor: colors.bgElevated,
   },
   input: {
     flex: 1,
     minWidth: 0,
     minHeight: 40,
-    maxHeight: 100,
+    maxHeight: 96,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.pill,
@@ -295,6 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.teal,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   sendBtnDisabled: {
     opacity: 0.45,
