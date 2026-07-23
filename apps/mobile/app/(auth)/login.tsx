@@ -7,15 +7,18 @@ import {
   Button,
   ErrorText,
   Field,
+  GlassCard,
   Screen,
   Subtitle,
   Title,
+  useLayout,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const { isWide } = useLayout();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +37,49 @@ export default function LoginScreen() {
     }
   };
 
+  const form = (
+    <>
+      {!isWide ? (
+        <>
+          <BrandMark size="lg" />
+          <Title>Yıldızlara hoş geldin</Title>
+          <Subtitle>
+            Haritana göre günlük öngörü ve ilişki yorumları için giriş yap.
+          </Subtitle>
+        </>
+      ) : (
+        <Title style={{ marginBottom: spacing.md }}>Giriş yap</Title>
+      )}
+      <Field
+        label="E-posta"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        autoComplete="email"
+        value={email}
+        onChangeText={setEmail}
+        placeholder="ornek@mail.com"
+      />
+      <Field
+        label="Şifre"
+        secureTextEntry
+        autoComplete="password"
+        value={password}
+        onChangeText={setPassword}
+        placeholder="••••••••"
+      />
+      <ErrorText>{error}</ErrorText>
+      <Button label="Giriş yap" onPress={onSubmit} loading={loading} />
+      <View style={styles.footer}>
+        <Link href="/(auth)/register" style={styles.link}>
+          Hesabın yok mu? Kayıt ol
+        </Link>
+        <Link href="/legal/privacy" style={styles.linkMuted}>
+          Gizlilik
+        </Link>
+      </View>
+    </>
+  );
+
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -46,38 +92,7 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <AuthShell>
-            <BrandMark size="lg" />
-            <Title>Yıldızlara hoş geldin</Title>
-            <Subtitle>
-              Haritana göre günlük öngörü ve ilişki yorumları için giriş yap.
-            </Subtitle>
-            <Field
-              label="E-posta"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="ornek@mail.com"
-            />
-            <Field
-              label="Şifre"
-              secureTextEntry
-              autoComplete="password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-            />
-            <ErrorText>{error}</ErrorText>
-            <Button label="Giriş yap" onPress={onSubmit} loading={loading} />
-            <View style={styles.footer}>
-              <Link href="/(auth)/register" style={styles.link}>
-                Hesabın yok mu? Kayıt ol
-              </Link>
-              <Link href="/legal/privacy" style={styles.linkMuted}>
-                Gizlilik
-              </Link>
-            </View>
+            {isWide ? form : <GlassCard>{form}</GlassCard>}
           </AuthShell>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -89,14 +104,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center' },
   footer: { marginTop: spacing.lg, gap: 12 },
-  link: {
-    color: colors.teal,
-    fontFamily: fonts.bodySemi,
-    fontSize: 15,
-  },
-  linkMuted: {
-    color: colors.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 13,
-  },
+  link: { color: colors.teal, fontFamily: fonts.bodySemi, fontSize: 15 },
+  linkMuted: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 },
 });

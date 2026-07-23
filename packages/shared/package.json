@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/data && cp src/data/world-cities.json dist/data/",
     "dev": "tsc --watch"
   },
   "devDependencies": {

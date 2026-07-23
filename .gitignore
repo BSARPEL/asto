@@ -12,3 +12,4 @@ apps/mobile/dist/
 *.p8
 *.p12
 *.mobileprovision
+.asto/

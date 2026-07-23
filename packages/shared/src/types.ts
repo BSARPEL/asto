@@ -35,7 +35,12 @@ export interface BirthInput {
   name: string;
   birthDate: string; // YYYY-MM-DD
   birthTime: string; // HH:mm
+  /** City name only (e.g. İstanbul) */
   city: string;
+  /** ISO 3166-1 alpha-2 (e.g. TR) */
+  country?: string;
+  /** Display country name (e.g. Türkiye) */
+  countryName?: string;
   latitude: number;
   longitude: number;
   timezone: string; // IANA, e.g. Europe/Istanbul
@@ -77,6 +82,8 @@ export interface Profile {
   isSubscribed: boolean;
   birth?: BirthInput;
   natalChart?: ChartData;
+  /** Cached AI natal chart narrative — cleared when birth changes */
+  chartNarrative?: string;
   createdAt: string;
 }
 
@@ -85,7 +92,10 @@ export interface Partner {
   userId: string;
   birth: BirthInput;
   natalChart: ChartData;
+  /** Final score shown in UI — from AI when analysis exists */
   synastryScore?: number;
+  /** Brief AI rationale for synastryScore */
+  synastryScoreNote?: string;
   analysis?: string;
   createdAt: string;
 }
@@ -109,9 +119,11 @@ export interface Conversation {
 export interface DailyReading {
   id: string;
   userId: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD (user local calendar day)
   summary: string;
   themes: string[];
+  /** Sohbet bu öngörüyle bağlı — sorular kaybolmaz */
+  conversationId?: string;
   createdAt: string;
 }
 
@@ -144,8 +156,20 @@ export interface SynastryFocusArea {
   findings: string[];
 }
 
+export interface SynastryScoreBreakdown {
+  harmony: number;
+  tension: number;
+  personalPlanets: number;
+  focusAreas: number;
+  elementalBlend: number;
+  angleOverlays: number;
+  engineTotal: number;
+}
+
 export interface SynastryResult {
+  /** Engine-computed reference score (0–100) */
   score: number;
+  scoreBreakdown: SynastryScoreBreakdown;
   aspects: SynastryAspect[];
   highlights: string[];
   /** Precomputed relationship keys for the AI — do not invent angles beyond these. */

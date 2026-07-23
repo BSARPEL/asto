@@ -43,11 +43,11 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.bg },
-          headerTintColor: colors.accentStrong,
+          headerTintColor: colors.text,
           headerTitleStyle: { fontFamily: 'Syne_700Bold' },
           contentStyle: { backgroundColor: colors.bg },
           headerShadowVisible: false,

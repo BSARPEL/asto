@@ -1,10 +1,9 @@
-import { StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { BirthForm } from '@/components/BirthForm';
-import { Screen, ScreenScroll, Subtitle, Title } from '@/components/ui';
+import { HeroCard, Screen, ScreenScroll, Subtitle, Title } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { spacing } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 
 export default function BirthOnboarding() {
   const { token, setProfile, profile } = useAuth();
@@ -12,10 +11,13 @@ export default function BirthOnboarding() {
   return (
     <Screen>
       <ScreenScroll>
-        <Title>Doğum haritan</Title>
-        <Subtitle>
-          Tarih, saat ve şehir ile natal haritanı hesaplarız. Saat bilinmiyorsa 12:00 kullanabilirsin.
-        </Subtitle>
+        <HeroCard accent={colors.teal}>
+          <Title>Doğum haritan</Title>
+          <Subtitle style={{ marginBottom: 0 }}>
+            Tarih, saat ve şehir ile natal haritanı hesaplarız. Saat bilinmiyorsa 12:00
+            kullanabilirsin.
+          </Subtitle>
+        </HeroCard>
         <BirthForm
           initial={{ name: profile?.displayName }}
           submitLabel="Haritamı oluştur"
@@ -30,8 +32,3 @@ export default function BirthOnboarding() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  // kept for potential local tweaks
-  spacer: { height: spacing.md },
-});

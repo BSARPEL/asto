@@ -1,50 +1,87 @@
 import { useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
+import { formatBirthPlace } from '@asto/shared';
 import { BirthForm } from '@/components/BirthForm';
 import {
-  Body,
+  Avatar,
   Button,
   Card,
+  HeaderRow,
+  InfoRow,
+  PlusBadge,
+  ResponsiveSplit,
   Screen,
-  Subtitle,
-  Title,
+  ScreenScroll,
+  SectionTitle,
+  SheetModal,
+  SignTrio,
   TokenBadge,
+  tabScrollStyle,
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { colors, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function ProfileScreen() {
   const { profile, token, setProfile, logout } = useAuth();
   const [editBirth, setEditBirth] = useState(false);
+  const chart = profile?.natalChart;
+
+  const identityCard = (
+    <Card compact>
+      <View style={styles.profileRow}>
+        <Avatar name={profile?.displayName ?? 'A'} size="sm" />
+        <View style={styles.profileMeta}>
+          <Text style={styles.profileName}>{profile?.displayName}</Text>
+          <Text style={styles.profileEmail}>{profile?.email}</Text>
+          {profile?.isSubscribed ? (
+            <View style={styles.badgeRow}>
+              <PlusBadge />
+            </View>
+          ) : null}
+        </View>
+      </View>
+      {chart ? (
+        <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} compact />
+      ) : null}
+    </Card>
+  );
+
+  const accountCard = (
+    <Card compact>
+      <SectionTitle compact>Hesap</SectionTitle>
+      <InfoRow compact label="Abonelik" value={profile?.isSubscribed ? 'Asto Plus' : 'Ücretsiz'} />
+      {profile?.birth ? (
+        <>
+          <InfoRow compact label="Doğum tarihi" value={profile.birth.birthDate} />
+          <InfoRow compact label="Doğum saati" value={profile.birth.birthTime} />
+          <InfoRow compact label="Doğum yeri" value={formatBirthPlace(profile.birth)} />
+        </>
+      ) : null}
+      <Button
+        compact
+        label="Doğum bilgisini düzenle"
+        variant="ghost"
+        onPress={() => setEditBirth(true)}
+      />
+    </Card>
+  );
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.pad}>
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Title>{profile?.displayName}</Title>
-            <Subtitle>{profile?.email}</Subtitle>
-          </View>
-          <TokenBadge balance={profile?.tokenBalance ?? 0} />
-        </View>
+      <ScreenScroll contentContainerStyle={tabScrollStyle()}>
+        <HeaderRow
+          compact
+          eyebrow="Hesap"
+          title={profile?.displayName ?? 'Profil'}
+          right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
+        />
 
-        <Card>
-          <Text style={styles.cardTitle}>Hesap</Text>
-          <Body muted>
-            Abonelik: {profile?.isSubscribed ? 'Asto Plus' : 'Ücretsiz'}
-          </Body>
-          {profile?.birth ? (
-            <Body muted>
-              Doğum: {profile.birth.birthDate} {profile.birth.birthTime} · {profile.birth.city}
-            </Body>
-          ) : null}
-          <Button label="Doğum bilgisini düzenle" variant="ghost" onPress={() => setEditBirth(true)} />
-        </Card>
+        <ResponsiveSplit leading={identityCard} trailing={accountCard} />
 
-        <Card>
-          <Text style={styles.cardTitle}>Yasal</Text>
+        <Card compact>
+          <SectionTitle compact>Yasal</SectionTitle>
           <Link href="/legal/privacy" style={styles.link}>
             Gizlilik politikası
           </Link>
@@ -54,6 +91,7 @@ export default function ProfileScreen() {
         </Card>
 
         <Button
+          compact
           label="Çıkış yap"
           variant="danger"
           onPress={async () => {
@@ -61,43 +99,52 @@ export default function ProfileScreen() {
             router.replace('/(auth)/login');
           }}
         />
-      </ScrollView>
+      </ScreenScroll>
 
-      <Modal visible={editBirth} animationType="slide" presentationStyle="pageSheet">
-        <Screen>
-          <ScrollView contentContainerStyle={styles.pad}>
-            <Title>Doğum bilgisini güncelle</Title>
-            <BirthForm
-              initial={profile?.birth}
-              submitLabel="Kaydet"
-              onSubmit={async (birth) => {
-                if (!token) throw new Error('Oturum yok');
-                const res = await api.saveBirth(token, birth);
-                setProfile(res.profile);
-                setEditBirth(false);
-              }}
-            />
-            <Button label="Kapat" variant="ghost" onPress={() => setEditBirth(false)} />
-          </ScrollView>
-        </Screen>
-      </Modal>
+      <SheetModal
+        visible={editBirth}
+        onClose={() => setEditBirth(false)}
+        title="Doğum bilgisini güncelle"
+      >
+        <BirthForm
+          initial={profile?.birth}
+          submitLabel="Kaydet"
+          onSubmit={async (birth) => {
+            if (!token) throw new Error('Oturum yok');
+            const res = await api.saveBirth(token, birth);
+            setProfile(res.profile);
+            setEditBirth(false);
+          }}
+        />
+      </SheetModal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  row: { flexDirection: 'row', gap: 12 },
-  cardTitle: {
-    fontFamily: 'Syne_700Bold',
-    color: colors.accentStrong,
-    fontSize: 18,
-    marginBottom: spacing.sm,
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
   },
+  profileMeta: { flex: 1 },
+  profileName: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 15,
+    color: colors.text,
+  },
+  profileEmail: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  badgeRow: { marginTop: 6 },
   link: {
     color: colors.teal,
-    fontFamily: 'Manrope_600SemiBold',
-    fontSize: 15,
-    marginBottom: 10,
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    marginBottom: 8,
   },
 });

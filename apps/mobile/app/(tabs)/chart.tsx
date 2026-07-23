@@ -1,54 +1,75 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { PLANET_LABELS_TR, ASPECT_LABELS_TR } from '@asto/shared';
 import {
   Body,
   Button,
   Card,
-  Divider,
   EmptyState,
   ErrorText,
   HeaderRow,
+  PlanetRow,
+  PlanetTableHeader,
+  PlusBadge,
+  ResponsiveSplit,
   Screen,
   ScreenScroll,
   SectionTitle,
   SignTrio,
+  Skeleton,
   TokenBadge,
+  tabScrollStyle,
 } from '@/components/ui';
+import { AstroGlyph } from '@/components/AstroGlyph';
+import { planetLabel } from '@/constants/astro';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 
 export default function ChartScreen() {
   const { token, profile, setProfile, refresh } = useAuth();
   const chart = profile?.natalChart;
-  const [narrative, setNarrative] = useState<string | null>(null);
+  const [narrative, setNarrative] = useState<string | null>(profile?.chartNarrative ?? null);
+  const [narrativeCached, setNarrativeCached] = useState(Boolean(profile?.chartNarrative));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const onNarrative = async () => {
-    if (!token) return;
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await api.chartNarrative(token);
-      setNarrative(res.text);
-      setProfile(res.profile);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (profile?.chartNarrative) {
+      setNarrative(profile.chartNarrative);
+      setNarrativeCached(true);
     }
-  };
+  }, [profile?.chartNarrative]);
+
+  const onNarrative = useCallback(
+    async (force = false) => {
+      if (!token) return;
+      setError(null);
+      setLoading(true);
+      try {
+        const res = await api.chartNarrative(token, force);
+        setNarrative(res.text);
+        setNarrativeCached(res.cached);
+        setProfile(res.profile);
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token, setProfile],
+  );
 
   if (!chart) {
     return (
       <Screen>
-        <ScreenScroll>
+        <ScreenScroll contentContainerStyle={tabScrollStyle()}>
           <EmptyState
+            compact
             title="Harita yok"
             body="Doğum bilgilerini tamamladığında natal haritan burada görünecek."
+            planetKey="Moon"
           />
         </ScreenScroll>
       </Screen>
@@ -62,9 +83,70 @@ export default function ChartScreen() {
     ['Ascendant', 'Descendant', 'Midheaven', 'NorthNode', 'SouthNode'].includes(p.name),
   );
 
+  const narrativeLabel = profile?.isSubscribed
+    ? narrative
+      ? 'Yeniden anlat'
+      : 'Haritamı anlat'
+    : narrative
+      ? 'Yeniden anlat (2 jeton)'
+      : 'Haritamı anlat (2 jeton)';
+
+  const planetsCard = (
+    <Card compact accent={colors.teal}>
+      <SectionTitle compact>Gezegenler</SectionTitle>
+      <PlanetTableHeader />
+      {planets.map((p, idx) => (
+        <PlanetRow
+          key={p.name}
+          compact
+          planetKey={p.name}
+          label={PLANET_LABELS_TR[p.name] ?? p.name}
+          sign={p.sign}
+          degree={p.signDegree}
+          house={p.house}
+          retrograde={p.retrograde}
+          isLast={idx === planets.length - 1}
+        />
+      ))}
+    </Card>
+  );
+
+  const anglesCard = (
+    <Card compact>
+      <SectionTitle compact>Açılar & düğümler</SectionTitle>
+      <PlanetTableHeader showHouse={false} firstColumnLabel="Nokta" />
+      {angles.map((p, idx) => (
+        <PlanetRow
+          key={p.name}
+          compact
+          showHouseColumn={false}
+          planetKey={p.name}
+          label={PLANET_LABELS_TR[p.name] ?? p.name}
+          sign={p.sign}
+          degree={p.signDegree}
+          isLast={idx === angles.length - 1 && chart.aspects.length === 0}
+        />
+      ))}
+      {chart.aspects.slice(0, 8).map((a, i) => (
+        <View key={`${a.planetA}-${a.planetB}-${i}`} style={styles.aspectRow}>
+          <View style={styles.aspectGlyphs}>
+            <AstroGlyph planetKey={a.planetA} size="sm" color={colors.accentStrong} />
+            <Text style={styles.aspectDash}>–</Text>
+            <AstroGlyph planetKey={a.planetB} size="sm" color={colors.teal} />
+          </View>
+          <Text style={styles.aspectText}>
+            {planetLabel(a.planetA)} – {planetLabel(a.planetB)} ·{' '}
+            {ASPECT_LABELS_TR[a.type]} ({a.orb}°)
+          </Text>
+        </View>
+      ))}
+    </Card>
+  );
+
   return (
     <Screen>
       <ScreenScroll
+        contentContainerStyle={tabScrollStyle()}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -81,96 +163,75 @@ export default function ChartScreen() {
         }
       >
         <HeaderRow
+          compact
+          eyebrow="Natal harita"
           title={profile?.displayName ?? 'Haritam'}
-          subtitle="Natal haritanın özeti"
-          right={<TokenBadge balance={profile?.tokenBalance ?? 0} />}
+          right={
+            <View style={styles.headerRight}>
+              <TokenBadge compact balance={profile?.tokenBalance ?? 0} />
+              {profile?.isSubscribed ? <PlusBadge /> : null}
+            </View>
+          }
         />
 
-        <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} />
-
-        <Card elevated>
-          <SectionTitle>Gezegenler</SectionTitle>
-          {planets.map((p, idx) => (
-            <View key={p.name}>
-              {idx > 0 ? <Divider /> : null}
-              <View style={styles.planetRow}>
-                <Text style={styles.planetName}>{PLANET_LABELS_TR[p.name] ?? p.name}</Text>
-                <Text style={styles.planetVal}>
-                  {p.sign} {p.signDegree.toFixed(1)}°
-                </Text>
-                <Text style={styles.planetHouse}>
-                  Ev {p.house}
-                  {p.retrograde ? ' · R' : ''}
-                </Text>
-              </View>
-            </View>
-          ))}
+        <Card compact>
+          <SectionTitle compact>Büyük üçlü</SectionTitle>
+          <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} compact />
         </Card>
 
-        <Card>
-          <SectionTitle>Açılar & düğümler</SectionTitle>
-          {angles.map((p) => (
-            <View key={p.name} style={styles.planetRow}>
-              <Text style={styles.planetName}>{PLANET_LABELS_TR[p.name] ?? p.name}</Text>
-              <Text style={styles.planetVal}>
-                {p.sign} {p.signDegree.toFixed(1)}°
-              </Text>
-            </View>
-          ))}
-          <Divider />
-          {chart.aspects.slice(0, 8).map((a, i) => (
-            <Body key={`${a.planetA}-${a.planetB}-${i}`} muted style={styles.aspectLine}>
-              {PLANET_LABELS_TR[a.planetA]} – {PLANET_LABELS_TR[a.planetB]} ·{' '}
-              {ASPECT_LABELS_TR[a.type]} ({a.orb}°)
-            </Body>
-          ))}
-        </Card>
-
-        <Button
-          label={profile?.isSubscribed ? 'Haritamı anlat' : 'Haritamı anlat (2 jeton)'}
-          onPress={onNarrative}
-          loading={loading}
-        />
-        <ErrorText>{error}</ErrorText>
+        <ResponsiveSplit leading={planetsCard} trailing={anglesCard} />
 
         {narrative ? (
-          <Card elevated>
-            <SectionTitle>AI yorum</SectionTitle>
-            <Body>{narrative}</Body>
+          <Card compact style={styles.narrativeCard}>
+            <SectionTitle compact>AI yorum{narrativeCached ? ' · kayıtlı' : ''}</SectionTitle>
+            <Body style={styles.narrativeBody}>{narrative}</Body>
+          </Card>
+        ) : loading ? (
+          <Card compact>
+            <Skeleton height={12} width="90%" />
+            <Skeleton height={12} width="75%" style={{ marginTop: 6 }} />
+            <Skeleton height={12} width="85%" style={{ marginTop: 6 }} />
           </Card>
         ) : null}
+
+        <Button
+          compact
+          label={narrativeLabel}
+          onPress={() => onNarrative(Boolean(narrative))}
+          loading={loading}
+          variant={narrative ? 'ghost' : 'primary'}
+          icon="✦"
+        />
+        <ErrorText>{error}</ErrorText>
       </ScreenScroll>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  planetRow: {
+  headerRight: { alignItems: 'flex-end', gap: 4 },
+  aspectRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
     gap: 8,
-    paddingVertical: 8,
+    paddingVertical: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
-  planetName: {
-    color: colors.text,
-    fontFamily: fonts.bodySemi,
-    flexGrow: 1,
-    flexBasis: 110,
-    minWidth: 100,
+  aspectGlyphs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    minWidth: 44,
   },
-  planetVal: {
-    color: colors.textSoft,
-    fontFamily: fonts.body,
-    flexGrow: 1,
-    flexBasis: 120,
+  aspectDash: { color: colors.textMuted, fontSize: 11 },
+  aspectText: {
+    flex: 1,
+    fontFamily: 'Manrope_400Regular',
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textMuted,
   },
-  planetHouse: {
-    color: colors.teal,
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-  },
-  aspectLine: {
-    marginBottom: spacing.xs,
-  },
+  narrativeCard: { marginBottom: spacing.sm },
+  narrativeBody: { fontSize: 14, lineHeight: 21 },
 });

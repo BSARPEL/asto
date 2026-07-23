@@ -2,6 +2,7 @@ export const APP_NAME = 'Asto';
 
 export const TOKEN_COSTS = {
   askQuestion: 1,
+  dailyReadingRefresh: 1,
   chartNarrative: 2,
   relationshipAnalysis: 3,
   dailyReadingFreePerDay: 1,

@@ -15,6 +15,6 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: err.message || 'Sunucu hatası' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Asto API http://localhost:${PORT}/api`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Asto API http://0.0.0.0:${PORT}/api`);
 });

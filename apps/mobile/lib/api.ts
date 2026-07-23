@@ -18,24 +18,52 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  options: RequestInit & { token?: string | null } = {},
+  options: RequestInit & { token?: string | null; timeoutMs?: number } = {},
 ): Promise<T> {
-  const { token, headers, ...rest } = options;
-  const res = await fetch(`${API_URL}${path}`, {
-    ...rest,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(headers || {}),
-    },
-  });
+  const { token, headers, timeoutMs = 30_000, ...rest } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new ApiError(data.error || 'İstek başarısız', res.status);
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...rest,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(headers || {}),
+      },
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new ApiError(data.error || 'İstek başarısız', res.status);
+    }
+    return data as T;
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    if (e instanceof Error) {
+      if (e.name === 'AbortError') {
+        throw new ApiError(
+          'İstek zaman aşımına uğradı. AI yanıtı gecikmiş olabilir; tekrar deneyin.',
+          0,
+        );
+      }
+      const msg = e.message.toLowerCase();
+      if (msg.includes('fetch failed') || msg.includes('network request failed')) {
+        throw new ApiError(
+          `Sunucuya bağlanılamadı (${API_URL}). Terminalde "npm run api" çalıştığından emin olun.`,
+          0,
+        );
+      }
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-  return data as T;
 }
+
+const AI_TIMEOUT_MS = 120_000;
 
 export const api = {
   health: () => request<{ ok: boolean; ai: boolean }>('/health'),
@@ -69,13 +97,38 @@ export const api = {
     }),
 
   dailyReading: (token: string) =>
-    request<{ reading: DailyReading; cached: boolean }>('/readings/daily', { token }),
+    request<{
+      reading: DailyReading | null;
+      conversation: Conversation | null;
+      cached: boolean;
+      today: string;
+    }>('/readings/daily', { token }),
 
-  chartNarrative: (token: string) =>
-    request<{ text: string; cost: number; profile: Profile }>('/readings/chart-narrative', {
+  fetchDailyReading: (token: string, force = false) =>
+    request<{
+      reading: DailyReading;
+      conversation: Conversation;
+      cached: boolean;
+      cost: number;
+      today: string;
+      profile: Profile;
+    }>('/readings/daily', {
       method: 'POST',
       token,
+      timeoutMs: AI_TIMEOUT_MS,
+      body: JSON.stringify({ force }),
     }),
+
+  chartNarrative: (token: string, force = false) =>
+    request<{ text: string; cost: number; profile: Profile; cached: boolean }>(
+      '/readings/chart-narrative',
+      {
+        method: 'POST',
+        token,
+        timeoutMs: AI_TIMEOUT_MS,
+        body: JSON.stringify({ force }),
+      },
+    ),
 
   ask: (token: string, question: string, conversationId?: string) =>
     request<{ conversation: Conversation; profile: Profile; cost: number }>(
@@ -83,6 +136,7 @@ export const api = {
       {
         method: 'POST',
         token,
+        timeoutMs: AI_TIMEOUT_MS,
         body: JSON.stringify({ question, conversationId }),
       },
     ),
@@ -99,13 +153,26 @@ export const api = {
       body: JSON.stringify(birth),
     }),
 
-  analyzePartner: (token: string, partnerId: string) =>
+  updatePartner: (token: string, partnerId: string, birth: BirthInput) =>
+    request<{ partner: Partner }>(`/partners/${partnerId}`, {
+      method: 'PUT',
+      token,
+      body: JSON.stringify(birth),
+    }),
+
+  analyzePartner: (token: string, partnerId: string, force = false) =>
     request<{
       partner: Partner;
       synastry: SynastryResult;
       profile: Profile;
       cost: number;
-    }>(`/partners/${partnerId}/analyze`, { method: 'POST', token }),
+      cached: boolean;
+    }>(`/partners/${partnerId}/analyze`, {
+      method: 'POST',
+      token,
+      timeoutMs: AI_TIMEOUT_MS,
+      body: JSON.stringify({ force }),
+    }),
 
   ledger: (token: string) => request<{ ledger: Array<{ id: string; delta: number; reason: string; createdAt: string }> }>('/tokens/ledger', { token }),
 

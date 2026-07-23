@@ -1,27 +1,31 @@
 import { Dimensions, Platform, type TextStyle, type ViewStyle } from 'react-native';
 
+/** Gündüz / aydınlık tema — sıcak krem zemin, koyu metin */
 export const colors = {
-  bg: '#0B1020',
-  bgMid: '#10182C',
-  bgElevated: '#151D34',
-  bgSoft: '#1B243F',
-  bgHighlight: '#222C4A',
-  border: 'rgba(212, 197, 160, 0.16)',
-  borderStrong: 'rgba(212, 197, 160, 0.28)',
-  text: '#F4F0E6',
-  textMuted: '#A39B8C',
-  textSoft: '#C9C0B0',
-  accent: '#D4C5A0',
-  accentStrong: '#E8D9B0',
-  teal: '#6BB5B0',
-  tealDim: 'rgba(107, 181, 176, 0.14)',
-  danger: '#E07A6D',
-  dangerDim: 'rgba(224, 122, 109, 0.14)',
-  success: '#7CB89A',
-  successDim: 'rgba(124, 184, 154, 0.14)',
-  overlay: 'rgba(11, 16, 32, 0.78)',
-  userBubble: '#1A2744',
-  assistantBubble: '#151D34',
+  bg: '#FAF8F4',
+  bgMid: '#F3F0E8',
+  bgElevated: '#FFFFFF',
+  bgSoft: '#F5F2EB',
+  bgHighlight: '#EDE8DD',
+  border: 'rgba(44, 38, 30, 0.1)',
+  borderStrong: 'rgba(44, 38, 30, 0.18)',
+  text: '#1C2436',
+  textMuted: '#6B6570',
+  textSoft: '#4A4550',
+  accent: '#C4A57A',
+  accentStrong: '#8B6F47',
+  accentLight: '#E8D9C0',
+  onAccent: '#FFFCF7',
+  teal: '#3D9A94',
+  tealDim: 'rgba(61, 154, 148, 0.12)',
+  danger: '#C45A4E',
+  dangerDim: 'rgba(196, 90, 78, 0.1)',
+  success: '#3D8B62',
+  successDim: 'rgba(61, 139, 98, 0.1)',
+  overlay: 'rgba(28, 36, 54, 0.35)',
+  userBubble: '#E8EEF8',
+  assistantBubble: '#F5F2EB',
+  star: 'rgba(139, 111, 71, 0.35)',
 };
 
 export const spacing = {
@@ -50,7 +54,6 @@ export const fonts = {
   bodyBold: 'Manrope_700Bold',
 };
 
-/** Breakpoints for phone / tablet / desktop web */
 export const breakpoints = {
   phone: 0,
   tablet: 600,
@@ -79,13 +82,13 @@ export function pageGutter(size: LayoutSize): number {
 
 export const shadowSoft: ViewStyle =
   Platform.OS === 'web'
-    ? { boxShadow: '0 12px 40px rgba(0,0,0,0.28)' }
+    ? ({ boxShadow: '0 8px 28px rgba(28, 36, 54, 0.08)' } as ViewStyle)
     : {
-        shadowColor: '#000',
-        shadowOpacity: 0.28,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 10 },
-        elevation: 6,
+        shadowColor: '#1C2436',
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 4,
       };
 
 export const typography = {

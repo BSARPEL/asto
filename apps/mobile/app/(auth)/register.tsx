@@ -7,15 +7,18 @@ import {
   Button,
   ErrorText,
   Field,
+  GlassCard,
   Screen,
   Subtitle,
   Title,
+  useLayout,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const { register } = useAuth();
+  const { isWide } = useLayout();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,6 +42,49 @@ export default function RegisterScreen() {
     }
   };
 
+  const form = (
+    <>
+      {!isWide ? (
+        <>
+          <BrandMark />
+          <Title>Asto’ya katıl</Title>
+          <Subtitle>Kayıt olunca 5 jeton hediye. Doğum haritanı sonra gireceksin.</Subtitle>
+        </>
+      ) : (
+        <Title style={{ marginBottom: spacing.md }}>Kayıt ol</Title>
+      )}
+      <Field label="Ad" value={displayName} onChangeText={setDisplayName} placeholder="Adın" autoComplete="name" />
+      <Field
+        label="E-posta"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        autoComplete="email"
+        value={email}
+        onChangeText={setEmail}
+        placeholder="ornek@mail.com"
+      />
+      <Field
+        label="Şifre"
+        secureTextEntry
+        autoComplete="new-password"
+        value={password}
+        onChangeText={setPassword}
+        placeholder="En az 6 karakter"
+        hint="En az 6 karakter kullan"
+      />
+      <ErrorText>{error}</ErrorText>
+      <Button label="Kayıt ol" onPress={onSubmit} loading={loading} />
+      <View style={styles.footer}>
+        <Link href="/(auth)/login" style={styles.link}>
+          Zaten hesabın var mı? Giriş yap
+        </Link>
+        <Link href="/legal/terms" style={styles.linkMuted}>
+          Kullanım şartları
+        </Link>
+      </View>
+    </>
+  );
+
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -51,45 +97,7 @@ export default function RegisterScreen() {
           showsVerticalScrollIndicator={false}
         >
           <AuthShell>
-            <BrandMark />
-            <Title>Asto’ya katıl</Title>
-            <Subtitle>
-              Kayıt olunca 5 jeton hediye. Doğum haritanı sonra gireceksin.
-            </Subtitle>
-            <Field
-              label="Ad"
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder="Adın"
-              autoComplete="name"
-            />
-            <Field
-              label="E-posta"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="ornek@mail.com"
-            />
-            <Field
-              label="Şifre"
-              secureTextEntry
-              autoComplete="new-password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="En az 6 karakter"
-            />
-            <ErrorText>{error}</ErrorText>
-            <Button label="Kayıt ol" onPress={onSubmit} loading={loading} />
-            <View style={styles.footer}>
-              <Link href="/(auth)/login" style={styles.link}>
-                Zaten hesabın var mı? Giriş yap
-              </Link>
-              <Link href="/legal/terms" style={styles.linkMuted}>
-                Kullanım şartları
-              </Link>
-            </View>
+            {isWide ? form : <GlassCard>{form}</GlassCard>}
           </AuthShell>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -101,14 +109,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center' },
   footer: { marginTop: spacing.lg, gap: 12 },
-  link: {
-    color: colors.teal,
-    fontFamily: fonts.bodySemi,
-    fontSize: 15,
-  },
-  linkMuted: {
-    color: colors.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 13,
-  },
+  link: { color: colors.teal, fontFamily: fonts.bodySemi, fontSize: 15 },
+  linkMuted: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 },
 });

@@ -1,11 +1,20 @@
 import OpenAI from 'openai';
-import type { ChartData, SynastryResult } from '@asto/shared';
+import type { ChartData, Gender, SynastryResult } from '@asto/shared';
 import { PLANET_LABELS_TR } from '@asto/shared';
 import {
   chartSummaryForPrompt,
   computeTransits,
+  relationshipKeySummaryForPrompt,
   synastryFocusAreasForPrompt,
+  synastryScoreBreakdownForPrompt,
 } from './chart/engine';
+
+export type RelationshipAnalysisResult = {
+  analysis: string;
+  score: number;
+  scoreNote: string;
+  scoreSource: 'ai' | 'engine';
+};
 
 const SYSTEM = `Sen Asto adlı bir astroloji danışmanısın. Türkçe, sıcak ama abartısız bir dille yazarsın.
 Kurallar:
@@ -14,15 +23,88 @@ Kurallar:
 - Kısa paragraflar ve okunabilir yapı kullan.
 - Tıbbi, hukuki veya finansal kesin tavsiye verme.`;
 
-function client(): OpenAI | null {
+type AiProvider = 'gemini' | 'openai' | 'mock';
+
+function aiProvider(): AiProvider {
+  if (process.env.GEMINI_API_KEY) return 'gemini';
+  if (process.env.OPENAI_API_KEY) return 'openai';
+  return 'mock';
+}
+
+export function aiStatus(): { enabled: boolean; provider: AiProvider; model: string | null } {
+  const provider = aiProvider();
+  if (provider === 'gemini') {
+    return {
+      enabled: true,
+      provider,
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+    };
+  }
+  if (provider === 'openai') {
+    return {
+      enabled: true,
+      provider,
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    };
+  }
+  return { enabled: false, provider, model: null };
+}
+
+async function geminiComplete(userPrompt: string): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY yok');
+
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-goog-api-key': key,
+    },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 1800,
+      },
+    }),
+  });
+
+  const data = (await res.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    error?: { message?: string };
+    usageMetadata?: { totalTokenCount?: number; promptTokenCount?: number; candidatesTokenCount?: number };
+  };
+
+  if (!res.ok) {
+    throw new Error(data.error?.message || `Gemini HTTP ${res.status}`);
+  }
+
+  const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text).join('').trim();
+  if (!text) throw new Error('Gemini boş yanıt döndü');
+
+  if (process.env.AI_LOG_USAGE === '1' && data.usageMetadata) {
+    const u = data.usageMetadata;
+    console.log(
+      `[ai] gemini/${model} tokens: ${u.totalTokenCount ?? '?'} (prompt ${u.promptTokenCount ?? '?'}, out ${u.candidatesTokenCount ?? '?'})`,
+    );
+  }
+
+  return text;
+}
+
+function openaiClient(): OpenAI | null {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
   return new OpenAI({ apiKey: key });
 }
 
-async function complete(userPrompt: string): Promise<string> {
-  const openai = client();
-  if (!openai) return mockComplete(userPrompt);
+async function openaiComplete(userPrompt: string): Promise<string> {
+  const openai = openaiClient();
+  if (!openai) throw new Error('OPENAI_API_KEY yok');
 
   const res = await openai.chat.completions.create({
     model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -33,6 +115,13 @@ async function complete(userPrompt: string): Promise<string> {
     ],
   });
   return res.choices[0]?.message?.content?.trim() || 'Yanıt üretilemedi.';
+}
+
+async function complete(userPrompt: string): Promise<string> {
+  const provider = aiProvider();
+  if (provider === 'gemini') return geminiComplete(userPrompt);
+  if (provider === 'openai') return openaiComplete(userPrompt);
+  return mockComplete(userPrompt);
 }
 
 function mockComplete(prompt: string): string {
@@ -55,6 +144,9 @@ function mockComplete(prompt: string): string {
       '6) Asc / Dsc: Yükselen üzerindeki faktörler ilk izlenimi, alçalan üzerindeki faktörler ilişki kapısını ve partner arketipini işaret eder.',
       '7) Güçlü yönler ve gelişim: Açık iletişim + kişisel alana saygı; varsayımları konuşmaya çevirmek bağı güçlendirir.',
       '8) Kısa öneri: Duyguyu adlandırıp küçük net adımlar atmak, hem Ay hem Güneş ihtiyaçlarını dengeler.',
+      '',
+      'SİNASTRİ_SKORU: 74',
+      'SKOR_GEREKÇESİ: Uyumlu Ay ve Venüs-Mars temaları güçlü; birkaç kare açı ise tempo farkı getiriyor.',
     ].join('\n');
   }
   if (prompt.includes('HARİTA ANLATIMI')) {
@@ -71,7 +163,7 @@ function mockComplete(prompt: string): string {
     '',
     'Pratik öneri: bugün bir karar varsa acele etme; duygunu adlandır, sonra küçük bir adım at. Bu yaklaşım hem içsel güvenini hem de ilişkilerindeki akışı destekler.',
     '',
-    '(Not: OPENAI_API_KEY tanımlı değil; bu bir demo yanıttır. Gerçek AI için .env dosyasına anahtar ekleyin.)',
+    '(Not: GEMINI_API_KEY veya OPENAI_API_KEY tanımlı değil; bu bir demo yanıttır.)',
   ].join('\n');
 }
 
@@ -136,14 +228,41 @@ Haritaya dayalı, net ve uygulanabilir bir yanıt ver.`,
   );
 }
 
+export function parseRelationshipAnalysis(
+  text: string,
+  fallbackScore: number,
+): RelationshipAnalysisResult {
+  const scoreMatch =
+    text.match(/SİNASTRİ_SKORU:\s*(\d{1,3})/i) ?? text.match(/SKOR:\s*(\d{1,3})/i);
+  const noteMatch = text.match(/SKOR_GEREKÇESİ:\s*(.+)$/im);
+
+  const analysis = text
+    .replace(/\n?SİNASTRİ_SKORU:\s*\d{1,3}.*$/gim, '')
+    .replace(/\n?SKOR:\s*\d{1,3}.*$/gim, '')
+    .replace(/\n?SKOR_GEREKÇESİ:\s*.+$/gim, '')
+    .trim();
+
+  const parsedScore = scoreMatch ? Number(scoreMatch[1]) : NaN;
+  const score = Number.isFinite(parsedScore)
+    ? Math.max(0, Math.min(100, Math.round(parsedScore)))
+    : fallbackScore;
+
+  return {
+    analysis: analysis || text.trim(),
+    score,
+    scoreNote: noteMatch?.[1]?.trim() ?? '',
+    scoreSource: scoreMatch ? 'ai' : 'engine',
+  };
+}
+
 export async function generateRelationshipAnalysis(
   selfName: string,
   selfChart: ChartData,
   partnerName: string,
   partnerChart: ChartData,
   synastry: SynastryResult,
-  options?: { selfGender?: string; partnerGender?: string },
-): Promise<string> {
+  options?: { selfGender?: Gender; partnerGender?: Gender },
+): Promise<RelationshipAnalysisResult> {
   const topAspects = synastry.aspects
     .slice(0, 10)
     .map(
@@ -161,27 +280,48 @@ export async function generateRelationshipAnalysis(
     .filter(Boolean)
     .join(' | ');
 
-  return complete(
-    `İLİŞKİ ANALİZİ
+  return parseRelationshipAnalysis(
+    await complete(
+    `İLİŞKİ ANALİZİ (SİNASTRİ)
 ${selfName} (Kişi A):
 ${chartSummaryForPrompt(selfChart, 'Kişi A')}
 ${partnerName} (Kişi B):
 ${chartSummaryForPrompt(partnerChart, 'Kişi B')}
-${genderLine ? `${genderLine}\n` : ''}Sinastri skoru: ${synastry.score}/100
+${genderLine ? `${genderLine}\n` : ''}Motor referans skoru (yalnızca rehber): ${synastry.score}/100
+Motor skor detayı:
+${synastryScoreBreakdownForPrompt(synastry.scoreBreakdown)}
 Öne çıkanlar: ${synastry.highlights.join(' | ')}
-Kesişen açılar: ${topAspects}
+Kesişen açılar (özet): ${topAspects}
 
-ÖNCELİKLİ SİNASTRİ ODAKLARI (engine hesapladı; açı uydurma):
+İLİŞKİ ODAK NOKTALARI — KİŞİ BİLGİLERİ (engine hesapladı):
+${relationshipKeySummaryForPrompt(selfChart, partnerChart, options?.selfGender, options?.partnerGender)}
+
+ENGINE SİNASTRİ VERİSİ — 6 ZORUNLU ODAK (açı uydurma; yalnızca bunları kullan):
 ${synastryFocusAreasForPrompt(synastry.focusAreas)}
 
-Şu başlıklarla yaz; her odak başlığını mutlaka yorumla (veri yoksa kısaca belirt):
+ZORUNLU KURALLAR:
+- Yukarıdaki 6 odak başlığının HER BİRİNİ aşağıdaki sırayla, ayrı bölüm olarak yaz; atlama.
+- Her bölümde önce engine verisindeki bulguyu özetle, sonra kısa yorum yap.
+- "majör açı yok" veya "faktör yok" yazıyorsa bunu açıkça belirt; yine de o başlık için 1–2 cümle yorum yap.
+- Engine verisinde olmayan yeni açı, gezegen konumu veya burç uydurma.
+- Motor skoru referans al; kendi değerlendirmenle 0–100 arası nihai sinastri skoru ver.
+- Skoru yalnızca verilen verilere dayanarak ver; abartılı uç değerlerden kaçın (çoğu ilişki 45–85 aralığında).
+
+BAŞLIKLAR (sırayla):
 1) Genel dinamik
-2) Kadın Güneş – Erkek Ay bağı
-3) Ay – Ay duygusal uyum
-4) Kadın Mars – Erkek Venüs çekimi
-5) Ay düğümleri ve ortak yol
-6) Yükselen (Asc) ve Alçalan (Dsc) üzeri kesişimler
-7) Güçlü yönler ve gelişime açık alanlar
-8) Kısa öneri`,
+2) Kadın Güneş – Erkek Ay ilişkisi
+3) Ay + Ay ilişkisi
+4) Kadın Mars – Erkek Venüs ilişkisi
+5) Ay düğümleri arasındaki ilişki
+6) Yükselen (Asc) üzerinde diğer kişinin faktörü var mı?
+7) Alçalan (Dsc) üzerinde diğer kişinin faktörü var mı?
+8) Güçlü yönler ve gelişime açık alanlar
+9) Kısa öneri
+
+METİN BİTTİKTEN SONRA (ayrı satırlar, zorunlu):
+SİNASTRİ_SKORU: <0-100 tam sayı>
+SKOR_GEREKÇESİ: <1-2 cümle, neden bu puan>`,
+    ),
+    synastry.score,
   );
 }

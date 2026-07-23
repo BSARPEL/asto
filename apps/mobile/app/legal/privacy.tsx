@@ -1,11 +1,10 @@
-import { ScrollView, StyleSheet } from 'react-native';
-import { Body, Screen, Title } from '@/components/ui';
+import { Body, Screen, ScreenScroll, Title } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 
 export default function PrivacyScreen() {
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.pad}>
+      <ScreenScroll contentContainerStyle={{ gap: spacing.md }}>
         <Title>Gizlilik politikası</Title>
         <Body muted>
           Asto; e-posta, doğum bilgileri ve uygulama içi kullanım verilerini hizmeti sunmak için
@@ -17,11 +16,7 @@ export default function PrivacyScreen() {
           Verilerini silmek veya dışa aktarmak için destek kanalımızdan talep edebilirsin. Bu metin
           yer tutucudur; mağaza yayını öncesi hukuki metinle değiştirilmelidir.
         </Body>
-      </ScrollView>
+      </ScreenScroll>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  pad: { padding: spacing.lg, gap: spacing.md },
-});

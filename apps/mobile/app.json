@@ -6,19 +6,22 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "asto",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.asto.app",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "Kişiselleştirilmiş deneyim ve reklam ölçümü için kullanılır."
+        "NSUserTrackingUsageDescription": "Kişiselleştirilmiş deneyim ve reklam ölçümü için kullanılır.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
       "package": "com.asto.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0B1020",
+        "backgroundColor": "#FAF8F4",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -38,9 +41,10 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#0B1020"
+          "backgroundColor": "#FAF8F4"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
@@ -48,8 +52,7 @@
     "extra": {
       "eas": {
         "projectId": "asto-local-dev"
-      },
-      "apiUrl": "http://localhost:8788/api"
+      }
     }
   }
 }

@@ -483,6 +483,158 @@ function buildSynastryFocusAreas(
   ];
 }
 
+const SIGN_ELEMENT: Record<ZodiacSign, 'fire' | 'earth' | 'air' | 'water'> = {
+  Koç: 'fire',
+  Aslan: 'fire',
+  Yay: 'fire',
+  Boğa: 'earth',
+  Başak: 'earth',
+  Oğlak: 'earth',
+  İkizler: 'air',
+  Terazi: 'air',
+  Kova: 'air',
+  Yengeç: 'water',
+  Akrep: 'water',
+  Balık: 'water',
+};
+
+function planetPairWeight(a: PlanetName, b: PlanetName): number {
+  const weight = (name: PlanetName) => {
+    if (name === 'Sun' || name === 'Moon') return 1.5;
+    if (name === 'Venus' || name === 'Mars') return 1.35;
+    if (name === 'Mercury') return 1.1;
+    if (name === 'Jupiter' || name === 'Saturn') return 1.0;
+    if (NODE_POINTS.includes(name)) return 0.95;
+    return 0.65;
+  };
+  return weight(a) * weight(b);
+}
+
+function orbTightness(orb: number, maxOrb = 8): number {
+  return Math.max(0.15, 1 - orb / maxOrb);
+}
+
+function scoreSynastryAspects(aspects: SynastryAspect[]): {
+  harmony: number;
+  tension: number;
+  personalPlanets: number;
+} {
+  const harmonyWeights: Partial<Record<Aspect['type'], number>> = {
+    trine: 9,
+    sextile: 6.5,
+    conjunction: 5,
+  };
+  const tensionWeights: Partial<Record<Aspect['type'], number>> = {
+    square: 6,
+    opposition: 4.5,
+  };
+
+  let harmony = 0;
+  let tension = 0;
+  let personalPlanets = 0;
+  const personal = new Set<PlanetName>(['Sun', 'Moon', 'Venus', 'Mars']);
+
+  for (const asp of aspects) {
+    const pairW = planetPairWeight(asp.planetA, asp.planetB);
+    const tight = orbTightness(asp.orb);
+
+    if (harmonyWeights[asp.type]) {
+      const pts = (harmonyWeights[asp.type] ?? 0) * pairW * tight;
+      harmony += pts;
+      if (personal.has(asp.planetA) && personal.has(asp.planetB)) personalPlanets += pts * 0.4;
+      else if (personal.has(asp.planetA) || personal.has(asp.planetB)) personalPlanets += pts * 0.2;
+    }
+    if (tensionWeights[asp.type]) {
+      tension += (tensionWeights[asp.type] ?? 0) * pairW * tight;
+    }
+  }
+
+  return {
+    harmony: Math.round(harmony * 10) / 10,
+    tension: Math.round(tension * 10) / 10,
+    personalPlanets: Math.round(personalPlanets * 10) / 10,
+  };
+}
+
+function elementCompatibility(a: string, b: string): number {
+  if (a === b) return 4;
+  const pair = `${a}-${b}`;
+  if (pair === 'fire-air' || pair === 'air-fire' || pair === 'earth-water' || pair === 'water-earth') {
+    return 3;
+  }
+  if (pair === 'fire-earth' || pair === 'earth-fire' || pair === 'air-water' || pair === 'water-air') {
+    return 1;
+  }
+  return -1;
+}
+
+function scoreElementalBlend(self: ChartData, partner: ChartData): number {
+  const sunA = SIGN_ELEMENT[self.sunSign];
+  const sunB = SIGN_ELEMENT[partner.sunSign];
+  const moonA = SIGN_ELEMENT[self.moonSign];
+  const moonB = SIGN_ELEMENT[partner.moonSign];
+  const ascA = SIGN_ELEMENT[self.risingSign];
+  const ascB = SIGN_ELEMENT[partner.risingSign];
+
+  let score = 0;
+  score += elementCompatibility(sunA, sunB) * 1.2;
+  score += elementCompatibility(moonA, moonB) * 1.5;
+  score += elementCompatibility(ascA, ascB) * 0.8;
+  if (self.sunSign === partner.sunSign) score += 2;
+  if (self.moonSign === partner.moonSign) score += 3;
+  if (self.risingSign === partner.risingSign) score += 2;
+  return Math.round(score * 10) / 10;
+}
+
+function scoreFocusAreas(focusAreas: SynastryFocusArea[]): number {
+  let score = 0;
+  const keyBonus: Record<SynastryFocusArea['key'], number> = {
+    woman_sun_man_moon: 5,
+    moon_moon: 4.5,
+    woman_mars_man_venus: 4,
+    lunar_nodes: 3.5,
+    asc_overlay: 3,
+    dsc_overlay: 3,
+  };
+
+  for (const area of focusAreas) {
+    const positives = area.findings.filter(
+      (f) => !f.includes('yok') && !f.startsWith('Not:') && !f.includes('hesaplanamadı'),
+    );
+    const base = keyBonus[area.key] ?? 2;
+    if (positives.length > 0) {
+      score += base + Math.min(positives.length - 1, 2) * 1.5;
+    } else {
+      score -= base * 0.35;
+    }
+  }
+
+  return Math.round(score * 10) / 10;
+}
+
+function scoreAngleOverlays(focusAreas: SynastryFocusArea[]): number {
+  let score = 0;
+  for (const key of ['asc_overlay', 'dsc_overlay'] as const) {
+    const area = focusAreas.find((a) => a.key === key);
+    if (!area) continue;
+    const hits = area.findings.filter((f) => !f.includes('yok'));
+    score += hits.length * 2.5;
+  }
+  return Math.round(score * 10) / 10;
+}
+
+export function synastryScoreBreakdownForPrompt(breakdown: SynastryResult['scoreBreakdown']): string {
+  return [
+    `Uyumlu açı katkısı: +${breakdown.harmony}`,
+    `Gerilim açısı düşüşü: -${breakdown.tension}`,
+    `Kişisel gezegen ağırlığı: +${breakdown.personalPlanets}`,
+    `6 odak alanı katkısı: ${breakdown.focusAreas >= 0 ? '+' : ''}${breakdown.focusAreas}`,
+    `Element / burç uyumu: ${breakdown.elementalBlend >= 0 ? '+' : ''}${breakdown.elementalBlend}`,
+    `Açı/ev örtüşmesi: +${breakdown.angleOverlays}`,
+    `Motor referans skoru: ${breakdown.engineTotal}/100`,
+  ].join('\n');
+}
+
 export function computeSynastry(
   self: ChartData,
   partner: ChartData,
@@ -507,30 +659,37 @@ export function computeSynastry(
     }
   }
 
-  const weights: Record<Aspect['type'], number> = {
-    conjunction: 10,
-    trine: 8,
-    sextile: 6,
-    opposition: 4,
-    square: 2,
-  };
-
-  let raw = 40;
-  for (const asp of aspects) {
-    const personal =
-      ['Sun', 'Moon', 'Venus', 'Mars'].includes(asp.planetA) ||
-      ['Sun', 'Moon', 'Venus', 'Mars'].includes(asp.planetB);
-    const nodal = NODE_POINTS.includes(asp.planetA) || NODE_POINTS.includes(asp.planetB);
-    raw += (weights[asp.type] ?? 0) * (personal ? 1.2 : nodal ? 1.0 : 0.7) - asp.orb * 0.3;
-  }
-
-  const score = Math.max(35, Math.min(98, Math.round(raw)));
   const focusAreas = buildSynastryFocusAreas(
     self,
     partner,
     options?.selfGender,
     options?.partnerGender,
   );
+
+  const aspectScores = scoreSynastryAspects(aspects);
+  const elementalBlend = scoreElementalBlend(self, partner);
+  const focusAreasScore = scoreFocusAreas(focusAreas);
+  const angleOverlays = scoreAngleOverlays(focusAreas);
+
+  const raw =
+    42 +
+    aspectScores.harmony * 1.15 -
+    aspectScores.tension * 0.95 +
+    aspectScores.personalPlanets * 0.5 +
+    elementalBlend +
+    focusAreasScore +
+    angleOverlays;
+
+  const scoreBreakdown = {
+    harmony: aspectScores.harmony,
+    tension: aspectScores.tension,
+    personalPlanets: aspectScores.personalPlanets,
+    focusAreas: focusAreasScore,
+    elementalBlend,
+    angleOverlays,
+    engineTotal: Math.max(32, Math.min(96, Math.round(raw))),
+  };
+  const score = scoreBreakdown.engineTotal;
 
   const highlights: string[] = [];
   if (self.sunSign === partner.sunSign) highlights.push('Aynı Güneş burcu — benzer yaşam ritmi');
@@ -548,6 +707,7 @@ export function computeSynastry(
 
   return {
     score,
+    scoreBreakdown,
     aspects: aspects.sort((a, b) => a.orb - b.orb).slice(0, 24),
     highlights: highlights.slice(0, 8),
     focusAreas,
@@ -577,7 +737,66 @@ export function synastryFocusAreasForPrompt(focusAreas: SynastryFocusArea[]): st
   return focusAreas
     .map((area) => {
       const body = area.findings.map((f) => `  - ${f}`).join('\n');
-      return `${area.title}:\n${body}`;
+      return `### ${area.title}\n${body}`;
     })
-    .join('\n');
+    .join('\n\n');
+}
+
+/** Key natal positions for the six mandatory synastry focus areas. */
+export function relationshipKeySummaryForPrompt(
+  self: ChartData,
+  partner: ChartData,
+  selfGender?: Gender,
+  partnerGender?: Gender,
+): string {
+  const roles = resolveWomanMan(selfGender, partnerGender);
+  const chartOf = (who: 'self' | 'partner') => (who === 'self' ? self : partner);
+  const personLabel = (who: 'self' | 'partner') => (who === 'self' ? 'Kişi A' : 'Kişi B');
+
+  const lines: string[] = [];
+
+  if (roles) {
+    const womanLabel = roles.woman === 'self' ? 'Kişi A (kadın)' : 'Kişi B (kadın)';
+    const manLabel = roles.man === 'self' ? 'Kişi A (erkek)' : 'Kişi B (erkek)';
+    const woman = chartOf(roles.woman);
+    const man = chartOf(roles.man);
+    const wSun = getPoint(woman, 'Sun');
+    const mMoon = getPoint(man, 'Moon');
+    const wMars = getPoint(woman, 'Mars');
+    const mVenus = getPoint(man, 'Venus');
+    if (wSun) lines.push(`Kadın Güneş: ${wSun.sign} ${wSun.signDegree.toFixed(1)}° — ${womanLabel}`);
+    if (mMoon) lines.push(`Erkek Ay: ${mMoon.sign} ${mMoon.signDegree.toFixed(1)}° — ${manLabel}`);
+    if (wMars) lines.push(`Kadın Mars: ${wMars.sign} ${wMars.signDegree.toFixed(1)}° — ${womanLabel}`);
+    if (mVenus) lines.push(`Erkek Venüs: ${mVenus.sign} ${mVenus.signDegree.toFixed(1)}° — ${manLabel}`);
+  } else {
+    lines.push(
+      'Not: Kadın/erkek ataması için her iki kişinin cinsiyeti gerekli (Kadın Güneş–Erkek Ay ve Kadın Mars–Erkek Venüs için).',
+    );
+  }
+
+  const aMoon = getPoint(self, 'Moon');
+  const bMoon = getPoint(partner, 'Moon');
+  if (aMoon && bMoon) {
+    lines.push(
+      `Kişi A Ay: ${aMoon.sign} ${aMoon.signDegree.toFixed(1)}° | Kişi B Ay: ${bMoon.sign} ${bMoon.signDegree.toFixed(1)}°`,
+    );
+  }
+
+  for (const who of ['self', 'partner'] as const) {
+    const chart = chartOf(who);
+    const nn = getPoint(chart, 'NorthNode');
+    const sn = getPoint(chart, 'SouthNode');
+    if (nn) lines.push(`${personLabel(who)} Kuzey Ay Düğümü: ${nn.sign} ${nn.signDegree.toFixed(1)}°`);
+    if (sn) lines.push(`${personLabel(who)} Güney Ay Düğümü: ${sn.sign} ${sn.signDegree.toFixed(1)}°`);
+  }
+
+  for (const who of ['self', 'partner'] as const) {
+    const chart = chartOf(who);
+    const asc = getPoint(chart, 'Ascendant');
+    const dsc = getPoint(chart, 'Descendant');
+    if (asc) lines.push(`${personLabel(who)} Yükselen (Asc): ${asc.sign} ${asc.signDegree.toFixed(1)}°`);
+    if (dsc) lines.push(`${personLabel(who)} Alçalan (Dsc): ${dsc.sign} ${dsc.signDegree.toFixed(1)}°`);
+  }
+
+  return lines.join('\n');
 }

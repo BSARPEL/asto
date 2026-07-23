@@ -8,8 +8,16 @@
   "scripts": {
     "mobile": "npm run start --workspace=mobile",
     "api": "npm run dev --workspace=@asto/api",
-    "dev": "npm run api",
-    "shared:build": "npm run build --workspace=@asto/shared"
+    "dev": "node scripts/dev-all.mjs",
+    "dev:all": "node scripts/dev-all.mjs",
+    "dev:api": "npm run api",
+    "dev:metro": "npm run mobile",
+    "sync:shared": "node scripts/sync-shared.mjs",
+    "sync:ios": "node scripts/sync-ios.mjs",
+    "sync:ios:force": "node scripts/sync-ios.mjs --force",
+    "build:cities": "node scripts/build-world-cities.mjs",
+    "shared:build": "npm run build --workspace=@asto/shared",
+    "postinstall": "npm run shared:build"
   },
   "engines": {
     "node": ">=20"

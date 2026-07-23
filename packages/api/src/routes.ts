@@ -4,6 +4,7 @@ import {
   IAP_PRODUCTS,
   TOKEN_COSTS,
   TOKEN_REWARDS,
+  normalizeBirthInput,
   type BirthInput,
   type Conversation,
 } from '@asto/shared';
@@ -14,17 +15,38 @@ import {
 } from './chart/engine';
 import {
   answerQuestion,
+  aiStatus,
   generateChartNarrative,
   generateDailyReading,
   generateRelationshipAnalysis,
 } from './ai';
 import { requireAuth, type AuthedRequest } from './middleware';
 import { store } from './store';
+import { localDateKey, userTimezone } from './dates';
+
+function ensureDailyConversation(userId: string, date: string, conversationId?: string): Conversation {
+  if (conversationId) {
+    const existing = store.getConversation(conversationId, userId);
+    if (existing) return existing;
+  }
+  const now = new Date().toISOString();
+  const conv: Conversation = {
+    id: nanoid(),
+    userId,
+    title: `Öngörü ${date}`,
+    messages: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  store.saveConversation(conv);
+  return conv;
+}
 
 export const router = Router();
 
 router.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'asto-api', ai: Boolean(process.env.OPENAI_API_KEY) });
+  const ai = aiStatus();
+  res.json({ ok: true, service: 'asto-api', ai: ai.enabled, provider: ai.provider, model: ai.model });
 });
 
 router.post('/auth/register', (req, res) => {
@@ -64,9 +86,13 @@ router.get('/me', requireAuth, (req: AuthedRequest, res) => {
 
 router.put('/me/birth', requireAuth, (req: AuthedRequest, res) => {
   try {
-    const birth = req.body as BirthInput;
+    const birth = normalizeBirthInput(req.body as BirthInput);
     if (!birth?.birthDate || !birth?.birthTime || birth.latitude == null || birth.longitude == null) {
       res.status(400).json({ error: 'Doğum bilgileri eksik' });
+      return;
+    }
+    if (!birth.country || !birth.countryName || !birth.city) {
+      res.status(400).json({ error: 'Ülke ve şehir gerekli' });
       return;
     }
     const natalChart = computeNatalChart(birth);
@@ -74,6 +100,7 @@ router.put('/me/birth', requireAuth, (req: AuthedRequest, res) => {
       birth,
       natalChart,
       displayName: birth.name || req.user!.displayName,
+      chartNarrative: undefined,
     });
     res.json({ profile });
   } catch (e) {
@@ -102,30 +129,71 @@ router.get('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
       res.status(400).json({ error: 'Önce doğum haritası kaydedin' });
       return;
     }
-    const date = new Date().toISOString().slice(0, 10);
-    const cached = store.getReading(user.id, date);
-    if (cached) {
-      res.json({ reading: cached, cached: true });
+    const tz = userTimezone(user.birth);
+    const date = localDateKey(tz);
+    let cached = store.getReading(user.id, date);
+
+    if (cached && cached.date === date) {
+      const conv = ensureDailyConversation(user.id, date, cached.conversationId);
+      if (!cached.conversationId) {
+        cached = { ...cached, conversationId: conv.id };
+        store.saveReading(cached);
+      }
+      res.json({ reading: cached, conversation: conv, cached: true, today: date });
       return;
     }
 
-    if (!user.isSubscribed) {
-      // free daily reading — no token charge on first of day
+    res.json({ reading: null, conversation: null, cached: false, today: date });
+  } catch (e) {
+    res.status(500).json({ error: (e as Error).message });
+  }
+});
+
+router.post('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const user = store.getUser(req.user!.id);
+    if (!user?.natalChart) {
+      res.status(400).json({ error: 'Önce doğum haritası kaydedin' });
+      return;
+    }
+    const force = Boolean(req.body?.force);
+    const tz = userTimezone(user.birth);
+    const date = localDateKey(tz);
+    const existing = store.getReading(user.id, date);
+
+    if (existing && existing.date === date && !force) {
+      const conv = ensureDailyConversation(user.id, date, existing.conversationId);
+      res.json({
+        reading: existing,
+        conversation: conv,
+        cached: true,
+        cost: 0,
+        today: date,
+        profile: stripUser(user),
+      });
+      return;
     }
 
+    let profile = stripUser(user);
+    const cost =
+      existing && force && !user.isSubscribed ? TOKEN_COSTS.dailyReadingRefresh : 0;
+    if (cost > 0) profile = store.adjustTokens(user.id, -cost, 'daily_reading_refresh');
+
     const { summary, themes } = await generateDailyReading(user.natalChart, user.displayName);
+    const conv = ensureDailyConversation(user.id, date);
     const reading = {
       id: nanoid(),
       userId: user.id,
       date,
       summary,
       themes,
+      conversationId: conv.id,
       createdAt: new Date().toISOString(),
     };
     store.saveReading(reading);
-    res.json({ reading, cached: false });
+    res.json({ reading, conversation: conv, cached: false, cost, today: date, profile });
   } catch (e) {
-    res.status(500).json({ error: (e as Error).message });
+    res.status(400).json({ error: (e as Error).message });
   }
 });
 
@@ -136,10 +204,23 @@ router.post('/readings/chart-narrative', requireAuth, async (req: AuthedRequest,
       res.status(400).json({ error: 'Önce doğum haritası kaydedin' });
       return;
     }
+    const force = Boolean(req.body?.force);
+
+    if (user.chartNarrative && !force) {
+      res.json({
+        text: user.chartNarrative,
+        profile: stripUser(user),
+        cost: 0,
+        cached: true,
+      });
+      return;
+    }
+
     const cost = user.isSubscribed ? 0 : TOKEN_COSTS.chartNarrative;
     if (cost > 0) store.adjustTokens(user.id, -cost, 'chart_narrative');
     const text = await generateChartNarrative(user.natalChart, user.displayName);
-    res.json({ text, profile: stripUser(store.getUser(user.id)!), cost });
+    const profile = store.updateUser(user.id, { chartNarrative: text });
+    res.json({ text, profile, cost, cached: false });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
@@ -165,20 +246,24 @@ router.post('/conversations/ask', requireAuth, async (req: AuthedRequest, res) =
     const cost = user.isSubscribed ? 0 : TOKEN_COSTS.askQuestion;
     if (cost > 0) store.adjustTokens(user.id, -cost, 'ask_question');
 
+    const tz = userTimezone(user.birth);
+    const date = localDateKey(tz);
+    const todayReading = store.getReading(user.id, date);
+
     let conv: Conversation | null = conversationId
       ? store.getConversation(String(conversationId), user.id)
       : null;
 
+    if (!conv && todayReading?.conversationId) {
+      conv = store.getConversation(todayReading.conversationId, user.id);
+    }
+
     const now = new Date().toISOString();
     if (!conv) {
-      conv = {
-        id: nanoid(),
-        userId: user.id,
-        title: question.slice(0, 48),
-        messages: [],
-        createdAt: now,
-        updatedAt: now,
-      };
+      conv = ensureDailyConversation(user.id, date, todayReading?.conversationId);
+      if (todayReading && !todayReading.conversationId) {
+        store.saveReading({ ...todayReading, conversationId: conv.id });
+      }
     }
 
     conv.messages.push({
@@ -216,9 +301,13 @@ router.get('/partners', requireAuth, (req: AuthedRequest, res) => {
 
 router.post('/partners', requireAuth, (req: AuthedRequest, res) => {
   try {
-    const birth = req.body as BirthInput;
+    const birth = normalizeBirthInput(req.body as BirthInput);
     if (!birth?.name || !birth?.birthDate) {
       res.status(400).json({ error: 'Partner doğum bilgileri eksik' });
+      return;
+    }
+    if (!birth.country || !birth.countryName || !birth.city) {
+      res.status(400).json({ error: 'Ülke ve şehir gerekli' });
       return;
     }
     const natalChart = computeNatalChart(birth);
@@ -231,6 +320,37 @@ router.post('/partners', requireAuth, (req: AuthedRequest, res) => {
     };
     store.savePartner(partner);
     res.json({ partner });
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+});
+
+router.put('/partners/:id', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const partnerId = String(req.params.id);
+    const partner = store.getPartner(partnerId, req.user!.id);
+    if (!partner) {
+      res.status(404).json({ error: 'Partner bulunamadı' });
+      return;
+    }
+    const birth = normalizeBirthInput(req.body as BirthInput);
+    if (!birth?.name || !birth?.birthDate) {
+      res.status(400).json({ error: 'Partner doğum bilgileri eksik' });
+      return;
+    }
+    if (!birth.country || !birth.countryName || !birth.city) {
+      res.status(400).json({ error: 'Ülke ve şehir gerekli' });
+      return;
+    }
+    const natalChart = computeNatalChart(birth);
+    const updated = store.updatePartner(partner.id, {
+      birth,
+      natalChart,
+      synastryScore: undefined,
+      synastryScoreNote: undefined,
+      analysis: undefined,
+    });
+    res.json({ partner: updated });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
@@ -250,10 +370,8 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
       return;
     }
 
-    const cost = user.isSubscribed ? 0 : TOKEN_COSTS.relationshipAnalysis;
-    if (cost > 0) store.adjustTokens(user.id, -cost, 'relationship_analysis');
+    const force = Boolean(req.body?.force);
 
-    // Recompute so older stored charts pick up nodes / Descendant.
     const selfChart = user.birth ? computeNatalChart(user.birth) : user.natalChart;
     const partnerChart = computeNatalChart(partner.birth);
     if (user.birth) {
@@ -265,24 +383,45 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
       selfGender: user.birth?.gender,
       partnerGender: partner.birth.gender,
     });
-    const analysis = await generateRelationshipAnalysis(
-      user.displayName,
-      selfChart,
-      partner.birth.name,
-      partnerChart,
-      synastry,
-      {
-        selfGender: user.birth?.gender,
-        partnerGender: partner.birth.gender,
-      },
-    );
+
+    if (partner.analysis && !force) {
+      const profile = stripUser(store.getUser(user.id)!);
+      res.json({ partner, synastry, profile, cost: 0, cached: true });
+      return;
+    }
+
+    const cost = user.isSubscribed ? 0 : TOKEN_COSTS.relationshipAnalysis;
+    let charged = false;
+    if (cost > 0) {
+      store.adjustTokens(user.id, -cost, 'relationship_analysis');
+      charged = true;
+    }
+
+    let result: Awaited<ReturnType<typeof generateRelationshipAnalysis>>;
+    try {
+      result = await generateRelationshipAnalysis(
+        user.displayName,
+        selfChart,
+        partner.birth.name,
+        partnerChart,
+        synastry,
+        {
+          selfGender: user.birth?.gender,
+          partnerGender: partner.birth.gender,
+        },
+      );
+    } catch (e) {
+      if (charged) store.adjustTokens(user.id, cost, 'relationship_analysis_refund');
+      throw e;
+    }
 
     const updated = store.updatePartner(partner.id, {
-      synastryScore: synastry.score,
-      analysis,
+      synastryScore: result.score,
+      synastryScoreNote: result.scoreNote || undefined,
+      analysis: result.analysis,
     });
     const profile = stripUser(store.getUser(user.id)!);
-    res.json({ partner: updated, synastry, profile, cost });
+    res.json({ partner: updated, synastry, profile, cost, cached: false });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }

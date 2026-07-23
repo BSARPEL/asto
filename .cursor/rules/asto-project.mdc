@@ -20,9 +20,12 @@ docs/             Mimari ve API dokümantasyonu
 ## Çalıştırma
 
 - `npm install` → `npm run build --workspace=@asto/shared`
-- API: `npm run api` → `http://localhost:8788/api`
-- Mobil: `npm run mobile`
-- Shared değişince shared’ı yeniden build et
+- **Geliştirme (önerilen):** `npm run dev` veya `npm run dev:all` — API + Metro + otomatik sync izleyici
+- API yalnız: `npm run api` → `http://localhost:8788/api`
+- Metro yalnız: `npm run mobile`
+- Xcode: `apps/mobile/ios/Asto.xcworkspace` — Metro açıkken ⌘R; JS değişiklikleri Fast Refresh ile yansır
+- Shared değişince: otomatik `sync:shared` (hook + watcher)
+- `app.json` / native paket değişince: otomatik `sync:ios` (prebuild + pod install)
 
 ## Temel ilkeler
 
