@@ -7,7 +7,7 @@ import {
   relationshipKeySummaryForPrompt,
   synastryFocusAreasForPrompt,
   synastryScoreBreakdownForPrompt,
-} from './chart/engine';
+} from '@asto/shared';
 
 export type RelationshipAnalysisResult = {
   analysis: string;

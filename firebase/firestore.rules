@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// BN Astro — mobil uygulama doğrudan Firebase Auth + Firestore (bnastro)
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /ledger/{entryId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /adClaims/{docId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /partners/{partnerId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /conversations/{convId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /readings/{readingId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /_meta/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Eski API (Admin SDK) koleksiyonları — istemci erişemez
+    match /users_by_email/{email} {
+      allow read, write: if false;
+    }
+    match /sessions/{token} {
+      allow read, write: if false;
+    }
+  }
+}

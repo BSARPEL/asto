@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * Tek komut: API + Metro + dosya izleyici (shared build, iOS prebuild gerektiğinde).
- * Kullanım: npm run dev:all
- * Xcode ile: npm run dev:all (Metro açık kalır) + Xcode ⌘R
+ * Tek komut: API + Metro (simülatör hot reload) + dosya izleyici.
+ * iOS fiziksel cihaz / TestFlight: Metro kullanılmaz — Xcode ⌘R veya npm run ios:device.
  */
 import { watch } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -69,7 +68,7 @@ async function main() {
   });
   log('watch', 'apps/mobile/app.json, package.json, package-lock.json');
 
-  log('dev', 'Hazır — JS değişiklikleri Metro ile yansır; Xcode’dan ⌘R (Metro açıkken)');
+  log('dev', 'Hazır — iOS native: Xcode ⌘R (gömülü bundle). Simülatör hot reload: Metro açık.');
   log('dev', 'Durdurmak: Ctrl+C');
 
   const shutdown = () => {

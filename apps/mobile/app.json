@@ -1,25 +1,25 @@
 {
   "expo": {
-    "name": "Asto",
-    "slug": "asto",
+    "name": "BN Astro",
+    "slug": "bn-astro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "asto",
+    "scheme": "bnastro",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.asto.app",
+      "bundleIdentifier": "com.bn.astro.app",
+      "appleTeamId": "2U98475NHT",
+      "deploymentTarget": "15.1",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "Kişiselleştirilmiş deneyim ve reklam ölçümü için kullanılır.",
-        "NSAppTransportSecurity": {
-          "NSAllowsLocalNetworking": true
-        }
+        "CFBundleDisplayName": "BN Astro",
+        "NSUserTrackingUsageDescription": "Kişiselleştirilmiş deneyim ve reklam ölçümü için kullanılır."
       }
     },
     "android": {
-      "package": "com.asto.app",
+      "package": "com.bn.astro.app",
       "adaptiveIcon": {
         "backgroundColor": "#FAF8F4",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -35,6 +35,8 @@
     },
     "plugins": [
       "expo-router",
+      "expo-font",
+      "expo-web-browser",
       "expo-secure-store",
       [
         "expo-splash-screen",
@@ -45,7 +47,7 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "./plugins/withStandaloneBundle.js"
+      "./plugins/withNativeIosStandalone.js"
     ],
     "updates": {
       "enabled": false,
@@ -59,7 +61,7 @@
       "eas": {
         "projectId": "asto-local-dev"
       },
-      "apiUrl": "http://127.0.0.1:8788/api"
+      "appEnv": "development"
     }
   }
 }

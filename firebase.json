@@ -1,0 +1,9 @@
+{
+  "firestore": [
+    {
+      "database": "bnastro",
+      "rules": "firebase/firestore.rules",
+      "indexes": "firebase/firestore.indexes.json"
+    }
+  ]
+}

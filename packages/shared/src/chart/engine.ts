@@ -10,8 +10,8 @@ import type {
   SynastryFocusArea,
   SynastryResult,
   ZodiacSign,
-} from '@asto/shared';
-import { ASPECT_LABELS_TR, PLANET_LABELS_TR, SIGNS_TR } from '@asto/shared';
+} from '../types';
+import { ASPECT_LABELS_TR, PLANET_LABELS_TR, SIGNS_TR } from '../constants';
 
 const PLANETS: { name: PlanetName; body: Astronomy.Body }[] = [
   { name: 'Sun', body: Astronomy.Body.Sun },

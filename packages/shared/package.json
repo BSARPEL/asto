@@ -7,6 +7,9 @@
     "build": "tsc && mkdir -p dist/data && cp src/data/world-cities.json dist/data/",
     "dev": "tsc --watch"
   },
+  "dependencies": {
+    "astronomy-engine": "^2.1.19"
+  },
   "devDependencies": {
     "typescript": "^5.9.2"
   }

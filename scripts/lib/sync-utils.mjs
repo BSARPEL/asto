@@ -62,8 +62,12 @@ export function debounceIosSync(fn, ms = 1500) {
 
 export const IOS_HASH_FILES = [
   join(ROOT, 'apps/mobile/app.json'),
+  join(ROOT, 'apps/mobile/app.config.js'),
   join(ROOT, 'apps/mobile/package.json'),
   join(ROOT, 'package-lock.json'),
+  join(ROOT, 'apps/mobile/plugins/withNativeIosStandalone.js'),
+  join(ROOT, 'apps/mobile/native-ios/.xcode.env.local'),
+  join(ROOT, 'apps/mobile/native-ios/.xcode.env.updates'),
 ];
 
 export function needsIosSync() {
@@ -101,6 +105,9 @@ export function classifyPath(filePath) {
   const rel = filePath.replace(ROOT + '/', '').replace(/\\/g, '/');
   if (rel.startsWith('packages/shared/')) return 'shared';
   if (rel === 'apps/mobile/app.json' || rel === 'apps/mobile/package.json') return 'ios';
+  if (rel === 'apps/mobile/app.config.js') return 'ios';
+  if (rel.startsWith('apps/mobile/plugins/')) return 'ios';
+  if (rel.startsWith('apps/mobile/native-ios/')) return 'ios';
   if (rel === 'package-lock.json') return 'ios';
   if (rel.startsWith('packages/api/')) return 'api';
   if (rel.startsWith('apps/mobile/')) return 'mobile';

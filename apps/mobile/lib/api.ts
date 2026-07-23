@@ -6,7 +6,7 @@ import type {
   Profile,
   SynastryResult,
 } from '@asto/shared';
-import { API_URL } from './config';
+import { API_URL, IS_PRODUCTION, apiUrlConfigured } from './config';
 
 export class ApiError extends Error {
   status: number;
@@ -16,10 +16,26 @@ export class ApiError extends Error {
   }
 }
 
+function connectionErrorMessage(): string {
+  if (!apiUrlConfigured()) {
+    return IS_PRODUCTION
+      ? 'Uygulama yapılandırması eksik (API adresi). Lütfen güncel sürümü yükleyin veya destek ile iletişime geçin.'
+      : 'API adresi tanımlı değil. apps/mobile/.env içinde EXPO_PUBLIC_API_URL ayarlayın ve yeniden build alın.';
+  }
+  if (IS_PRODUCTION) {
+    return 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.';
+  }
+  return `Sunucuya bağlanılamadı (${API_URL}). Aynı Wi‑Fi'de olduğunuzdan ve "npm run api" çalıştığından emin olun.`;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { token?: string | null; timeoutMs?: number } = {},
 ): Promise<T> {
+  if (!apiUrlConfigured()) {
+    throw new ApiError(connectionErrorMessage(), 0);
+  }
+
   const { token, headers, timeoutMs = 30_000, ...rest } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -51,10 +67,7 @@ async function request<T>(
       }
       const msg = e.message.toLowerCase();
       if (msg.includes('fetch failed') || msg.includes('network request failed')) {
-        throw new ApiError(
-          `Sunucuya bağlanılamadı (${API_URL}). Terminalde "npm run api" çalıştığından emin olun.`,
-          0,
-        );
+        throw new ApiError(connectionErrorMessage(), 0);
       }
     }
     throw e;

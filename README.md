@@ -37,12 +37,14 @@ Anahtar yoksa AI yanıtları demo metin üretir; harita hesaplama çalışır.
 npm run mobile
 ```
 
-Android emülatörde API adresi otomatik `10.0.2.2:8788` olur. Fiziksel cihazda:
+Android emülatörde API adresi otomatik `10.0.2.2:8788` olur. Fiziksel cihazda (yerel test):
 
 ```bash
-# apps/mobile/.env
+# apps/mobile/.env — EXPO_PUBLIC_APP_ENV=development
 EXPO_PUBLIC_API_URL=http://<bilgisayar-ip>:8788/api
 ```
+
+**App Store:** API internette HTTPS ile deploy edilir; bkz. [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
 ## Yapı
 

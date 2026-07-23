@@ -12,7 +12,7 @@ import {
   computeNatalChart,
   computeSynastry,
   computeTransits,
-} from './chart/engine';
+} from '@asto/shared';
 import {
   answerQuestion,
   answerSynastryQuestion,
@@ -22,12 +22,16 @@ import {
   generateRelationshipAnalysis,
 } from './ai';
 import { requireAuth, type AuthedRequest } from './middleware';
-import { store } from './store';
+import { store, storeBackend } from './store';
 import { localDateKey, userTimezone } from './dates';
 
-function ensureDailyConversation(userId: string, date: string, conversationId?: string): Conversation {
+async function ensureDailyConversation(
+  userId: string,
+  date: string,
+  conversationId?: string,
+): Promise<Conversation> {
   if (conversationId) {
-    const existing = store.getConversation(conversationId, userId);
+    const existing = await store.getConversation(conversationId, userId);
     if (existing) return existing;
   }
   const now = new Date().toISOString();
@@ -40,18 +44,18 @@ function ensureDailyConversation(userId: string, date: string, conversationId?: 
     createdAt: now,
     updatedAt: now,
   };
-  store.saveConversation(conv);
+  await store.saveConversation(conv);
   return conv;
 }
 
-function ensureSynastryConversation(
+async function ensureSynastryConversation(
   userId: string,
   partnerId: string,
   partnerName: string,
   conversationId?: string,
-): Conversation {
+): Promise<Conversation> {
   if (conversationId) {
-    const existing = store.getConversation(conversationId, userId);
+    const existing = await store.getConversation(conversationId, userId);
     if (existing) return existing;
   }
   const now = new Date().toISOString();
@@ -65,20 +69,23 @@ function ensureSynastryConversation(
     createdAt: now,
     updatedAt: now,
   };
-  store.saveConversation(conv);
+  await store.saveConversation(conv);
   return conv;
 }
 
-function partnerConversationFor(userId: string, partner: { id: string; birth: { name: string }; conversationId?: string; analysis?: string }) {
+async function partnerConversationFor(
+  userId: string,
+  partner: { id: string; birth: { name: string }; conversationId?: string; analysis?: string },
+) {
   if (!partner.analysis) return null;
-  const conv = ensureSynastryConversation(
+  const conv = await ensureSynastryConversation(
     userId,
     partner.id,
     partner.birth.name,
     partner.conversationId,
   );
   if (!partner.conversationId) {
-    store.updatePartner(partner.id, { conversationId: conv.id });
+    await store.updatePartner(partner.id, { conversationId: conv.id });
   }
   return conv;
 }
@@ -87,45 +94,52 @@ export const router = Router();
 
 router.get('/health', (_req, res) => {
   const ai = aiStatus();
-  res.json({ ok: true, service: 'asto-api', ai: ai.enabled, provider: ai.provider, model: ai.model });
+  res.json({
+    ok: true,
+    service: 'asto-api',
+    store: storeBackend,
+    ai: ai.enabled,
+    provider: ai.provider,
+    model: ai.model,
+  });
 });
 
-router.post('/auth/register', (req, res) => {
+router.post('/auth/register', async (req, res) => {
   try {
     const { email, password, displayName } = req.body ?? {};
     if (!email || !password || !displayName) {
       res.status(400).json({ error: 'email, password, displayName gerekli' });
       return;
     }
-    const profile = store.createUser(String(email), String(password), String(displayName));
-    const { token } = store.authenticate(String(email), String(password));
+    const profile = await store.createUser(String(email), String(password), String(displayName));
+    const { token } = await store.authenticate(String(email), String(password));
     res.json({ token, profile });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
 });
 
-router.post('/auth/login', (req, res) => {
+router.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body ?? {};
-    const result = store.authenticate(String(email), String(password));
+    const result = await store.authenticate(String(email), String(password));
     res.json(result);
   } catch (e) {
     res.status(401).json({ error: (e as Error).message });
   }
 });
 
-router.get('/me', requireAuth, (req: AuthedRequest, res) => {
+router.get('/me', requireAuth, async (req: AuthedRequest, res) => {
   res.json({
     profile: req.user,
-    adClaimsToday: store.getAdCount(req.user!.id),
+    adClaimsToday: await store.getAdCount(req.user!.id),
     maxAdsPerDay: TOKEN_REWARDS.maxRewardedAdsPerDay,
     tokenCosts: TOKEN_COSTS,
     products: IAP_PRODUCTS,
   });
 });
 
-router.put('/me/birth', requireAuth, (req: AuthedRequest, res) => {
+router.put('/me/birth', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const birth = normalizeBirthInput(req.body as BirthInput);
     if (!birth?.birthDate || !birth?.birthTime || birth.latitude == null || birth.longitude == null) {
@@ -137,7 +151,7 @@ router.put('/me/birth', requireAuth, (req: AuthedRequest, res) => {
       return;
     }
     const natalChart = computeNatalChart(birth);
-    const profile = store.updateUser(req.user!.id, {
+    const profile = await store.updateUser(req.user!.id, {
       birth,
       natalChart,
       displayName: birth.name || req.user!.displayName,
@@ -165,20 +179,20 @@ router.get('/chart/transits', (_req, res) => {
 
 router.get('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const user = store.getUser(req.user!.id);
+    const user = await store.getUser(req.user!.id);
     if (!user?.natalChart) {
       res.status(400).json({ error: 'Önce doğum haritası kaydedin' });
       return;
     }
     const tz = userTimezone(user.birth);
     const date = localDateKey(tz);
-    let cached = store.getReading(user.id, date);
+    let cached = await store.getReading(user.id, date);
 
     if (cached && cached.date === date) {
-      const conv = ensureDailyConversation(user.id, date, cached.conversationId);
+      const conv = await ensureDailyConversation(user.id, date, cached.conversationId);
       if (!cached.conversationId) {
         cached = { ...cached, conversationId: conv.id };
-        store.saveReading(cached);
+        await store.saveReading(cached);
       }
       res.json({ reading: cached, conversation: conv, cached: true, today: date });
       return;
@@ -192,7 +206,7 @@ router.get('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
 
 router.post('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const user = store.getUser(req.user!.id);
+    const user = await store.getUser(req.user!.id);
     if (!user?.natalChart) {
       res.status(400).json({ error: 'Önce doğum haritası kaydedin' });
       return;
@@ -200,10 +214,10 @@ router.post('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
     const force = Boolean(req.body?.force);
     const tz = userTimezone(user.birth);
     const date = localDateKey(tz);
-    const existing = store.getReading(user.id, date);
+    const existing = await store.getReading(user.id, date);
 
     if (existing && existing.date === date && !force) {
-      const conv = ensureDailyConversation(user.id, date, existing.conversationId);
+      const conv = await ensureDailyConversation(user.id, date, existing.conversationId);
       res.json({
         reading: existing,
         conversation: conv,
@@ -218,10 +232,10 @@ router.post('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
     let profile = stripUser(user);
     const cost =
       existing && force && !user.isSubscribed ? TOKEN_COSTS.dailyReadingRefresh : 0;
-    if (cost > 0) profile = store.adjustTokens(user.id, -cost, 'daily_reading_refresh');
+    if (cost > 0) profile = await store.adjustTokens(user.id, -cost, 'daily_reading_refresh');
 
     const { summary, themes } = await generateDailyReading(user.natalChart, user.displayName);
-    const conv = ensureDailyConversation(user.id, date);
+    const conv = await ensureDailyConversation(user.id, date);
     const reading = {
       id: nanoid(),
       userId: user.id,
@@ -231,7 +245,7 @@ router.post('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
       conversationId: conv.id,
       createdAt: new Date().toISOString(),
     };
-    store.saveReading(reading);
+    await store.saveReading(reading);
     res.json({ reading, conversation: conv, cached: false, cost, today: date, profile });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
@@ -240,7 +254,7 @@ router.post('/readings/daily', requireAuth, async (req: AuthedRequest, res) => {
 
 router.post('/readings/chart-narrative', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const user = store.getUser(req.user!.id);
+    const user = await store.getUser(req.user!.id);
     if (!user?.natalChart) {
       res.status(400).json({ error: 'Önce doğum haritası kaydedin' });
       return;
@@ -258,17 +272,17 @@ router.post('/readings/chart-narrative', requireAuth, async (req: AuthedRequest,
     }
 
     const cost = user.isSubscribed ? 0 : TOKEN_COSTS.chartNarrative;
-    if (cost > 0) store.adjustTokens(user.id, -cost, 'chart_narrative');
+    if (cost > 0) await store.adjustTokens(user.id, -cost, 'chart_narrative');
     const text = await generateChartNarrative(user.natalChart, user.displayName);
-    const profile = store.updateUser(user.id, { chartNarrative: text });
+    const profile = await store.updateUser(user.id, { chartNarrative: text });
     res.json({ text, profile, cost, cached: false });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
 });
 
-router.get('/conversations', requireAuth, (req: AuthedRequest, res) => {
-  res.json({ conversations: store.listConversations(req.user!.id) });
+router.get('/conversations', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ conversations: await store.listConversations(req.user!.id) });
 });
 
 router.post('/conversations/ask', requireAuth, async (req: AuthedRequest, res) => {
@@ -278,32 +292,32 @@ router.post('/conversations/ask', requireAuth, async (req: AuthedRequest, res) =
       res.status(400).json({ error: 'question gerekli' });
       return;
     }
-    const user = store.getUser(req.user!.id);
+    const user = await store.getUser(req.user!.id);
     if (!user?.natalChart) {
       res.status(400).json({ error: 'Önce doğum haritası kaydedin' });
       return;
     }
 
     const cost = user.isSubscribed ? 0 : TOKEN_COSTS.askQuestion;
-    if (cost > 0) store.adjustTokens(user.id, -cost, 'ask_question');
+    if (cost > 0) await store.adjustTokens(user.id, -cost, 'ask_question');
 
     const tz = userTimezone(user.birth);
     const date = localDateKey(tz);
-    const todayReading = store.getReading(user.id, date);
+    const todayReading = await store.getReading(user.id, date);
 
     let conv: Conversation | null = conversationId
-      ? store.getConversation(String(conversationId), user.id)
+      ? await store.getConversation(String(conversationId), user.id)
       : null;
 
     if (!conv && todayReading?.conversationId) {
-      conv = store.getConversation(todayReading.conversationId, user.id);
+      conv = await store.getConversation(todayReading.conversationId, user.id);
     }
 
     const now = new Date().toISOString();
     if (!conv) {
-      conv = ensureDailyConversation(user.id, date, todayReading?.conversationId);
+      conv = await ensureDailyConversation(user.id, date, todayReading?.conversationId);
       if (todayReading && !todayReading.conversationId) {
-        store.saveReading({ ...todayReading, conversationId: conv.id });
+        await store.saveReading({ ...todayReading, conversationId: conv.id });
       }
     }
 
@@ -327,20 +341,20 @@ router.post('/conversations/ask', requireAuth, async (req: AuthedRequest, res) =
       createdAt: new Date().toISOString(),
     });
     conv.updatedAt = new Date().toISOString();
-    store.saveConversation(conv);
+    await store.saveConversation(conv);
 
-    const profile = stripUser(store.getUser(user.id)!);
+    const profile = stripUser((await store.getUser(user.id))!);
     res.json({ conversation: conv, profile, cost });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
 });
 
-router.get('/partners', requireAuth, (req: AuthedRequest, res) => {
-  res.json({ partners: store.listPartners(req.user!.id) });
+router.get('/partners', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ partners: await store.listPartners(req.user!.id) });
 });
 
-router.post('/partners', requireAuth, (req: AuthedRequest, res) => {
+router.post('/partners', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const birth = normalizeBirthInput(req.body as BirthInput);
     if (!birth?.name || !birth?.birthDate) {
@@ -359,17 +373,17 @@ router.post('/partners', requireAuth, (req: AuthedRequest, res) => {
       natalChart,
       createdAt: new Date().toISOString(),
     };
-    store.savePartner(partner);
+    await store.savePartner(partner);
     res.json({ partner });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
 });
 
-router.put('/partners/:id', requireAuth, (req: AuthedRequest, res) => {
+router.put('/partners/:id', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const partnerId = String(req.params.id);
-    const partner = store.getPartner(partnerId, req.user!.id);
+    const partner = await store.getPartner(partnerId, req.user!.id);
     if (!partner) {
       res.status(404).json({ error: 'Partner bulunamadı' });
       return;
@@ -385,9 +399,9 @@ router.put('/partners/:id', requireAuth, (req: AuthedRequest, res) => {
     }
     const natalChart = computeNatalChart(birth);
     if (partner.conversationId) {
-      store.deleteConversation(partner.conversationId, req.user!.id);
+      await store.deleteConversation(partner.conversationId, req.user!.id);
     }
-    const updated = store.updatePartner(partner.id, {
+    const updated = await store.updatePartner(partner.id, {
       birth,
       natalChart,
       synastryScore: undefined,
@@ -403,13 +417,13 @@ router.put('/partners/:id', requireAuth, (req: AuthedRequest, res) => {
 
 router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const user = store.getUser(req.user!.id);
+    const user = await store.getUser(req.user!.id);
     if (!user?.natalChart) {
       res.status(400).json({ error: 'Önce kendi doğum haritanızı kaydedin' });
       return;
     }
     const partnerId = String(req.params.id);
-    const partner = store.getPartner(partnerId, user.id);
+    const partner = await store.getPartner(partnerId, user.id);
     if (!partner) {
       res.status(404).json({ error: 'Partner bulunamadı' });
       return;
@@ -420,9 +434,9 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
     const selfChart = user.birth ? computeNatalChart(user.birth) : user.natalChart;
     const partnerChart = computeNatalChart(partner.birth);
     if (user.birth) {
-      store.updateUser(user.id, { natalChart: selfChart });
+      await store.updateUser(user.id, { natalChart: selfChart });
     }
-    store.updatePartner(partner.id, { natalChart: partnerChart });
+    await store.updatePartner(partner.id, { natalChart: partnerChart });
 
     const synastry = computeSynastry(selfChart, partnerChart, {
       selfGender: user.birth?.gender,
@@ -430,9 +444,9 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
     });
 
     if (partner.analysis && !force) {
-      const fresh = store.getPartner(partner.id, user.id)!;
-      const conversation = partnerConversationFor(user.id, fresh);
-      const profile = stripUser(store.getUser(user.id)!);
+      const fresh = (await store.getPartner(partner.id, user.id))!;
+      const conversation = await partnerConversationFor(user.id, fresh);
+      const profile = stripUser((await store.getUser(user.id))!);
       res.json({ partner: fresh, synastry, conversation, profile, cost: 0, cached: true });
       return;
     }
@@ -440,7 +454,7 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
     const cost = user.isSubscribed ? 0 : TOKEN_COSTS.relationshipAnalysis;
     let charged = false;
     if (cost > 0) {
-      store.adjustTokens(user.id, -cost, 'relationship_analysis');
+      await store.adjustTokens(user.id, -cost, 'relationship_analysis');
       charged = true;
     }
 
@@ -458,33 +472,33 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
         },
       );
     } catch (e) {
-      if (charged) store.adjustTokens(user.id, cost, 'relationship_analysis_refund');
+      if (charged) await store.adjustTokens(user.id, cost, 'relationship_analysis_refund');
       throw e;
     }
 
-    const conv = ensureSynastryConversation(
+    const conv = await ensureSynastryConversation(
       user.id,
       partner.id,
       partner.birth.name,
       partner.conversationId,
     );
 
-    const updated = store.updatePartner(partner.id, {
+    const updated = await store.updatePartner(partner.id, {
       synastryScore: result.score,
       synastryScoreNote: result.scoreNote || undefined,
       analysis: result.analysis,
       conversationId: conv.id,
     });
-    const profile = stripUser(store.getUser(user.id)!);
+    const profile = stripUser((await store.getUser(user.id))!);
     res.json({ partner: updated, synastry, conversation: conv, profile, cost, cached: false });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
 });
 
-router.get('/partners/:id/conversation', requireAuth, (req: AuthedRequest, res) => {
+router.get('/partners/:id/conversation', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const partner = store.getPartner(String(req.params.id), req.user!.id);
+    const partner = await store.getPartner(String(req.params.id), req.user!.id);
     if (!partner) {
       res.status(404).json({ error: 'Partner bulunamadı' });
       return;
@@ -493,8 +507,8 @@ router.get('/partners/:id/conversation', requireAuth, (req: AuthedRequest, res) 
       res.status(400).json({ error: 'Önce sinastri yorumu alın' });
       return;
     }
-    const conversation = partnerConversationFor(req.user!.id, partner);
-    const fresh = store.getPartner(partner.id, req.user!.id)!;
+    const conversation = await partnerConversationFor(req.user!.id, partner);
+    const fresh = (await store.getPartner(partner.id, req.user!.id))!;
     res.json({ partner: fresh, conversation });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
@@ -509,13 +523,13 @@ router.post('/partners/:id/ask', requireAuth, async (req: AuthedRequest, res) =>
       return;
     }
 
-    const user = store.getUser(req.user!.id);
+    const user = await store.getUser(req.user!.id);
     if (!user?.natalChart) {
       res.status(400).json({ error: 'Önce doğum haritanızı kaydedin' });
       return;
     }
 
-    const partner = store.getPartner(String(req.params.id), user.id);
+    const partner = await store.getPartner(String(req.params.id), user.id);
     if (!partner) {
       res.status(404).json({ error: 'Partner bulunamadı' });
       return;
@@ -526,18 +540,23 @@ router.post('/partners/:id/ask', requireAuth, async (req: AuthedRequest, res) =>
     }
 
     const cost = user.isSubscribed ? 0 : TOKEN_COSTS.askQuestion;
-    if (cost > 0) store.adjustTokens(user.id, -cost, 'synastry_ask');
+    if (cost > 0) await store.adjustTokens(user.id, -cost, 'synastry_ask');
 
     let conv: Conversation | null = conversationId
-      ? store.getConversation(String(conversationId), user.id)
+      ? await store.getConversation(String(conversationId), user.id)
       : null;
     if (!conv && partner.conversationId) {
-      conv = store.getConversation(partner.conversationId, user.id);
+      conv = await store.getConversation(partner.conversationId, user.id);
     }
     if (!conv) {
-      conv = ensureSynastryConversation(user.id, partner.id, partner.birth.name, partner.conversationId);
+      conv = await ensureSynastryConversation(
+        user.id,
+        partner.id,
+        partner.birth.name,
+        partner.conversationId,
+      );
       if (!partner.conversationId) {
-        store.updatePartner(partner.id, { conversationId: conv.id });
+        await store.updatePartner(partner.id, { conversationId: conv.id });
       }
     }
 
@@ -574,22 +593,22 @@ router.post('/partners/:id/ask', requireAuth, async (req: AuthedRequest, res) =>
       createdAt: new Date().toISOString(),
     });
     conv.updatedAt = new Date().toISOString();
-    store.saveConversation(conv);
+    await store.saveConversation(conv);
 
-    const profile = stripUser(store.getUser(user.id)!);
+    const profile = stripUser((await store.getUser(user.id))!);
     res.json({ conversation: conv, profile, cost });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
 });
 
-router.get('/tokens/ledger', requireAuth, (req: AuthedRequest, res) => {
-  res.json({ ledger: store.getLedger(req.user!.id) });
+router.get('/tokens/ledger', requireAuth, async (req: AuthedRequest, res) => {
+  res.json({ ledger: await store.getLedger(req.user!.id) });
 });
 
-router.post('/tokens/rewarded-ad', requireAuth, (req: AuthedRequest, res) => {
+router.post('/tokens/rewarded-ad', requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const result = store.claimAdReward(req.user!.id);
+    const result = await store.claimAdReward(req.user!.id);
     res.json({
       ...result,
       reward: TOKEN_REWARDS.rewardedAd,
@@ -601,13 +620,13 @@ router.post('/tokens/rewarded-ad', requireAuth, (req: AuthedRequest, res) => {
 });
 
 /** Dev / RevenueCat webhook stub — grants tokens or subscription */
-router.post('/tokens/purchase', requireAuth, (req: AuthedRequest, res) => {
+router.post('/tokens/purchase', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const { productId } = req.body ?? {};
     const userId = req.user!.id;
 
     if (productId === IAP_PRODUCTS.monthly.id) {
-      const profile = store.updateUser(userId, { isSubscribed: true });
+      const profile = await store.updateUser(userId, { isSubscribed: true });
       res.json({ profile, granted: 'subscription' });
       return;
     }
@@ -621,14 +640,16 @@ router.post('/tokens/purchase', requireAuth, (req: AuthedRequest, res) => {
       return;
     }
 
-    const profile = store.adjustTokens(userId, pack.tokens, `iap:${productId}`);
+    const profile = await store.adjustTokens(userId, pack.tokens, `iap:${productId}`);
     res.json({ profile, granted: pack.tokens });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
 });
 
-function stripUser<T extends { password?: string }>(user: T): Omit<T, 'password'> {
-  const { password: _, ...rest } = user;
+function stripUser<T extends { password?: string; passwordHash?: string; updatedAt?: string }>(
+  user: T,
+): Omit<T, 'password' | 'passwordHash' | 'updatedAt'> {
+  const { password: _, passwordHash: __, updatedAt: ___, ...rest } = user;
   return rest;
 }

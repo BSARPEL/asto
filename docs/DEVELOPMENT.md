@@ -40,36 +40,60 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-### `apps/mobile/.env` (fiziksel iPhone için zorunlu)
+### `apps/mobile/.env` (yerel geliştirme)
 
 ```
-# Mac LAN IP: ipconfig getifaddr en0
+EXPO_PUBLIC_APP_ENV=development
 EXPO_PUBLIC_API_URL=http://192.168.x.x:8788/api
-EXPO_PUBLIC_REVENUECAT_API_KEY=
-EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID=
 ```
 
-Build sırasında `EXPO_PUBLIC_*` JS bundle’a gömülür. Telefonda `localhost` çalışmaz.
+### App Store build
 
-## iOS — Xcode (Metro / Expo Go yok)
+`EXPO_PUBLIC_APP_ENV=production` ve HTTPS API URL — bkz. `.env.production.example` ve [DEPLOYMENT.md](./DEPLOYMENT.md).
 
-Telefonda **native standalone** (Expo dev server bağlantısı yok):
+## iOS — her zaman native standalone (Metro / Expo Go yok)
+
+iOS build'leri **her zaman** gömülü `main.jsbundle` ile çıkar; TestFlight ve App Store'a doğrudan yüklenebilir.
+
+**Nasıl sağlanır** (`plugins/withNativeIosStandalone.js`):
+- `AppDelegate` → Metro dev server'a asla bağlanmaz
+- Xcode bundle script → Debug dahil her build'de `export:embed`
+- `unset SKIP_BUNDLING` (bash'te `=0` yine "atla" sayılır — bilinen RN tuzağı)
+- EAS tüm profiller → `Release`
+
+### İlk kurulum / native değişiklik
 
 ```bash
-cd apps/mobile
-cp .env.example .env          # LAN IP'yi düzenle
-npm run ios:prebuild          # ios/ + CocoaPods + SKIP_BUNDLING=0
+npm run ios:prebuild    # expo prebuild + pods + native-ios
+npm run ios:open        # Xcode workspace
 ```
 
-Kökten API: `npm run api` (0.0.0.0:8788, telefon ile aynı Wi‑Fi).
+`app.json`, plugin veya native paket değişince: `npm run sync:ios:force`
 
-Xcode: `npm run ios:open` → cihazı seç → Signing Team → **⌘R**.
+### Cihazda test
 
-Her build’de JS bundle uygulamaya gömülür (`ios/.xcode.env.local` → `SKIP_BUNDLING=0`). Metro açmanız gerekmez.
+```bash
+npm run api             # API (fiziksel cihaz: .env LAN IP)
+npm run ios:device      # Release + --no-bundler → telefona yükle
+```
 
-`app.json` veya native plugin değişince: `npm run sync:ios:force` (kökten).
+Xcode: Signing Team → **⌘R** (Debug/Release fark etmez; JS gömülü).
 
-Simülatör + canlı Metro: `npm run mobile` (ayrı geliştirme akışı).
+### TestFlight / App Store
+
+1. `.env` → `EXPO_PUBLIC_APP_ENV=production` + HTTPS API URL
+2. Xcode → **Any iOS Device** → **Product → Archive**
+3. **Distribute App** → App Store Connect
+
+Alternatif: `npm run build:ios` (EAS). Detay: [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+### JS değişikliği sonrası
+
+Native build'de Fast Refresh yok. JS/TS değiştirdiysen Xcode'da yeniden **⌘R** veya `npm run ios:device` (bundle yeniden gömülür).
+
+### Opsiyonel: simülatör + Metro hot reload
+
+Yalnızca hızlı UI iterasyonu için: `npm run mobile` + simülatör. **Fiziksel cihaz ve mağaza bu akışı kullanmaz.**
 
 ## Workspace notları
 
@@ -102,11 +126,29 @@ npx tsx -e "import { computeNatalChart } from './src/chart/engine.ts'; console.l
 
 Beklenen: `İkizler` (15 Haziran 1995).
 
-## EAS / mağaza
+## EAS / App Store
 
-- Config: `apps/mobile/eas.json`, `app.json` (`com.asto.app`)
-- Privacy/Terms: uygulama içi placeholder — yayın öncesi hukuki metin
-- Production checklist: şifre hash, Supabase/Postgres, RevenueCat webhook, AdMob unit id, rate limit, OpenAI maliyeti
+**Mağaza sürümü** yerel ağa bağlı değildir; API internette HTTPS ile yayında olmalıdır.
+
+Tam rehber: **[docs/DEPLOYMENT.md](./DEPLOYMENT.md)**
+
+Özet:
+
+```bash
+# API deploy (Docker / Fly / Railway)
+# Mobil production build
+cd apps/mobile
+eas secret:create --name EXPO_PUBLIC_API_URL --value https://api.asto.app/api
+npm run build:ios
+eas submit --platform ios
+```
+
+- `EXPO_PUBLIC_APP_ENV=production` → ATS sıkı (yalnızca HTTPS)
+- `EXPO_PUBLIC_APP_ENV=development` → LAN HTTP (yerel Xcode testi)
+- Config: `apps/mobile/eas.json`, `app.config.js`, `lib/config.ts`
+- Native standalone: Metro/Expo Go gerekmez; JS bundle Xcode build'inde gömülür
+
+Production checklist: şifre hash, Supabase/Postgres, RevenueCat webhook, AdMob unit id, rate limit, OpenAI maliyeti
 
 ## Katkı / PR
 

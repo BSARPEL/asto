@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { BirthForm } from '@/components/BirthForm';
 import { HeroCard, Screen, ScreenScroll, Subtitle, Title } from '@/components/ui';
-import { api } from '@/lib/api';
+import { saveBirthProfile } from '@/lib/birth-service';
 import { useAuth } from '@/lib/auth';
 import { colors } from '@/constants/theme';
 
 export default function BirthOnboarding() {
-  const { token, setProfile, profile } = useAuth();
+  const { profile, setProfile } = useAuth();
 
   return (
     <Screen>
@@ -22,8 +22,8 @@ export default function BirthOnboarding() {
           initial={{ name: profile?.displayName }}
           submitLabel="Haritamı oluştur"
           onSubmit={async (birth) => {
-            if (!token) throw new Error('Oturum yok');
-            const { profile: next } = await api.saveBirth(token, birth);
+            if (!profile?.id) throw new Error('Oturum yok');
+            const next = await saveBirthProfile(profile.id, profile.displayName, birth);
             setProfile(next);
             router.replace('/(tabs)/chart');
           }}

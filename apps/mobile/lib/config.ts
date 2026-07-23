@@ -3,9 +3,19 @@ import { Platform } from 'react-native';
 
 const API_PORT = 8788;
 
-/** Expo Go / Metro LAN host — yalnızca geliştirme sunucusu açıkken */
+export type AppEnv = 'development' | 'staging' | 'production';
+
+/** Build-time ortam: EAS / EXPO_PUBLIC_APP_ENV ile set edilir. */
+export const APP_ENV: AppEnv =
+  (Constants.expoConfig?.extra?.appEnv as AppEnv | undefined) ??
+  (process.env.EXPO_PUBLIC_APP_ENV as AppEnv | undefined) ??
+  (__DEV__ ? 'development' : 'production');
+
+export const IS_PRODUCTION = APP_ENV === 'production';
+
+/** Expo Go / Metro LAN host — yalnızca geliştirme */
 function devMetroHost(): string | null {
-  if (!__DEV__) return null;
+  if (!__DEV__ || IS_PRODUCTION) return null;
 
   const hostUri =
     Constants.expoConfig?.hostUri ??
@@ -17,37 +27,45 @@ function devMetroHost(): string | null {
   return host;
 }
 
-function platformFallbackHost() {
-  if (Platform.OS === 'android') return '10.0.2.2';
-  return '127.0.0.1';
+function stripTrailingSlash(url: string) {
+  return url.replace(/\/$/, '');
 }
 
 function resolveApiUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  const fromBuild = process.env.EXPO_PUBLIC_API_URL;
+  if (fromBuild) {
+    return stripTrailingSlash(fromBuild);
   }
 
-  const configured = Constants.expoConfig?.extra?.apiUrl as string | undefined;
-  const metroHost = devMetroHost();
-
-  // Metro açıksa ve yapılandırma localhost ise LAN IP kullan (simülatör + Expo Go)
-  if (metroHost) {
-    if (
-      !configured ||
-      configured.includes('localhost') ||
-      configured.includes('127.0.0.1')
-    ) {
+  // Geliştirme: Metro LAN veya simülatör/emülatör
+  if (__DEV__ && !IS_PRODUCTION) {
+    const metroHost = devMetroHost();
+    if (metroHost) {
       return `http://${metroHost}:${API_PORT}/api`;
     }
+    if (Platform.OS === 'android') {
+      return `http://10.0.2.2:${API_PORT}/api`;
+    }
+    return `http://127.0.0.1:${API_PORT}/api`;
   }
 
-  if (configured) return configured;
-  return `http://${platformFallbackHost()}:${API_PORT}/api`;
+  // App Store / production: build sırasında EXPO_PUBLIC_API_URL zorunlu
+  if (IS_PRODUCTION) {
+    console.error(
+      '[Asto] EXPO_PUBLIC_API_URL eksik. EAS production build öncesi secret tanımlayın.',
+    );
+  }
+
+  return '';
 }
 
 export const API_URL = resolveApiUrl();
 
-/** Native standalone build'de Metro kullanılmıyor mu? */
+/** Native standalone build (Metro yok) */
 export function usesEmbeddedBundle(): boolean {
   return !devMetroHost();
+}
+
+export function apiUrlConfigured(): boolean {
+  return API_URL.length > 0;
 }

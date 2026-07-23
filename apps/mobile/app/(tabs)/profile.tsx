@@ -19,7 +19,7 @@ import {
   TokenBadge,
   tabScrollStyle,
 } from '@/components/ui';
-import { api } from '@/lib/api';
+import { saveBirthProfile } from '@/lib/birth-service';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts, spacing } from '@/constants/theme';
 
@@ -110,9 +110,9 @@ export default function ProfileScreen() {
           initial={profile?.birth}
           submitLabel="Kaydet"
           onSubmit={async (birth) => {
-            if (!token) throw new Error('Oturum yok');
-            const res = await api.saveBirth(token, birth);
-            setProfile(res.profile);
+            if (!profile?.id) throw new Error('Oturum yok');
+            const next = await saveBirthProfile(profile.id, profile.displayName, birth);
+            setProfile(next);
             setEditBirth(false);
           }}
         />

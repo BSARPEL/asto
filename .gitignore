@@ -5,6 +5,7 @@ dist/
 .env
 .env.local
 packages/api/data/
+packages/api/.secrets/
 apps/mobile/.expo/
 apps/mobile/dist/
 .DS_Store

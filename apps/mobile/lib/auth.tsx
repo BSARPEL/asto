@@ -1,6 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import type { Profile } from '@asto/shared';
-import { api } from './api';
+import { TOKEN_REWARDS } from '@asto/shared';
+import { getFirebaseAuth, getFirebaseIdToken } from './firebase';
+import {
+  firebaseGetAdCountToday,
+  firebaseGetProfile,
+  firebaseLogin,
+  firebaseLogout,
+  firebaseRegister,
+} from './firebase-profile';
 import * as storage from './storage';
 
 const TOKEN_KEY = 'asto_auth_token';
@@ -20,60 +29,90 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function loadSession(userId: string) {
+  const [profile, adClaimsToday, token] = await Promise.all([
+    firebaseGetProfile(userId),
+    firebaseGetAdCountToday(userId),
+    getFirebaseIdToken(),
+  ]);
+  return { profile, adClaimsToday, token };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [adClaimsToday, setAdClaimsToday] = useState(0);
-  const [maxAdsPerDay, setMaxAdsPerDay] = useState(5);
+  const maxAdsPerDay = TOKEN_REWARDS.maxRewardedAdsPerDay;
 
   const refresh = useCallback(async () => {
-    if (!token) return;
-    const data = await api.me(token);
-    setProfile(data.profile);
-    setAdClaimsToday(data.adClaimsToday);
-    setMaxAdsPerDay(data.maxAdsPerDay);
-  }, [token]);
+    const user = getFirebaseAuth().currentUser;
+    if (!user) return;
+    const session = await loadSession(user.uid);
+    if (session.profile) setProfile(session.profile);
+    setAdClaimsToday(session.adClaimsToday);
+    if (session.token) {
+      setToken(session.token);
+      await storage.setItem(TOKEN_KEY, session.token);
+    }
+  }, []);
 
   useEffect(() => {
-    (async () => {
+    const unsub = onAuthStateChanged(getFirebaseAuth(), async (user) => {
       try {
-        const stored = await storage.getItem(TOKEN_KEY);
-        if (stored) {
-          setToken(stored);
-          const data = await api.me(stored);
-          setProfile(data.profile);
-          setAdClaimsToday(data.adClaimsToday);
-          setMaxAdsPerDay(data.maxAdsPerDay);
+        if (!user) {
+          setToken(null);
+          setProfile(null);
+          setAdClaimsToday(0);
+          await storage.deleteItem(TOKEN_KEY);
+          return;
         }
-      } catch {
-        await storage.deleteItem(TOKEN_KEY);
-        setToken(null);
-        setProfile(null);
+        const session = await loadSession(user.uid);
+        if (!session.profile) {
+          await firebaseLogout();
+          return;
+        }
+        setProfile(session.profile);
+        setAdClaimsToday(session.adClaimsToday);
+        if (session.token) {
+          setToken(session.token);
+          await storage.setItem(TOKEN_KEY, session.token);
+        }
       } finally {
         setLoading(false);
       }
-    })();
+    });
+    return unsub;
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const data = await api.login(email, password);
-    await storage.setItem(TOKEN_KEY, data.token);
-    setToken(data.token);
-    setProfile(data.profile);
+    const p = await firebaseLogin(email, password);
+    const idToken = await getFirebaseIdToken();
+    setProfile(p);
+    if (idToken) {
+      setToken(idToken);
+      await storage.setItem(TOKEN_KEY, idToken);
+    }
+    setAdClaimsToday(await firebaseGetAdCountToday(p.id));
   }, []);
 
   const register = useCallback(async (email: string, password: string, displayName: string) => {
-    const data = await api.register(email, password, displayName);
-    await storage.setItem(TOKEN_KEY, data.token);
-    setToken(data.token);
-    setProfile(data.profile);
+    const p = await firebaseRegister(email, password, displayName);
+    const idToken = await getFirebaseIdToken();
+    setProfile(p);
+    if (idToken) {
+      setToken(idToken);
+      await storage.setItem(TOKEN_KEY, idToken);
+    }
+    setAdClaimsToday(0);
   }, []);
 
   const logout = useCallback(async () => {
+    await firebaseLogout();
     await storage.deleteItem(TOKEN_KEY);
     setToken(null);
     setProfile(null);
+    setAdClaimsToday(0);
   }, []);
 
   const value = useMemo(
