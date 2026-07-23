@@ -1,7 +1,11 @@
 import OpenAI from 'openai';
 import type { ChartData, SynastryResult } from '@asto/shared';
 import { PLANET_LABELS_TR } from '@asto/shared';
-import { chartSummaryForPrompt, computeTransits } from './chart/engine';
+import {
+  chartSummaryForPrompt,
+  computeTransits,
+  synastryFocusAreasForPrompt,
+} from './chart/engine';
 
 const SYSTEM = `Sen Asto adlı bir astroloji danışmanısın. Türkçe, sıcak ama abartısız bir dille yazarsın.
 Kurallar:
@@ -43,12 +47,14 @@ function mockComplete(prompt: string): string {
   }
   if (prompt.includes('İLİŞKİ ANALİZİ')) {
     return [
-      'Bu iki harita arasında hem tamamlayıcı hem de öğrenme alanı açan bir dinamik görünüyor. Duygusal ihtiyaçlar ve ifade biçimleri farklı hızlarda ilerleyebilir; bu zıtlık doğru yönetilirse ilişkiyi zenginleştirir.',
-      '',
-      'Güçlü yönler: karşılıklı çekim, ortak büyüme isteği ve kriz anlarında birbirini toparlama potansiyeli.',
-      'Gelişime açık alanlar: beklentileri varsaymadan konuşmak, kişisel alan ihtiyacına saygı ve küçük çatışmaları büyütmeden çözmek.',
-      '',
-      'İletişimde “ne hissettiğini” anlatmak, “ne yanlış yaptığını” söylemekten daha çok bağ kurar.',
+      '1) Genel dinamik: Haritalar arasında tamamlayıcı ve öğrenme alanı açan bir ritim var; duygusal ihtiyaçlar farklı tempoda ilerleyebilir.',
+      '2) Kadın Güneş – Erkek Ay: Bu eksen temel “görülme / güvende hissetme” bağını kurar; açı varsa kimlik ve duygusal ihtiyaçlar birbirini besler.',
+      '3) Ay – Ay: Ortak duygusal dil ve bakım biçimi buradan okunur; uyum rahatlık, gerilim ise yanlış anlaşılma riski getirir.',
+      '4) Kadın Mars – Erkek Venüs: İstek ve çekim dili; tempo uyumu tutkuyu, tempo farkı ise sabırsızlığı artırabilir.',
+      '5) Ay düğümleri: Ortak büyüme yönü ve tanıdık kalıplar; düğüm temasları “neden bu kişi?” hissini güçlendirebilir.',
+      '6) Asc / Dsc: Yükselen üzerindeki faktörler ilk izlenimi, alçalan üzerindeki faktörler ilişki kapısını ve partner arketipini işaret eder.',
+      '7) Güçlü yönler ve gelişim: Açık iletişim + kişisel alana saygı; varsayımları konuşmaya çevirmek bağı güçlendirir.',
+      '8) Kısa öneri: Duyguyu adlandırıp küçük net adımlar atmak, hem Ay hem Güneş ihtiyaçlarını dengeler.',
     ].join('\n');
   }
   if (prompt.includes('HARİTA ANLATIMI')) {
@@ -136,27 +142,46 @@ export async function generateRelationshipAnalysis(
   partnerName: string,
   partnerChart: ChartData,
   synastry: SynastryResult,
+  options?: { selfGender?: string; partnerGender?: string },
 ): Promise<string> {
   const topAspects = synastry.aspects
     .slice(0, 10)
-    .map((a) => `${a.planetA}(${a.personA})-${a.planetB}(${a.personB}) ${a.type} orb ${a.orb}`)
+    .map(
+      (a) =>
+        `${PLANET_LABELS_TR[a.planetA] ?? a.planetA}(${a.personA === 'self' ? 'A' : 'B'})-${PLANET_LABELS_TR[a.planetB] ?? a.planetB}(${a.personB === 'self' ? 'A' : 'B'}) ${a.type} orb ${a.orb}`,
+    )
     .join('; ');
+
+  const genderLine = [
+    options?.selfGender ? `Kişi A cinsiyet: ${options.selfGender === 'female' ? 'kadın' : 'erkek'}` : null,
+    options?.partnerGender
+      ? `Kişi B cinsiyet: ${options.partnerGender === 'female' ? 'kadın' : 'erkek'}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' | ');
 
   return complete(
     `İLİŞKİ ANALİZİ
-${selfName}:
+${selfName} (Kişi A):
 ${chartSummaryForPrompt(selfChart, 'Kişi A')}
-${partnerName}:
+${partnerName} (Kişi B):
 ${chartSummaryForPrompt(partnerChart, 'Kişi B')}
-Sinastri skoru: ${synastry.score}/100
+${genderLine ? `${genderLine}\n` : ''}Sinastri skoru: ${synastry.score}/100
 Öne çıkanlar: ${synastry.highlights.join(' | ')}
 Kesişen açılar: ${topAspects}
 
-Şu başlıklarla yaz:
+ÖNCELİKLİ SİNASTRİ ODAKLARI (engine hesapladı; açı uydurma):
+${synastryFocusAreasForPrompt(synastry.focusAreas)}
+
+Şu başlıklarla yaz; her odak başlığını mutlaka yorumla (veri yoksa kısaca belirt):
 1) Genel dinamik
-2) Güçlü yönler
-3) Gelişime açık alanlar
-4) İletişim ve duygusal bağ
-5) Kısa öneri`,
+2) Kadın Güneş – Erkek Ay bağı
+3) Ay – Ay duygusal uyum
+4) Kadın Mars – Erkek Venüs çekimi
+5) Ay düğümleri ve ortak yol
+6) Yükselen (Asc) ve Alçalan (Dsc) üzeri kesişimler
+7) Güçlü yönler ve gelişime açık alanlar
+8) Kısa öneri`,
   );
 }

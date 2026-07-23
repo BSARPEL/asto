@@ -1,10 +1,23 @@
 import { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { PLANET_LABELS_TR, ASPECT_LABELS_TR } from '@asto/shared';
-import { Body, Button, Card, ErrorText, Screen, Subtitle, Title, TokenBadge } from '@/components/ui';
+import {
+  Body,
+  Button,
+  Card,
+  Divider,
+  EmptyState,
+  ErrorText,
+  HeaderRow,
+  Screen,
+  ScreenScroll,
+  SectionTitle,
+  SignTrio,
+  TokenBadge,
+} from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { colors, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function ChartScreen() {
   const { token, profile, setProfile, refresh } = useAuth();
@@ -32,18 +45,26 @@ export default function ChartScreen() {
   if (!chart) {
     return (
       <Screen>
-        <View style={styles.pad}>
-          <Title>Harita yok</Title>
-          <Subtitle>Doğum bilgilerini tamamla.</Subtitle>
-        </View>
+        <ScreenScroll>
+          <EmptyState
+            title="Harita yok"
+            body="Doğum bilgilerini tamamladığında natal haritan burada görünecek."
+          />
+        </ScreenScroll>
       </Screen>
     );
   }
 
+  const planets = chart.planets.filter(
+    (p) => !['Ascendant', 'Descendant', 'Midheaven'].includes(p.name),
+  );
+  const angles = chart.planets.filter((p) =>
+    ['Ascendant', 'Descendant', 'Midheaven', 'NorthNode', 'SouthNode'].includes(p.name),
+  );
+
   return (
     <Screen>
-      <ScrollView
-        contentContainerStyle={styles.pad}
+      <ScreenScroll
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -59,33 +80,46 @@ export default function ChartScreen() {
           />
         }
       >
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Title>{profile?.displayName}</Title>
-            <Subtitle>
-              Güneş {chart.sunSign} · Ay {chart.moonSign} · Yükselen {chart.risingSign}
-            </Subtitle>
-          </View>
-          <TokenBadge balance={profile?.tokenBalance ?? 0} />
-        </View>
+        <HeaderRow
+          title={profile?.displayName ?? 'Haritam'}
+          subtitle="Natal haritanın özeti"
+          right={<TokenBadge balance={profile?.tokenBalance ?? 0} />}
+        />
 
-        <Card>
-          <Text style={styles.cardTitle}>Gezegenler</Text>
-          {chart.planets.map((p) => (
-            <View key={p.name} style={styles.planetRow}>
-              <Text style={styles.planetName}>{PLANET_LABELS_TR[p.name] ?? p.name}</Text>
-              <Text style={styles.planetVal}>
-                {p.sign} {p.signDegree.toFixed(1)}° · Ev {p.house}
-                {p.retrograde ? ' R' : ''}
-              </Text>
+        <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} />
+
+        <Card elevated>
+          <SectionTitle>Gezegenler</SectionTitle>
+          {planets.map((p, idx) => (
+            <View key={p.name}>
+              {idx > 0 ? <Divider /> : null}
+              <View style={styles.planetRow}>
+                <Text style={styles.planetName}>{PLANET_LABELS_TR[p.name] ?? p.name}</Text>
+                <Text style={styles.planetVal}>
+                  {p.sign} {p.signDegree.toFixed(1)}°
+                </Text>
+                <Text style={styles.planetHouse}>
+                  Ev {p.house}
+                  {p.retrograde ? ' · R' : ''}
+                </Text>
+              </View>
             </View>
           ))}
         </Card>
 
         <Card>
-          <Text style={styles.cardTitle}>Öne çıkan açılar</Text>
+          <SectionTitle>Açılar & düğümler</SectionTitle>
+          {angles.map((p) => (
+            <View key={p.name} style={styles.planetRow}>
+              <Text style={styles.planetName}>{PLANET_LABELS_TR[p.name] ?? p.name}</Text>
+              <Text style={styles.planetVal}>
+                {p.sign} {p.signDegree.toFixed(1)}°
+              </Text>
+            </View>
+          ))}
+          <Divider />
           {chart.aspects.slice(0, 8).map((a, i) => (
-            <Body key={`${a.planetA}-${a.planetB}-${i}`} muted>
+            <Body key={`${a.planetA}-${a.planetB}-${i}`} muted style={styles.aspectLine}>
               {PLANET_LABELS_TR[a.planetA]} – {PLANET_LABELS_TR[a.planetB]} ·{' '}
               {ASPECT_LABELS_TR[a.type]} ({a.orb}°)
             </Body>
@@ -98,33 +132,45 @@ export default function ChartScreen() {
           loading={loading}
         />
         <ErrorText>{error}</ErrorText>
+
         {narrative ? (
-          <Card>
-            <Text style={styles.cardTitle}>AI yorum</Text>
+          <Card elevated>
+            <SectionTitle>AI yorum</SectionTitle>
             <Body>{narrative}</Body>
           </Card>
         ) : null}
-      </ScrollView>
+      </ScreenScroll>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  cardTitle: {
-    fontFamily: 'Syne_700Bold',
-    color: colors.accentStrong,
-    fontSize: 18,
-    marginBottom: spacing.sm,
-  },
   planetRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 8,
   },
-  planetName: { color: colors.text, fontFamily: 'Manrope_600SemiBold', flex: 1 },
-  planetVal: { color: colors.textMuted, fontFamily: 'Manrope_400Regular', flex: 1.4, textAlign: 'right' },
+  planetName: {
+    color: colors.text,
+    fontFamily: fonts.bodySemi,
+    flexGrow: 1,
+    flexBasis: 110,
+    minWidth: 100,
+  },
+  planetVal: {
+    color: colors.textSoft,
+    fontFamily: fonts.body,
+    flexGrow: 1,
+    flexBasis: 120,
+  },
+  planetHouse: {
+    color: colors.teal,
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+  },
+  aspectLine: {
+    marginBottom: spacing.xs,
+  },
 });

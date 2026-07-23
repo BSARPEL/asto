@@ -1,45 +1,189 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
+  type ScrollViewProps,
   type TextInputProps,
+  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, radii, spacing } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  colors,
+  contentMaxWidth,
+  fonts,
+  getLayoutSize,
+  pageGutter,
+  radii,
+  shadowSoft,
+  spacing,
+  typography,
+  type LayoutSize,
+} from '@/constants/theme';
 
-export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export function useLayout() {
+  const { width, height } = useWindowDimensions();
+  const size = getLayoutSize(width);
+  const gutter = pageGutter(size);
+  const maxWidth = contentMaxWidth(size);
+  return {
+    width,
+    height,
+    size,
+    gutter,
+    maxWidth,
+    isCompact: size === 'phone',
+    isWide: size !== 'phone',
+  };
+}
+
+export function Screen({
+  children,
+  style,
+  edges = ['left', 'right'],
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  edges?: Array<'top' | 'bottom' | 'left' | 'right'>;
+}) {
+  const insets = useSafeAreaInsets();
+  const pad: ViewStyle = {
+    paddingTop: edges.includes('top') ? insets.top : 0,
+    paddingBottom: edges.includes('bottom') ? insets.bottom : 0,
+    paddingLeft: edges.includes('left') ? Math.max(insets.left, 0) : 0,
+    paddingRight: edges.includes('right') ? Math.max(insets.right, 0) : 0,
+  };
+
   return (
-    <LinearGradient colors={['#0B1020', '#121A33', '#0E1528']} style={[styles.screen, style]}>
+    <View style={[styles.screenRoot, style]}>
+      <LinearGradient
+        colors={['#0B1020', '#121A33', '#0E1528', '#0B1020']}
+        locations={[0, 0.35, 0.7, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View pointerEvents="none" style={styles.glowTop} />
+      <View pointerEvents="none" style={styles.glowBottom} />
+      <View style={[styles.screenInner, pad]}>{children}</View>
+    </View>
+  );
+}
+
+export function ScreenScroll({
+  children,
+  contentContainerStyle,
+  ...rest
+}: ScrollViewProps & { children: React.ReactNode }) {
+  const { gutter, maxWidth } = useLayout();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      {...rest}
+      contentContainerStyle={[
+        {
+          paddingHorizontal: gutter,
+          paddingTop: spacing.md,
+          paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.xxl,
+          width: '100%',
+          maxWidth,
+          alignSelf: 'center',
+        },
+        contentContainerStyle,
+      ]}
+    >
       {children}
-    </LinearGradient>
+    </ScrollView>
   );
 }
 
 export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
   return (
-    <Text style={[styles.brand, size === 'lg' && styles.brandLg]}>Asto</Text>
+    <View style={styles.brandWrap}>
+      <Text style={size === 'lg' ? typography.brandLg : typography.brand}>Asto</Text>
+      {size === 'lg' ? <Text style={styles.brandTag}>Astroloji · AI</Text> : null}
+    </View>
   );
 }
 
-export function Title({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.title}>{children}</Text>;
+export function Title({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: TextStyle;
+}) {
+  return <Text style={[typography.title, style]}>{children}</Text>;
 }
 
-export function Subtitle({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.subtitle}>{children}</Text>;
+export function Subtitle({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: TextStyle;
+}) {
+  return <Text style={[styles.subtitle, style]}>{children}</Text>;
 }
 
-export function Body({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
-  return <Text style={[styles.body, muted && styles.muted]}>{children}</Text>;
+export function Body({
+  children,
+  muted,
+  style,
+}: {
+  children: React.ReactNode;
+  muted?: boolean;
+  style?: TextStyle;
+}) {
+  return <Text style={[muted ? typography.bodyMuted : typography.body, style]}>{children}</Text>;
 }
 
-export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+export function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <Text style={[typography.section, styles.sectionTitle]}>{children}</Text>;
+}
+
+export function HeaderRow({
+  title,
+  subtitle,
+  right,
+}: {
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  const { isCompact } = useLayout();
+  return (
+    <View style={[styles.headerRow, isCompact && styles.headerRowCompact]}>
+      <View style={styles.headerCopy}>
+        <Title style={styles.headerTitle}>{title}</Title>
+        {subtitle ? <Subtitle style={styles.headerSubtitle}>{subtitle}</Subtitle> : null}
+      </View>
+      {right ? <View style={styles.headerRight}>{right}</View> : null}
+    </View>
+  );
+}
+
+export function Card({
+  children,
+  style,
+  elevated,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  elevated?: boolean;
+}) {
+  return (
+    <View style={[styles.card, elevated && styles.cardElevated, style]}>{children}</View>
+  );
 }
 
 export function Button({
@@ -59,17 +203,18 @@ export function Button({
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityRole="button"
       style={({ pressed }) => [
         styles.btn,
         variant === 'primary' && styles.btnPrimary,
         variant === 'ghost' && styles.btnGhost,
         variant === 'danger' && styles.btnDanger,
         (disabled || loading) && styles.btnDisabled,
-        pressed && { opacity: 0.88 },
+        pressed && styles.btnPressed,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'ghost' ? colors.accent : colors.bg} />
+        <ActivityIndicator color={variant === 'primary' ? colors.bg : colors.accent} />
       ) : (
         <Text
           style={[
@@ -86,23 +231,43 @@ export function Button({
 }
 
 export function Field(props: TextInputProps & { label: string }) {
-  const { label, style, ...rest } = props;
+  const { label, style, multiline, ...rest } = props;
   return (
     <View style={styles.fieldWrap}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={typography.label}>{label}</Text>
       <TextInput
         placeholderTextColor={colors.textMuted}
-        style={[styles.input, style]}
+        multiline={multiline}
+        textAlignVertical={multiline ? 'top' : 'center'}
+        style={[styles.input, multiline && styles.inputMultiline, style]}
         {...rest}
       />
     </View>
   );
 }
 
-export function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress?: () => void }) {
+export function Chip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active?: boolean;
+  onPress?: () => void;
+}) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        active && styles.chipActive,
+        pressed && onPress ? styles.chipPressed : null,
+      ]}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={2}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -110,45 +275,183 @@ export function Chip({ label, active, onPress }: { label: string; active?: boole
 export function TokenBadge({ balance }: { balance: number }) {
   return (
     <View style={styles.tokenBadge}>
-      <Text style={styles.tokenText}>{balance} jeton</Text>
+      <Text style={styles.tokenGlyph}>◆</Text>
+      <Text style={styles.tokenText}>{balance}</Text>
     </View>
   );
 }
 
-export function ErrorText({ children }: { children?: string | null }) {
-  if (!children) return null;
-  return <Text style={styles.error}>{children}</Text>;
+export function SignTrio({
+  sun,
+  moon,
+  rising,
+}: {
+  sun: string;
+  moon: string;
+  rising: string;
+}) {
+  const { isCompact } = useLayout();
+  return (
+    <View style={[styles.signTrio, isCompact && styles.signTrioCompact]}>
+      <SignPill label="Güneş" value={sun} />
+      <SignPill label="Ay" value={moon} />
+      <SignPill label="Yükselen" value={rising} />
+    </View>
+  );
 }
 
+export function SignPill({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.signPill}>
+      <Text style={styles.signLabel}>{label}</Text>
+      <Text style={styles.signValue}>{value}</Text>
+    </View>
+  );
+}
+
+export function ScoreBadge({ score }: { score: number }) {
+  const tone = score >= 75 ? colors.success : score >= 55 ? colors.teal : colors.accent;
+  return (
+    <View style={[styles.scoreBadge, { borderColor: tone }]}>
+      <Text style={[styles.scoreValue, { color: tone }]}>{score}</Text>
+      <Text style={styles.scoreUnit}>/100</Text>
+    </View>
+  );
+}
+
+export function MessageBubble({
+  role,
+  content,
+}: {
+  role: 'user' | 'assistant';
+  content: string;
+}) {
+  const isUser = role === 'user';
+  return (
+    <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
+      <Text style={[styles.bubbleRole, isUser && styles.bubbleRoleUser]}>
+        {isUser ? 'Sen' : 'Asto'}
+      </Text>
+      <Body>{content}</Body>
+    </View>
+  );
+}
+
+export function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <Card style={styles.emptyCard}>
+      <Text style={styles.emptyGlyph}>✦</Text>
+      <Title style={typography.titleSm}>{title}</Title>
+      {body ? <Subtitle style={{ marginBottom: spacing.md }}>{body}</Subtitle> : null}
+      {action}
+    </Card>
+  );
+}
+
+export function Divider() {
+  return <View style={styles.divider} />;
+}
+
+export function ErrorText({ children }: { children?: string | null }) {
+  if (!children) return null;
+  return (
+    <View style={styles.errorBox}>
+      <Text style={styles.error}>{children}</Text>
+    </View>
+  );
+}
+
+export function AuthShell({ children }: { children: React.ReactNode }) {
+  const { gutter, maxWidth, size } = useLayout();
+  const wide = size !== 'phone';
+
+  return (
+    <View
+      style={[
+        styles.authShell,
+        {
+          paddingHorizontal: gutter,
+          maxWidth: wide ? Math.min(maxWidth, 480) : maxWidth,
+          width: '100%',
+          alignSelf: 'center',
+        },
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+export function useResponsiveColumns(minColumnWidth = 260) {
+  const { width, gutter, maxWidth } = useLayout();
+  return useMemo(() => {
+    const usable = Math.min(width - gutter * 2, maxWidth);
+    const cols = Math.max(1, Math.floor(usable / minColumnWidth));
+    return { cols, usable };
+  }, [width, gutter, maxWidth, minColumnWidth]);
+}
+
+export type { LayoutSize };
+
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  brand: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 36,
-    color: colors.accentStrong,
-    letterSpacing: 1,
+  screenRoot: { flex: 1, backgroundColor: colors.bg },
+  screenInner: { flex: 1 },
+  glowTop: {
+    position: 'absolute',
+    top: -80,
+    right: -40,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(107,181,176,0.08)',
   },
-  brandLg: { fontSize: 56, lineHeight: 64 },
-  title: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 28,
-    color: colors.text,
-    marginBottom: spacing.sm,
+  glowBottom: {
+    position: 'absolute',
+    bottom: 80,
+    left: -60,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(212,197,160,0.05)',
+  },
+  brandWrap: { marginBottom: spacing.md },
+  brandTag: {
+    ...typography.caption,
+    marginTop: 4,
+    color: colors.teal,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
   },
   subtitle: {
-    fontFamily: 'Manrope_400Regular',
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.textMuted,
+    ...typography.bodyMuted,
+    marginTop: spacing.xs,
     marginBottom: spacing.lg,
   },
-  body: {
-    fontFamily: 'Manrope_400Regular',
-    fontSize: 15,
-    lineHeight: 23,
-    color: colors.text,
+  sectionTitle: {
+    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
   },
-  muted: { color: colors.textMuted },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  headerRowCompact: {
+    flexWrap: 'wrap',
+  },
+  headerCopy: { flex: 1, minWidth: 180 },
+  headerTitle: { marginBottom: 0 },
+  headerSubtitle: { marginBottom: 0, marginTop: spacing.xs },
+  headerRight: { paddingTop: 4 },
   card: {
     backgroundColor: colors.bgElevated,
     borderColor: colors.border,
@@ -156,6 +459,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: spacing.md,
     marginBottom: spacing.md,
+  },
+  cardElevated: {
+    ...shadowSoft,
+    backgroundColor: colors.bgSoft,
   },
   btn: {
     minHeight: 52,
@@ -169,60 +476,184 @@ const styles = StyleSheet.create({
   btnGhost: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
-  btnDanger: { backgroundColor: 'rgba(224,122,109,0.15)', borderWidth: 1, borderColor: colors.danger },
+  btnDanger: {
+    backgroundColor: colors.dangerDim,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
   btnDisabled: { opacity: 0.5 },
+  btnPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
   btnText: {
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: fonts.bodyBold,
     fontSize: 16,
     color: colors.bg,
   },
   btnTextGhost: { color: colors.accentStrong },
   btnTextDanger: { color: colors.danger },
   fieldWrap: { marginBottom: spacing.md },
-  label: {
-    fontFamily: 'Manrope_600SemiBold',
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 6,
-  },
   input: {
+    marginTop: 6,
     backgroundColor: colors.bgSoft,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
     color: colors.text,
-    fontFamily: 'Manrope_400Regular',
+    fontFamily: fonts.body,
     fontSize: 16,
     paddingHorizontal: spacing.md,
-    paddingVertical: 14,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    minHeight: 50,
+  },
+  inputMultiline: {
+    minHeight: 96,
+    paddingTop: 14,
   },
   chip: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: radii.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     marginRight: 8,
     marginBottom: 8,
     backgroundColor: colors.bgSoft,
+    maxWidth: '100%',
   },
-  chipActive: { borderColor: colors.teal, backgroundColor: 'rgba(95,168,163,0.15)' },
-  chipText: { color: colors.textMuted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+  chipActive: {
+    borderColor: colors.teal,
+    backgroundColor: colors.tealDim,
+  },
+  chipPressed: { opacity: 0.85 },
+  chipText: {
+    color: colors.textSoft,
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+  },
   chipTextActive: { color: colors.teal },
   tokenBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: 'rgba(212,197,160,0.12)',
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderWidth: 1,
-    borderRadius: radii.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  tokenText: { color: colors.accentStrong, fontFamily: 'Manrope_700Bold', fontSize: 13 },
+  tokenGlyph: { color: colors.accent, fontSize: 11 },
+  tokenText: {
+    color: colors.accentStrong,
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+  },
+  signTrio: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  signTrioCompact: {
+    flexWrap: 'wrap',
+  },
+  signPill: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    minWidth: 96,
+    backgroundColor: colors.bgSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  signLabel: {
+    ...typography.caption,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  signValue: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.text,
+  },
+  scoreBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderRadius: radii.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 72,
+    backgroundColor: colors.bgSoft,
+  },
+  scoreValue: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    lineHeight: 26,
+  },
+  scoreUnit: {
+    ...typography.caption,
+    marginTop: 1,
+  },
+  bubble: {
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    maxWidth: '100%',
+  },
+  bubbleUser: {
+    backgroundColor: colors.userBubble,
+    borderColor: colors.borderStrong,
+    marginLeft: spacing.xl,
+  },
+  bubbleAssistant: {
+    backgroundColor: colors.assistantBubble,
+    borderColor: colors.border,
+    marginRight: spacing.xl,
+  },
+  bubbleRole: {
+    fontFamily: fonts.bodyBold,
+    color: colors.teal,
+    marginBottom: 6,
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+  bubbleRoleUser: { color: colors.accentStrong },
+  emptyCard: {
+    alignItems: 'flex-start',
+    paddingVertical: spacing.lg,
+  },
+  emptyGlyph: {
+    fontSize: 28,
+    color: colors.accent,
+    marginBottom: spacing.sm,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  errorBox: {
+    backgroundColor: colors.dangerDim,
+    borderColor: colors.danger,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   error: {
     color: colors.danger,
-    fontFamily: 'Manrope_400Regular',
-    marginBottom: spacing.sm,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  authShell: {
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
 });

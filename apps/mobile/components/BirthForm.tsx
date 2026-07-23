@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { CITY_PRESETS, type BirthInput } from '@asto/shared';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { CITY_PRESETS, type BirthInput, type Gender } from '@asto/shared';
 import { Button, Chip, ErrorText, Field } from '@/components/ui';
-import { spacing } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 
 type Props = {
   initial?: Partial<BirthInput>;
@@ -15,6 +15,7 @@ export function BirthForm({ initial, submitLabel, onSubmit }: Props) {
   const [birthDate, setBirthDate] = useState(initial?.birthDate ?? '1995-06-15');
   const [birthTime, setBirthTime] = useState(initial?.birthTime ?? '12:00');
   const [city, setCity] = useState(initial?.city ?? 'İstanbul');
+  const [gender, setGender] = useState<Gender | undefined>(initial?.gender);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +48,7 @@ export function BirthForm({ initial, submitLabel, onSubmit }: Props) {
         latitude: preset.latitude,
         longitude: preset.longitude,
         timezone: preset.timezone,
+        gender,
       });
     } catch (e) {
       setError((e as Error).message);
@@ -58,6 +60,11 @@ export function BirthForm({ initial, submitLabel, onSubmit }: Props) {
   return (
     <View>
       <Field label="Ad" value={name} onChangeText={setName} placeholder="Adınız" />
+      <Text style={styles.fieldLabel}>Cinsiyet (ilişki yorumu için)</Text>
+      <View style={styles.genderRow}>
+        <Chip label="Kadın" active={gender === 'female'} onPress={() => setGender('female')} />
+        <Chip label="Erkek" active={gender === 'male'} onPress={() => setGender('male')} />
+      </View>
       <Field
         label="Doğum tarihi (YYYY-AA-GG)"
         value={birthDate}
@@ -91,4 +98,14 @@ export function BirthForm({ initial, submitLabel, onSubmit }: Props) {
 
 const styles = StyleSheet.create({
   chips: { marginBottom: spacing.md, maxHeight: 48 },
+  fieldLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginBottom: spacing.xs,
+  },
+  genderRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
 });

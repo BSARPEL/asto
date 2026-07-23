@@ -253,13 +253,28 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
     const cost = user.isSubscribed ? 0 : TOKEN_COSTS.relationshipAnalysis;
     if (cost > 0) store.adjustTokens(user.id, -cost, 'relationship_analysis');
 
-    const synastry = computeSynastry(user.natalChart, partner.natalChart);
+    // Recompute so older stored charts pick up nodes / Descendant.
+    const selfChart = user.birth ? computeNatalChart(user.birth) : user.natalChart;
+    const partnerChart = computeNatalChart(partner.birth);
+    if (user.birth) {
+      store.updateUser(user.id, { natalChart: selfChart });
+    }
+    store.updatePartner(partner.id, { natalChart: partnerChart });
+
+    const synastry = computeSynastry(selfChart, partnerChart, {
+      selfGender: user.birth?.gender,
+      partnerGender: partner.birth.gender,
+    });
     const analysis = await generateRelationshipAnalysis(
       user.displayName,
-      user.natalChart,
+      selfChart,
       partner.birth.name,
-      partner.natalChart,
+      partnerChart,
       synastry,
+      {
+        selfGender: user.birth?.gender,
+        partnerGender: partner.birth.gender,
+      },
     );
 
     const updated = store.updatePartner(partner.id, {

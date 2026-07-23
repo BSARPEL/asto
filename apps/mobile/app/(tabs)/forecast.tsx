@@ -1,12 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import type { Conversation, DailyReading } from '@asto/shared';
 import {
   Body,
@@ -15,14 +8,16 @@ import {
   Chip,
   ErrorText,
   Field,
+  HeaderRow,
+  MessageBubble,
   Screen,
-  Subtitle,
-  Title,
+  ScreenScroll,
+  SectionTitle,
   TokenBadge,
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 
 const SUGGESTIONS = [
   'Bugün aşk hayatımda nelere dikkat etmeliyim?',
@@ -67,18 +62,20 @@ export default function ForecastScreen() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Title>Öngörü</Title>
-              <Subtitle>Bugünün enerjisi ve haritana özel sorular.</Subtitle>
-            </View>
-            <TokenBadge balance={profile?.tokenBalance ?? 0} />
-          </View>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={88}
+      >
+        <ScreenScroll>
+          <HeaderRow
+            title="Öngörü"
+            subtitle="Bugünün enerjisi ve haritana özel sorular."
+            right={<TokenBadge balance={profile?.tokenBalance ?? 0} />}
+          />
 
-          <Card>
-            <Text style={styles.cardTitle}>Bugün</Text>
+          <Card elevated>
+            <SectionTitle>Bugün</SectionTitle>
             {loadingDaily ? (
               <Body muted>Yükleniyor…</Body>
             ) : reading ? (
@@ -95,7 +92,7 @@ export default function ForecastScreen() {
             )}
           </Card>
 
-          <Text style={styles.cardTitle}>Sorunu sor</Text>
+          <SectionTitle>Sorunu sor</SectionTitle>
           <View style={styles.suggestions}>
             {SUGGESTIONS.map((s) => (
               <Chip key={s} label={s} onPress={() => ask(s)} />
@@ -112,34 +109,33 @@ export default function ForecastScreen() {
           <Button label="Gönder" onPress={() => ask(question)} loading={asking} />
           <ErrorText>{error}</ErrorText>
 
-          {conversation?.messages.map((m) => (
-            <Card key={m.id} style={m.role === 'user' ? styles.userBubble : undefined}>
-              <Text style={styles.role}>{m.role === 'user' ? 'Sen' : 'Asto'}</Text>
-              <Body>{m.content}</Body>
-            </Card>
-          ))}
-        </ScrollView>
+          {conversation?.messages.length ? (
+            <View style={styles.thread}>
+              <SectionTitle>Sohbet</SectionTitle>
+              {conversation.messages.map((m) => (
+                <MessageBubble key={m.id} role={m.role} content={m.content} />
+              ))}
+            </View>
+          ) : null}
+        </ScreenScroll>
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  row: { flexDirection: 'row', gap: 12 },
-  cardTitle: {
-    fontFamily: 'Syne_700Bold',
-    color: colors.accentStrong,
-    fontSize: 18,
-    marginBottom: spacing.sm,
+  flex: { flex: 1 },
+  themes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.md,
   },
-  themes: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.md },
-  suggestions: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
-  role: {
-    fontFamily: 'Manrope_700Bold',
-    color: colors.teal,
-    marginBottom: 6,
-    fontSize: 12,
+  suggestions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: spacing.md,
   },
-  userBubble: { backgroundColor: '#1A243F' },
+  thread: {
+    marginTop: spacing.lg,
+  },
 });

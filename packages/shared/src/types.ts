@@ -9,8 +9,13 @@ export type PlanetName =
   | 'Uranus'
   | 'Neptune'
   | 'Pluto'
+  | 'NorthNode'
+  | 'SouthNode'
   | 'Ascendant'
+  | 'Descendant'
   | 'Midheaven';
+
+export type Gender = 'female' | 'male';
 
 export type ZodiacSign =
   | 'Koç'
@@ -34,6 +39,8 @@ export interface BirthInput {
   latitude: number;
   longitude: number;
   timezone: string; // IANA, e.g. Europe/Istanbul
+  /** Used for gendered synastry keys (e.g. woman Sun / man Moon). */
+  gender?: Gender;
 }
 
 export interface PlanetPosition {
@@ -125,8 +132,22 @@ export interface SynastryAspect {
   orb: number;
 }
 
+export interface SynastryFocusArea {
+  key:
+    | 'woman_sun_man_moon'
+    | 'moon_moon'
+    | 'woman_mars_man_venus'
+    | 'lunar_nodes'
+    | 'asc_overlay'
+    | 'dsc_overlay';
+  title: string;
+  findings: string[];
+}
+
 export interface SynastryResult {
   score: number;
   aspects: SynastryAspect[];
   highlights: string[];
+  /** Precomputed relationship keys for the AI — do not invent angles beyond these. */
+  focusAreas: SynastryFocusArea[];
 }

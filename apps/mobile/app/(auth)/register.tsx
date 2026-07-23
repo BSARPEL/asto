@@ -1,9 +1,18 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Link, router } from 'expo-router';
-import { BrandMark, Button, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
+import {
+  AuthShell,
+  BrandMark,
+  Button,
+  ErrorText,
+  Field,
+  Screen,
+  Subtitle,
+  Title,
+} from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { colors, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const { register } = useAuth();
@@ -32,37 +41,56 @@ export default function RegisterScreen() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <BrandMark />
-          <Title>Asto’ya katıl</Title>
-          <Subtitle>Kayıt olunca 5 jeton hediye. Doğum haritanı sonra gireceksin.</Subtitle>
-          <Field label="Ad" value={displayName} onChangeText={setDisplayName} placeholder="Adın" />
-          <Field
-            label="E-posta"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="ornek@mail.com"
-          />
-          <Field
-            label="Şifre"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            placeholder="En az 6 karakter"
-          />
-          <ErrorText>{error}</ErrorText>
-          <Button label="Kayıt ol" onPress={onSubmit} loading={loading} />
-          <View style={styles.footer}>
-            <Link href="/(auth)/login" style={styles.link}>
-              Zaten hesabın var mı? Giriş yap
-            </Link>
-            <Link href="/legal/terms" style={styles.linkMuted}>
-              Kullanım şartları
-            </Link>
-          </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <AuthShell>
+            <BrandMark />
+            <Title>Asto’ya katıl</Title>
+            <Subtitle>
+              Kayıt olunca 5 jeton hediye. Doğum haritanı sonra gireceksin.
+            </Subtitle>
+            <Field
+              label="Ad"
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="Adın"
+              autoComplete="name"
+            />
+            <Field
+              label="E-posta"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="ornek@mail.com"
+            />
+            <Field
+              label="Şifre"
+              secureTextEntry
+              autoComplete="new-password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="En az 6 karakter"
+            />
+            <ErrorText>{error}</ErrorText>
+            <Button label="Kayıt ol" onPress={onSubmit} loading={loading} />
+            <View style={styles.footer}>
+              <Link href="/(auth)/login" style={styles.link}>
+                Zaten hesabın var mı? Giriş yap
+              </Link>
+              <Link href="/legal/terms" style={styles.linkMuted}>
+                Kullanım şartları
+              </Link>
+            </View>
+          </AuthShell>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -70,8 +98,17 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, paddingTop: spacing.xl },
-  footer: { marginTop: spacing.lg, gap: 10 },
-  link: { color: colors.teal, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  linkMuted: { color: colors.textMuted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1, justifyContent: 'center' },
+  footer: { marginTop: spacing.lg, gap: 12 },
+  link: {
+    color: colors.teal,
+    fontFamily: fonts.bodySemi,
+    fontSize: 15,
+  },
+  linkMuted: {
+    color: colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 13,
+  },
 });

@@ -1,7 +1,7 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { BirthForm } from '@/components/BirthForm';
-import { Screen, Subtitle, Title } from '@/components/ui';
+import { Screen, ScreenScroll, Subtitle, Title } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { spacing } from '@/constants/theme';
@@ -11,7 +11,7 @@ export default function BirthOnboarding() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScreenScroll>
         <Title>Doğum haritan</Title>
         <Subtitle>
           Tarih, saat ve şehir ile natal haritanı hesaplarız. Saat bilinmiyorsa 12:00 kullanabilirsin.
@@ -26,11 +26,12 @@ export default function BirthOnboarding() {
             router.replace('/(tabs)/chart');
           }}
         />
-      </ScrollView>
+      </ScreenScroll>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  // kept for potential local tweaks
+  spacer: { height: spacing.md },
 });

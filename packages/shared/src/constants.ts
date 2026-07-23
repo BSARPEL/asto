@@ -46,7 +46,10 @@ export const PLANET_LABELS_TR: Record<string, string> = {
   Uranus: 'Uranüs',
   Neptune: 'Neptün',
   Pluto: 'Plüton',
+  NorthNode: 'Kuzey Ay Düğümü',
+  SouthNode: 'Güney Ay Düğümü',
   Ascendant: 'Yükselen',
+  Descendant: 'Alçalan',
   Midheaven: 'MC',
 };
 
