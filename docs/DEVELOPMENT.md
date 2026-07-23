@@ -4,7 +4,8 @@
 
 - Node.js ≥ 20
 - npm 10+
-- Expo Go veya emülatör (iOS için macOS)
+- iOS fiziksel cihaz: macOS + Xcode
+- (Opsiyonel) Simülatör / canlı JS için Expo Metro
 
 ## İlk kurulum
 
@@ -22,7 +23,10 @@ cp packages/api/.env.example packages/api/.env
 | Komut | Açıklama |
 |-------|----------|
 | `npm run api` | API watch (`tsx`) port 8788 |
-| `npm run mobile` | Expo Dev Server |
+| `npm run mobile` | Expo Metro (simülatör / hot reload) |
+| `npm run ios:prebuild` | Native `ios/` projesi (Metro gerekmez) |
+| `npm run ios:open` | Xcode workspace aç |
+| `npm run ios:device` | CLI ile cihaza Release build |
 | `npm run build --workspace=@asto/shared` | Shared derle |
 | `npx tsc --noEmit` (api veya mobile dizininde) | Tip kontrolü |
 
@@ -36,15 +40,36 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-### `apps/mobile/.env` (opsiyonel)
+### `apps/mobile/.env` (fiziksel iPhone için zorunlu)
 
 ```
-EXPO_PUBLIC_API_URL=http://localhost:8788/api
+# Mac LAN IP: ipconfig getifaddr en0
+EXPO_PUBLIC_API_URL=http://192.168.x.x:8788/api
 EXPO_PUBLIC_REVENUECAT_API_KEY=
 EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID=
 ```
 
-Fiziksel cihazda bilgisayarın LAN IP’sini kullan. Android emülatörde kod zaten `10.0.2.2` kullanır.
+Build sırasında `EXPO_PUBLIC_*` JS bundle’a gömülür. Telefonda `localhost` çalışmaz.
+
+## iOS — Xcode (Metro / Expo Go yok)
+
+Telefonda **native standalone** (Expo dev server bağlantısı yok):
+
+```bash
+cd apps/mobile
+cp .env.example .env          # LAN IP'yi düzenle
+npm run ios:prebuild          # ios/ + CocoaPods + SKIP_BUNDLING=0
+```
+
+Kökten API: `npm run api` (0.0.0.0:8788, telefon ile aynı Wi‑Fi).
+
+Xcode: `npm run ios:open` → cihazı seç → Signing Team → **⌘R**.
+
+Her build’de JS bundle uygulamaya gömülür (`ios/.xcode.env.local` → `SKIP_BUNDLING=0`). Metro açmanız gerekmez.
+
+`app.json` veya native plugin değişince: `npm run sync:ios:force` (kökten).
+
+Simülatör + canlı Metro: `npm run mobile` (ayrı geliştirme akışı).
 
 ## Workspace notları
 
@@ -66,7 +91,7 @@ Fiziksel cihazda bilgisayarın LAN IP’sini kullan. Android emülatörde kod za
 3. Daily reading + bir soru
 4. Partner ekle + analyze
 5. Rewarded ad + token purchase
-6. Expo’da aynı akışı UI’dan tekrarla
+6. Aynı akışı fiziksel cihazda (Xcode native build) tekrarla
 
 Chart unit smoke:
 

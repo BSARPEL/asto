@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,6 +91,7 @@ export async function syncIos({ force = false } = {}) {
     cwd: join(ROOT, 'apps/mobile'),
   });
   await run('pod', ['install'], { cwd: join(ROOT, 'apps/mobile/ios') });
+  await run('node', ['scripts/apply-native-ios.mjs'], { cwd: ROOT });
   writeCache('ios-sync.hash', next);
   log('sync', 'iOS native sync OK — Xcode’da ⌘R yeterli (native değiştiyse)');
   return true;

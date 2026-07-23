@@ -164,6 +164,7 @@ export const api = {
     request<{
       partner: Partner;
       synastry: SynastryResult;
+      conversation: Conversation | null;
       profile: Profile;
       cost: number;
       cached: boolean;
@@ -173,6 +174,22 @@ export const api = {
       timeoutMs: AI_TIMEOUT_MS,
       body: JSON.stringify({ force }),
     }),
+
+  partnerConversation: (token: string, partnerId: string) =>
+    request<{ partner: Partner; conversation: Conversation }>(`/partners/${partnerId}/conversation`, {
+      token,
+    }),
+
+  askPartner: (token: string, partnerId: string, question: string, conversationId?: string) =>
+    request<{ conversation: Conversation; profile: Profile; cost: number }>(
+      `/partners/${partnerId}/ask`,
+      {
+        method: 'POST',
+        token,
+        timeoutMs: AI_TIMEOUT_MS,
+        body: JSON.stringify({ question, conversationId }),
+      },
+    ),
 
   ledger: (token: string) => request<{ ledger: Array<{ id: string; delta: number; reason: string; createdAt: string }> }>('/tokens/ledger', { token }),
 

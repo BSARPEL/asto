@@ -97,6 +97,8 @@ export interface Partner {
   /** Brief AI rationale for synastryScore */
   synastryScoreNote?: string;
   analysis?: string;
+  /** Sinastri sohbeti — analiz sonrası soru-cevap */
+  conversationId?: string;
   createdAt: string;
 }
 
@@ -112,6 +114,10 @@ export interface Conversation {
   userId: string;
   title: string;
   messages: ChatMessage[];
+  /** daily = günlük öngörü; synastry = partner sinastri sohbeti */
+  kind?: 'daily' | 'synastry';
+  /** Set when kind is synastry */
+  partnerId?: string;
   createdAt: string;
   updatedAt: string;
 }

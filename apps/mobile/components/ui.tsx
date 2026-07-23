@@ -748,10 +748,12 @@ export function MessageBubble({
   role,
   content,
   compact,
+  showRole = true,
 }: {
   role: 'user' | 'assistant';
   content: string;
   compact?: boolean;
+  showRole?: boolean;
 }) {
   const isUser = role === 'user';
   return (
@@ -761,14 +763,18 @@ export function MessageBubble({
         compact && styles.bubbleCompact,
         isUser ? styles.bubbleUser : styles.bubbleAssistant,
         compact && (isUser ? styles.bubbleUserCompact : styles.bubbleAssistantCompact),
+        !showRole && styles.bubbleChat,
+        !showRole && (isUser ? styles.bubbleChatUser : styles.bubbleChatAssistant),
       ]}
     >
-      <View style={[styles.bubbleHeader, compact && styles.bubbleHeaderCompact]}>
-        <View style={[styles.bubbleDot, isUser ? styles.bubbleDotUser : styles.bubbleDotAssistant]} />
-        <Text style={[styles.bubbleRole, compact && styles.bubbleRoleCompact, isUser && styles.bubbleRoleUser]}>
-          {isUser ? 'Sen' : 'Asto'}
-        </Text>
-      </View>
+      {showRole ? (
+        <View style={[styles.bubbleHeader, compact && styles.bubbleHeaderCompact]}>
+          <View style={[styles.bubbleDot, isUser ? styles.bubbleDotUser : styles.bubbleDotAssistant]} />
+          <Text style={[styles.bubbleRole, compact && styles.bubbleRoleCompact, isUser && styles.bubbleRoleUser]}>
+            {isUser ? 'Sen' : 'Asto'}
+          </Text>
+        </View>
+      ) : null}
       <Body style={[styles.bubbleBody, compact && styles.bubbleBodyCompact]}>{content}</Body>
     </View>
   );
@@ -1436,6 +1442,19 @@ const styles = StyleSheet.create({
     marginRight: spacing.lg,
   },
   bubbleAssistantCompact: { marginRight: spacing.sm },
+  bubbleChat: {
+    maxWidth: '88%',
+    marginLeft: 0,
+    marginRight: 0,
+  },
+  bubbleChatUser: {
+    alignSelf: 'flex-end',
+    borderBottomRightRadius: radii.sm,
+  },
+  bubbleChatAssistant: {
+    alignSelf: 'flex-start',
+    borderBottomLeftRadius: radii.sm,
+  },
   bubbleHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   bubbleHeaderCompact: { marginBottom: 4 },
   bubbleDot: { width: 6, height: 6, borderRadius: 3 },

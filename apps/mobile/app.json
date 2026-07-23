@@ -44,15 +44,22 @@
           "backgroundColor": "#FAF8F4"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "./plugins/withStandaloneBundle.js"
     ],
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0
+    },
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "eas": {
         "projectId": "asto-local-dev"
-      }
+      },
+      "apiUrl": "http://127.0.0.1:8788/api"
     }
   }
 }

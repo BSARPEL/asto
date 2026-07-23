@@ -37,9 +37,14 @@
   },
   "scripts": {
     "start": "expo start",
+    "start:metro": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "ios:sync": "expo prebuild -p ios --no-install && cd ios && pod install",
+    "ios:sim": "expo run:ios",
+    "ios:device": "expo run:ios --device --configuration Release",
+    "ios:open": "open ios/Asto.xcworkspace",
+    "ios:sync": "expo prebuild -p ios --no-install && cd ios && pod install && node ../../scripts/apply-native-ios.mjs",
+    "ios:prebuild": "expo prebuild -p ios --clean && cd ios && pod install && node ../../scripts/apply-native-ios.mjs",
     "web": "expo start --web"
   }
 }

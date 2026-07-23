@@ -185,6 +185,12 @@ export const store = {
     save(db);
   },
 
+  deleteConversation(id: string, userId: string) {
+    const before = db.conversations.length;
+    db.conversations = db.conversations.filter((c) => !(c.id === id && c.userId === userId));
+    if (db.conversations.length !== before) save(db);
+  },
+
   claimAdReward(userId: string): { count: number; profile: Profile } {
     const date = new Date().toISOString().slice(0, 10);
     let row = db.adClaims.find((a) => a.userId === userId && a.date === date);

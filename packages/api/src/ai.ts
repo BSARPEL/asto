@@ -134,6 +134,15 @@ function mockComplete(prompt: string): string {
       'Akşam saatlerinde bedenini dinle; erken dinlenme yarının temposunu kolaylaştırır.',
     ].join('\n');
   }
+  if (prompt.includes('SİNASTRİ SOHBETİ')) {
+    return [
+      'Sinastri yorumundaki Ay–Ay ve Venüs–Mars temalarına bakınca, duygusal ihtiyaçlarınız benzer bir ritimde ilerliyor; bu da günlük hayatta birbirinizi daha hızlı anlamanızı sağlar.',
+      '',
+      'Gerilim yaratabilecek kare açılar ise tempo ve beklenti farkı getiriyor. Tartışmada acele etmek yerine duyguyu adlandırmak ve küçük net adımlar atmak bağı güçlendirir.',
+      '',
+      '(Not: Demo yanıt — API anahtarı tanımlı değil.)',
+    ].join('\n');
+  }
   if (prompt.includes('İLİŞKİ ANALİZİ')) {
     return [
       '1) Genel dinamik: Haritalar arasında tamamlayıcı ve öğrenme alanı açan bir ritim var; duygusal ihtiyaçlar farklı tempoda ilerleyebilir.',
@@ -225,6 +234,54 @@ ${hist || '(yok)'}
 
 Kullanıcı sorusu: ${question}
 Haritaya dayalı, net ve uygulanabilir bir yanıt ver.`,
+  );
+}
+
+export async function answerSynastryQuestion(
+  selfName: string,
+  selfChart: ChartData,
+  partnerName: string,
+  partnerChart: ChartData,
+  analysis: string,
+  synastryScore: number | undefined,
+  question: string,
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  options?: { selfGender?: Gender; partnerGender?: Gender },
+): Promise<string> {
+  const genderLine = [
+    options?.selfGender ? `Kişi A cinsiyet: ${options.selfGender === 'female' ? 'kadın' : 'erkek'}` : null,
+    options?.partnerGender
+      ? `Kişi B cinsiyet: ${options.partnerGender === 'female' ? 'kadın' : 'erkek'}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' | ');
+
+  const hist = history
+    .slice(-10)
+    .map((m) => `${m.role}: ${m.content}`)
+    .join('\n');
+
+  return complete(
+    `SİNASTRİ SOHBETİ
+${selfName} (Kişi A):
+${chartSummaryForPrompt(selfChart, 'Kişi A')}
+${partnerName} (Kişi B):
+${chartSummaryForPrompt(partnerChart, 'Kişi B')}
+${genderLine ? `${genderLine}\n` : ''}${synastryScore != null ? `Sinastri skoru: ${synastryScore}/100\n` : ''}
+ÖNCEDEN ÜRETİLEN SİNASTRİ YORUMU (referans; tutarlı kal):
+${analysis}
+
+Önceki sohbet:
+${hist || '(yok)'}
+
+Kullanıcı sorusu: ${question}
+
+Kurallar:
+- Yalnızca verilen harita ve sinastri yorumuna dayan; yeni gezegen konumu veya açı uydurma.
+- İlişki dinamiğini ${selfName} ve ${partnerName} isimleriyle, sıcak ve net anlat.
+- Gerekirse önceki yorumdaki başlıklara atıf yap; çelişki yaratma.
+- Kısa paragraflar; kehanet dili kullanma.`,
   );
 }
 

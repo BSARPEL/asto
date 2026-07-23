@@ -13,6 +13,7 @@ alwaysApply: false
 - Doğum formu: `components/BirthForm.tsx` + `searchWorldCities` (@asto/shared, 34k+ şehir)
 - Monetizasyon stub: `lib/monetization.ts` — gerçek SDK eklerken burayı genişlet
 - Android emülatör API: `10.0.2.2:8788`; fiziksel cihazda LAN IP (`lib/config.ts` otomatik)
-- Geliştirme: root’ta `npm run dev:all` (Metro + API + sync); Xcode’dan ⌘R — JS Fast Refresh
-- Native değişiklik (`app.json`, yeni native paket): `npm run sync:ios` otomatik veya manuel
+- Geliştirme (simülatör + Metro): root’ta `npm run dev:all` veya `npm run mobile`
+- **Fiziksel iPhone (Xcode, Metro yok):** `apps/mobile/.env` LAN IP → `npm run ios:prebuild` → `npm run ios:open` → ⌘R
+- Native değişiklik (`app.json`, plugin): `npm run sync:ios:force` (kökten)
 - `@asto/shared` import et; sabitleri mobile içinde tekrar tanımlama

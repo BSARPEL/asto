@@ -15,6 +15,9 @@
     "sync:shared": "node scripts/sync-shared.mjs",
     "sync:ios": "node scripts/sync-ios.mjs",
     "sync:ios:force": "node scripts/sync-ios.mjs --force",
+    "ios:prebuild": "npm run ios:prebuild --workspace=mobile",
+    "ios:open": "npm run ios:open --workspace=mobile",
+    "ios:device": "npm run ios:device --workspace=mobile",
     "build:cities": "node scripts/build-world-cities.mjs",
     "shared:build": "npm run build --workspace=@asto/shared",
     "postinstall": "npm run shared:build"

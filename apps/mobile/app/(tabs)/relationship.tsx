@@ -1,8 +1,17 @@
-import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { TOKEN_COSTS, formatBirthPlace } from '@asto/shared';
-import type { Partner } from '@asto/shared';
+import type { Conversation, Partner } from '@asto/shared';
+import { AiChatPanel } from '@/components/AiChatPanel';
 import { AiMarkdown } from '@/components/AiMarkdown';
 import { BirthForm } from '@/components/BirthForm';
 import { AstroGlyph } from '@/components/AstroGlyph';
@@ -23,11 +32,18 @@ import {
   SheetModal,
   TokenBadge,
   tabScrollStyle,
+  useLayout,
 } from '@/components/ui';
 import { signColor } from '@/constants/astro';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
+
+const SYNASTRY_SUGGESTIONS = [
+  'Bu ilişkide en güçlü uyum nerede?',
+  'Tartışma anında nelere dikkat etmeliyiz?',
+  'Uzun vadeli potansiyelimiz nasıl?',
+];
 
 function analyzeLabel(isSubscribed: boolean, hasAnalysis: boolean) {
   if (isSubscribed) return hasAnalysis ? 'Yeniden yorumla' : 'Sinastri yorumu al';
@@ -112,12 +128,17 @@ function PartnerCard({
 
 export default function RelationshipScreen() {
   const { token, profile, setProfile } = useAuth();
+  const { gutter } = useLayout();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const [question, setQuestion] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [loadingConversation, setLoadingConversation] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -138,6 +159,34 @@ export default function RelationshipScreen() {
 
   const selected = partners.find((p) => p.id === selectedId) ?? null;
 
+  const loadConversation = useCallback(
+    async (partnerId: string) => {
+      if (!token) return;
+      setLoadingConversation(true);
+      setError(null);
+      try {
+        const res = await api.partnerConversation(token, partnerId);
+        setConversation(res.conversation);
+        setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
+      } catch (e) {
+        setError((e as Error).message);
+        setConversation(null);
+      } finally {
+        setLoadingConversation(false);
+      }
+    },
+    [token],
+  );
+
+  useEffect(() => {
+    if (selected?.analysis) {
+      loadConversation(selected.id);
+    } else {
+      setConversation(null);
+      setQuestion('');
+    }
+  }, [selected?.id, selected?.analysis, loadConversation]);
+
   const analyze = async (partner: Partner, force = false) => {
     if (!token) return;
     setError(null);
@@ -147,6 +196,7 @@ export default function RelationshipScreen() {
       const res = await api.analyzePartner(token, partner.id, force);
       setProfile(res.profile);
       setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
+      if (res.conversation) setConversation(res.conversation);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -180,8 +230,116 @@ export default function RelationshipScreen() {
     setEditingPartner(partner);
   };
 
+  const ask = async (raw: string) => {
+    const q = raw.trim();
+    if (!token || !selected || !q) return;
+    setAsking(true);
+    setError(null);
+    try {
+      const res = await api.askPartner(token, selected.id, q, conversation?.id);
+      setConversation(res.conversation);
+      setProfile(res.profile);
+      setQuestion('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  const inSynastryDetail = Boolean(selected?.analysis);
+
+  const synastryDetailView = selected?.analysis ? (
+    <View style={[styles.detailRoot, { paddingHorizontal: gutter }]}>
+      <HeaderRow
+        compact
+        eyebrow="Sinastri"
+        title={selected.birth.name}
+        right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
+      />
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.partnerStrip}
+      >
+        {partners.map((p) => (
+          <Chip
+            key={p.id}
+            label={p.birth.name}
+            active={selectedId === p.id}
+            onPress={() => setSelectedId(p.id)}
+            compact
+          />
+        ))}
+        <Chip label="+ Partner" onPress={() => { setEditingPartner(null); setShowForm(true); }} compact />
+      </ScrollView>
+
+      <ErrorText>{error}</ErrorText>
+
+      <View style={styles.splitPane}>
+        <View style={styles.pane}>
+          <Card compact accent={colors.teal} style={styles.paneCard}>
+            <View style={styles.analysisHeader}>
+              <SectionTitle compact>Sinastri yorumu</SectionTitle>
+              <View style={styles.analysisHeaderRight}>
+                {selected.synastryScore != null ? (
+                  <Chip label={`${selected.synastryScore}/100`} active compact />
+                ) : null}
+                <Button
+                  compact
+                  label="Düzenle"
+                  variant="ghost"
+                  onPress={() => openEdit(selected)}
+                  icon="✎"
+                />
+              </View>
+            </View>
+            {selected.synastryScoreNote ? (
+              <Text style={styles.scoreNote}>{selected.synastryScoreNote}</Text>
+            ) : null}
+            <ScrollView
+              style={styles.paneScroll}
+              contentContainerStyle={styles.paneScrollContent}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+            >
+              <AiMarkdown content={selected.analysis} compact />
+            </ScrollView>
+          </Card>
+        </View>
+
+        <View style={styles.pane}>
+          <Card compact style={styles.paneCard}>
+            <AiChatPanel
+              messages={conversation?.messages ?? []}
+              loading={loadingConversation}
+              asking={asking}
+              value={question}
+              onChangeText={setQuestion}
+              onSend={() => ask(question)}
+              suggestions={SYNASTRY_SUGGESTIONS}
+              onSuggestion={ask}
+              placeholder="Sinastri hakkında mesaj yaz…"
+              emptyTitle="Sinastri sohbeti"
+              emptyBody={`${selected.birth.name} ile ilişkinize dair sorularını sor; geçmiş mesajlar kayıtlı kalır.`}
+            />
+          </Card>
+        </View>
+      </View>
+    </View>
+  ) : null;
+
   return (
     <Screen>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={88}
+      >
+      {inSynastryDetail ? (
+        synastryDetailView
+      ) : (
       <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
           compact
@@ -240,34 +398,7 @@ export default function RelationshipScreen() {
           </>
         )}
 
-        {selected ? (
-          selected.analysis ? (
-            <Card compact accent={colors.teal} style={styles.analysisCard}>
-              <View style={styles.analysisHeader}>
-                <SectionTitle compact>
-                  {selected.birth.name} — sinastri yorumu
-                </SectionTitle>
-                <View style={styles.analysisHeaderRight}>
-                  {selected.synastryScore != null ? (
-                    <Chip label={`${selected.synastryScore}/100`} active compact />
-                  ) : null}
-                  <Button
-                    compact
-                    label="Düzenle"
-                    variant="ghost"
-                    onPress={() => openEdit(selected)}
-                    icon="✎"
-                  />
-                </View>
-              </View>
-              {selected.synastryScoreNote ? (
-                <Text style={styles.scoreNote}>{selected.synastryScoreNote}</Text>
-              ) : null}
-              <View style={styles.analysisBody}>
-                <AiMarkdown content={selected.analysis} compact />
-              </View>
-            </Card>
-          ) : (
+        {selected && !selected.analysis ? (
             <Card compact style={styles.promptCard}>
               <SectionTitle compact>{selected.birth.name} için analiz</SectionTitle>
               <Body muted style={styles.promptBody}>
@@ -288,9 +419,10 @@ export default function RelationshipScreen() {
                 icon="✎"
               />
             </Card>
-          )
         ) : null}
       </ScreenScroll>
+      )}
+      </KeyboardAvoidingView>
 
       <SheetModal
         visible={showForm || Boolean(editingPartner)}
@@ -314,6 +446,38 @@ export default function RelationshipScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  detailRoot: {
+    flex: 1,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  partnerStrip: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingBottom: spacing.sm,
+  },
+  splitPane: {
+    flex: 1,
+    minHeight: 0,
+    gap: spacing.sm,
+  },
+  pane: {
+    flex: 1,
+    minHeight: 0,
+  },
+  paneCard: {
+    flex: 1,
+    marginBottom: 0,
+    overflow: 'hidden',
+  },
+  paneScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+  paneScrollContent: {
+    paddingBottom: spacing.sm,
+  },
   addCard: {
     marginBottom: spacing.sm,
   },
@@ -446,13 +610,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
-  },
-  analysisCard: {
-    marginBottom: spacing.xl,
-  },
-  analysisBody: {
-    marginTop: 4,
-    paddingBottom: spacing.sm,
   },
   scoreNote: {
     fontFamily: fonts.body,

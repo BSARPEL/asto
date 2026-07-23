@@ -15,6 +15,7 @@ import {
 } from './chart/engine';
 import {
   answerQuestion,
+  answerSynastryQuestion,
   aiStatus,
   generateChartNarrative,
   generateDailyReading,
@@ -33,12 +34,52 @@ function ensureDailyConversation(userId: string, date: string, conversationId?: 
   const conv: Conversation = {
     id: nanoid(),
     userId,
+    kind: 'daily',
     title: `Öngörü ${date}`,
     messages: [],
     createdAt: now,
     updatedAt: now,
   };
   store.saveConversation(conv);
+  return conv;
+}
+
+function ensureSynastryConversation(
+  userId: string,
+  partnerId: string,
+  partnerName: string,
+  conversationId?: string,
+): Conversation {
+  if (conversationId) {
+    const existing = store.getConversation(conversationId, userId);
+    if (existing) return existing;
+  }
+  const now = new Date().toISOString();
+  const conv: Conversation = {
+    id: nanoid(),
+    userId,
+    kind: 'synastry',
+    partnerId,
+    title: `Sinastri · ${partnerName}`,
+    messages: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  store.saveConversation(conv);
+  return conv;
+}
+
+function partnerConversationFor(userId: string, partner: { id: string; birth: { name: string }; conversationId?: string; analysis?: string }) {
+  if (!partner.analysis) return null;
+  const conv = ensureSynastryConversation(
+    userId,
+    partner.id,
+    partner.birth.name,
+    partner.conversationId,
+  );
+  if (!partner.conversationId) {
+    store.updatePartner(partner.id, { conversationId: conv.id });
+  }
   return conv;
 }
 
@@ -343,12 +384,16 @@ router.put('/partners/:id', requireAuth, (req: AuthedRequest, res) => {
       return;
     }
     const natalChart = computeNatalChart(birth);
+    if (partner.conversationId) {
+      store.deleteConversation(partner.conversationId, req.user!.id);
+    }
     const updated = store.updatePartner(partner.id, {
       birth,
       natalChart,
       synastryScore: undefined,
       synastryScoreNote: undefined,
       analysis: undefined,
+      conversationId: undefined,
     });
     res.json({ partner: updated });
   } catch (e) {
@@ -385,8 +430,10 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
     });
 
     if (partner.analysis && !force) {
+      const fresh = store.getPartner(partner.id, user.id)!;
+      const conversation = partnerConversationFor(user.id, fresh);
       const profile = stripUser(store.getUser(user.id)!);
-      res.json({ partner, synastry, profile, cost: 0, cached: true });
+      res.json({ partner: fresh, synastry, conversation, profile, cost: 0, cached: true });
       return;
     }
 
@@ -415,13 +462,122 @@ router.post('/partners/:id/analyze', requireAuth, async (req: AuthedRequest, res
       throw e;
     }
 
+    const conv = ensureSynastryConversation(
+      user.id,
+      partner.id,
+      partner.birth.name,
+      partner.conversationId,
+    );
+
     const updated = store.updatePartner(partner.id, {
       synastryScore: result.score,
       synastryScoreNote: result.scoreNote || undefined,
       analysis: result.analysis,
+      conversationId: conv.id,
     });
     const profile = stripUser(store.getUser(user.id)!);
-    res.json({ partner: updated, synastry, profile, cost, cached: false });
+    res.json({ partner: updated, synastry, conversation: conv, profile, cost, cached: false });
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+});
+
+router.get('/partners/:id/conversation', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const partner = store.getPartner(String(req.params.id), req.user!.id);
+    if (!partner) {
+      res.status(404).json({ error: 'Partner bulunamadı' });
+      return;
+    }
+    if (!partner.analysis) {
+      res.status(400).json({ error: 'Önce sinastri yorumu alın' });
+      return;
+    }
+    const conversation = partnerConversationFor(req.user!.id, partner);
+    const fresh = store.getPartner(partner.id, req.user!.id)!;
+    res.json({ partner: fresh, conversation });
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+});
+
+router.post('/partners/:id/ask', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const { question, conversationId } = req.body ?? {};
+    if (!question || typeof question !== 'string') {
+      res.status(400).json({ error: 'question gerekli' });
+      return;
+    }
+
+    const user = store.getUser(req.user!.id);
+    if (!user?.natalChart) {
+      res.status(400).json({ error: 'Önce doğum haritanızı kaydedin' });
+      return;
+    }
+
+    const partner = store.getPartner(String(req.params.id), user.id);
+    if (!partner) {
+      res.status(404).json({ error: 'Partner bulunamadı' });
+      return;
+    }
+    if (!partner.analysis) {
+      res.status(400).json({ error: 'Önce sinastri yorumu alın' });
+      return;
+    }
+
+    const cost = user.isSubscribed ? 0 : TOKEN_COSTS.askQuestion;
+    if (cost > 0) store.adjustTokens(user.id, -cost, 'synastry_ask');
+
+    let conv: Conversation | null = conversationId
+      ? store.getConversation(String(conversationId), user.id)
+      : null;
+    if (!conv && partner.conversationId) {
+      conv = store.getConversation(partner.conversationId, user.id);
+    }
+    if (!conv) {
+      conv = ensureSynastryConversation(user.id, partner.id, partner.birth.name, partner.conversationId);
+      if (!partner.conversationId) {
+        store.updatePartner(partner.id, { conversationId: conv.id });
+      }
+    }
+
+    const now = new Date().toISOString();
+    conv.messages.push({
+      id: nanoid(),
+      role: 'user',
+      content: question,
+      createdAt: now,
+    });
+
+    const selfChart = user.birth ? computeNatalChart(user.birth) : user.natalChart;
+    const partnerChart = computeNatalChart(partner.birth);
+
+    const answer = await answerSynastryQuestion(
+      user.displayName,
+      selfChart,
+      partner.birth.name,
+      partnerChart,
+      partner.analysis,
+      partner.synastryScore,
+      question,
+      conv.messages.map((m) => ({ role: m.role, content: m.content })),
+      {
+        selfGender: user.birth?.gender,
+        partnerGender: partner.birth.gender,
+      },
+    );
+
+    conv.messages.push({
+      id: nanoid(),
+      role: 'assistant',
+      content: answer,
+      createdAt: new Date().toISOString(),
+    });
+    conv.updatedAt = new Date().toISOString();
+    store.saveConversation(conv);
+
+    const profile = stripUser(store.getUser(user.id)!);
+    res.json({ conversation: conv, profile, cost });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }
