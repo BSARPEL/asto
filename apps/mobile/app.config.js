@@ -8,9 +8,10 @@ module.exports = ({ config }) => {
     process.env.EXPO_PUBLIC_AI_API_URL ||
     process.env.EXPO_PUBLIC_API_URL ||
     (appEnv === 'production' ? productionAiUrl : '');
-  const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
-  const geminiModel = process.env.EXPO_PUBLIC_GEMINI_MODEL || 'gemini-2.5-flash-lite';
   const isProduction = appEnv === 'production';
+  // Mağaza build'inde Gemini anahtarı bundle'a gömülmez (GitHub/Google secret scanning).
+  const geminiApiKey = isProduction ? '' : process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
+  const geminiModel = process.env.EXPO_PUBLIC_GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
   return {
     ...config,

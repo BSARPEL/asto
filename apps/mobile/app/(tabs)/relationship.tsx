@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -8,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useNavigation } from 'expo-router';
 import { TOKEN_COSTS, formatBirthPlace, type BirthInput } from '@asto/shared';
 import type { Conversation, Partner } from '@asto/shared';
 import { AiChatPanel } from '@/components/AiChatPanel';
@@ -30,6 +31,7 @@ import {
   ScoreBar,
   SectionTitle,
   SheetModal,
+  Skeleton,
   TokenBadge,
   tabScrollStyle,
   useLayout,
@@ -207,6 +209,7 @@ function HistoryCard({ partner, onOpen }: { partner: Partner; onOpen: () => void
 
 export default function RelationshipScreen() {
   const { token, profile, setProfile } = useAuth();
+  const navigation = useNavigation();
   const { isSplitLayout, gutter } = useLayout();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -269,6 +272,13 @@ export default function RelationshipScreen() {
   );
 
   const selected = partners.find((p) => p.id === selectedId) ?? null;
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: view !== 'detail',
+      title: view === 'detail' && selected ? selected.birth.name : 'İlişki',
+    });
+  }, [navigation, view, selected]);
 
   // Sohbet yalnızca detay ekranında ve partner değişince yüklenir
   useEffect(() => {
@@ -378,7 +388,7 @@ export default function RelationshipScreen() {
     }
   };
 
-  const inDetail = view === 'detail' && Boolean(selected?.analysis);
+  const inDetail = view === 'detail';
   const messageCount = conversation?.messages?.length ?? 0;
 
   const analysisCard = selected?.analysis ? (
@@ -442,103 +452,129 @@ export default function RelationshipScreen() {
     </Card>
   ) : null;
 
-  const synastryDetailView = selected?.analysis ? (
+  const synastryDetailView = (
     <View style={[styles.detailRoot, { paddingHorizontal: gutter }]}>
       <Pressable onPress={goBack} style={styles.backRow} hitSlop={8}>
         <Text style={styles.backText}>← Geri</Text>
       </Pressable>
 
-      <HeaderRow
-        compact
-        eyebrow="Sinastri"
-        title={selected.birth.name}
-        subtitle={`${selected.birth.birthDate} · ${formatBirthPlace(selected.birth)}`}
-        right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
-      />
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.partnerStrip}
-        keyboardShouldPersistTaps="handled"
-      >
-        {partners.map((p) => (
-          <Chip
-            key={p.id}
-            label={p.birth.name}
-            active={selectedId === p.id}
-            onPress={() => {
-              setSelectedId(p.id);
-              setDetailTab('analysis');
-              if (!p.analysis) setView('hub');
-            }}
-            compact
-          />
-        ))}
-        <Chip
-          label="+ Partner"
-          onPress={() => {
-            goBack();
-            setEditingPartner(null);
-            setShowForm(true);
-          }}
-          compact
-        />
-      </ScrollView>
-
-      <ErrorText>{error}</ErrorText>
-
-      {!isSplitLayout ? (
-        <View style={styles.detailTabs}>
-          <Chip
-            label="Yorum"
-            active={detailTab === 'analysis'}
-            onPress={() => setDetailTab('analysis')}
-            compact
-          />
-          <Chip
-            label={messageCount > 0 ? `Sohbet (${messageCount})` : 'Sohbet'}
-            active={detailTab === 'chat'}
-            onPress={() => setDetailTab('chat')}
-            compact
-          />
+      {!selected ? (
+        <View style={styles.detailLoading}>
+          <ActivityIndicator color={colors.teal} />
+          <Text style={styles.detailLoadingText}>Partner yükleniyor…</Text>
         </View>
-      ) : null}
-
-      {isSplitLayout ? (
-        <View style={styles.detailSplit}>
-          <View style={styles.detailSplitCol}>
-            <ScrollView
-              style={styles.flex}
-              contentContainerStyle={styles.analysisScrollContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator
-            >
-              {analysisCard}
-            </ScrollView>
-          </View>
-          <View style={styles.detailSplitCol}>{chatCard}</View>
-        </View>
-      ) : detailTab === 'analysis' ? (
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.analysisScrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator
-        >
-          {analysisCard}
-          <Button
-            compact
-            label="Sohbete geç"
-            onPress={() => setDetailTab('chat')}
-            icon="◉"
-          />
-        </ScrollView>
       ) : (
-        <View style={styles.chatPane}>{chatCard}</View>
+        <>
+          <HeaderRow
+            compact
+            eyebrow="Sinastri"
+            title={selected.birth.name}
+            subtitle={`${selected.birth.birthDate} · ${formatBirthPlace(selected.birth)}`}
+            right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
+          />
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.partnerStrip}
+            keyboardShouldPersistTaps="handled"
+          >
+            {partners.map((p) => (
+              <Chip
+                key={p.id}
+                label={p.birth.name}
+                active={selectedId === p.id}
+                onPress={() => {
+                  setSelectedId(p.id);
+                  setDetailTab('analysis');
+                  if (!p.analysis) setView('hub');
+                }}
+                compact
+              />
+            ))}
+            <Chip
+              label="+ Partner"
+              onPress={() => {
+                goBack();
+                setEditingPartner(null);
+                setShowForm(true);
+              }}
+              compact
+            />
+          </ScrollView>
+
+          <ErrorText>{error}</ErrorText>
+
+          {loadingConversation && !selected.analysis ? (
+            <View style={styles.detailLoading}>
+              <Skeleton height={120} />
+              <Skeleton height={80} />
+            </View>
+          ) : !selected.analysis ? (
+            <Card compact style={styles.promptCard}>
+              <SectionTitle compact>Sinastri yorumu yok</SectionTitle>
+              <Body muted style={styles.promptBody}>
+                Bu partner için kayıtlı yorum bulunamadı. Listeye dönüp analiz alabilirsin.
+              </Body>
+              <Button compact label="Listeye dön" onPress={goBack} />
+            </Card>
+          ) : (
+            <>
+              {!isSplitLayout ? (
+                <View style={styles.detailTabs}>
+                  <Chip
+                    label="Yorum"
+                    active={detailTab === 'analysis'}
+                    onPress={() => setDetailTab('analysis')}
+                    compact
+                  />
+                  <Chip
+                    label={messageCount > 0 ? `Sohbet (${messageCount})` : 'Sohbet'}
+                    active={detailTab === 'chat'}
+                    onPress={() => setDetailTab('chat')}
+                    compact
+                  />
+                </View>
+              ) : null}
+
+              {isSplitLayout ? (
+                <View style={styles.detailSplit}>
+                  <View style={styles.detailSplitCol}>
+                    <ScrollView
+                      style={styles.flex}
+                      contentContainerStyle={styles.analysisScrollContent}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator
+                    >
+                      {analysisCard}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.detailSplitCol}>{chatCard}</View>
+                </View>
+              ) : detailTab === 'analysis' ? (
+                <ScrollView
+                  style={styles.flex}
+                  contentContainerStyle={styles.analysisScrollContent}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator
+                >
+                  {analysisCard}
+                  <Button
+                    compact
+                    label="Sohbete geç"
+                    onPress={() => setDetailTab('chat')}
+                    icon="◉"
+                  />
+                </ScrollView>
+              ) : (
+                <View style={styles.chatPane}>{chatCard}</View>
+              )}
+            </>
+          )}
+        </>
       )}
     </View>
-  ) : null;
+  );
 
   return (
     <Screen>
@@ -547,7 +583,9 @@ export default function RelationshipScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        {inDetail ? synastryDetailView : (
+        {inDetail ? (
+          synastryDetailView
+        ) : (
           <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
           compact

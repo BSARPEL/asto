@@ -32,7 +32,7 @@ Production mobil uygulama **iki bağımsız backend** kullanır:
 | Günlük öngörü, soru, sinastri AI | AI API + Gemini |
 | AI sonuç önbelleği | Firestore (okuma/yazma mobil + API Admin SDK) |
 
-Yerel geliştirmede AI API `npm run api` (port 8788). Production: Cloud Functions (`npm run deploy:ai-api`) veya Docker/VPS.
+Yerel geliştirmede AI API `npm run api` (port 8788). **Production: yalnızca Firebase Cloud Functions** (`npm run deploy:ai-api`) — ayrı sunucu/VPS gerekmez. Bkz. [FIREBASE-PRODUCTION.md](./FIREBASE-PRODUCTION.md).
 
 ## Katmanlar
 

@@ -53,7 +53,7 @@ Kullanıcı doğum bilgisi girer → natal harita cihazda hesaplanır (Firestore
 
 **Yeni AI özelliği:** `packages/api/src/ai.ts` + `routes/ai-routes.ts` + `lib/ai-api.ts` + `lib/ai-service.ts` + tab ekranı + `TOKEN_COSTS`.
 
-**App Store build:** `npm run deploy:ai-api` → `npm run ios:archive:store`. Bkz. `docs/DEPLOYMENT.md`.
+**App Store build:** `npm run setup:production` → `npm run deploy:ai-api` → `npm run ios:archive:store`. Bkz. [docs/FIREBASE-PRODUCTION.md](mdc:docs/FIREBASE-PRODUCTION.md).
 
 **Yeni ekran:** `apps/mobile/app/...` + gerekirse tab layout; `Screen`/`Card`/`Button` kullan.
 

@@ -1,9 +1,8 @@
 # Dağıtım — App Store ve production
 
-Asto **native standalone** olarak yayınlanır. Production’da iki bağımsız servis gerekir:
+Asto **native standalone** olarak yayınlanır. **Ayrı sunucu (VPS) gerekmez** — AI katmanı Firebase Cloud Functions üzerinde çalışır.
 
-1. **Firebase** — Auth + Firestore (mobil SDK, yapılandırma `EXPO_PUBLIC_FIREBASE_*`)
-2. **AI API** — Gemini (`EXPO_PUBLIC_AI_API_URL`, HTTPS zorunlu)
+Tam yol haritası: **[FIREBASE-PRODUCTION.md](./FIREBASE-PRODUCTION.md)**
 
 ## Mimari
 
@@ -12,25 +11,27 @@ Asto **native standalone** olarak yayınlanır. Production’da iki bağımsız 
       │
       ├── Firebase Auth + Firestore (veri, harita, jeton)
       │
-      └── HTTPS ──► AI API (Cloud Functions / Express)
-                         └── Gemini (GEMINI_API_KEY sunucuda)
+      └── HTTPS ──► Cloud Function astoApi (Firebase)
+                         └── GEMINI_API_KEY (Firebase env — gizli)
 ```
 
-Yerel geliştirme: AI API `npm run api` + LAN IP; Firebase aynı proje (`bn-astro`).
+Yerel geliştirme: opsiyonel `npm run api` (port 8788); production’da kullanılmaz.
 
-## 1. AI API’yi deploy et
-
-### Cloud Functions (önerilen — bu repo)
+## 1. AI API’yi deploy et (Cloud Functions)
 
 ```bash
 firebase login
+# packages/api/.env → GEMINI_API_KEY
 npm run deploy:ai-api
 ```
 
-URL örneği: `https://europe-west1-bn-astro.cloudfunctions.net/astoApi/api`
+URL: `https://europe-west1-bn-astro.cloudfunctions.net/astoApi/api`
 
-Gerekli: Blaze plan, `cloudfunctions.googleapis.com` etkin.  
-Anahtarlar: **[docs/SECRETS.md](./SECRETS.md)** (`packages/api/.env` + Admin SDK JSON).
+Gerekli: Blaze plan. Anahtar `packages/api/.env`’den okunur → `functions/.env` → Firebase runtime (git’e girmez).
+
+### Docker / VPS (alternatif — gerekmez)
+
+Sadece Firebase dışı hosting isteyenler için; bkz. aşağıdaki Docker bölümü.
 
 ### Docker / VPS (alternatif)
 

@@ -2,8 +2,15 @@ node_modules/
 dist/
 .expo/
 *.log
+# Secrets — asla commit etmeyin
 .env
 .env.local
+.env.*.local
+packages/api/.env
+apps/mobile/.env
+apps/mobile/.env.production
+apps/mobile/.env.device
+apps/mobile/.env.local
 packages/api/data/
 packages/api/.secrets/
 apps/mobile/.expo/

@@ -22,7 +22,7 @@ docs/             Mimari ve API dokümantasyonu
 - `npm install` → `npm run build --workspace=@asto/shared`
 - **iOS (native):** `npm run ios:prebuild` → `npm run ios:open` → Xcode ⌘R veya Archive
 - AI API yerel: `npm run api` → `http://localhost:8788/api`
-- AI API deploy: `firebase login` → `npm run deploy:ai-api`
+- AI API deploy: `firebase login` → `npm run deploy:ai-api` (Cloud Functions — sunucu yok)
 - Shared değişince: `npm run sync:shared`
 
 ## Temel ilkeler

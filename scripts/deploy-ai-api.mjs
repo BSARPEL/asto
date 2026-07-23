@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * Deploy production AI API (Firebase Cloud Functions + Gemini from packages/api/.env).
- * Gemini = Google AI Studio (generativelanguage.googleapis.com), Firebase'den bağımsız.
+ * Production AI API → Firebase Cloud Functions (sunucu/VPS yok).
+ *
+ * Gemini anahtarı:
+ *   1. Yerel: packages/api/.env (gitignore) — deploy script okur
+ *   2. Firebase: functions/.env (gitignore) — deploy sırasında Cloud Function env'ine yazılır
  *
  * Run: npm run deploy:ai-api
  */
@@ -31,26 +34,32 @@ function loadEnv(path) {
   return out;
 }
 
-function run(cmd, args) {
-  const result = spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit' });
+function run(cmd, args, opts = {}) {
+  const result = spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit', ...opts });
   return result.status ?? 1;
 }
 
 const apiEnv = loadEnv(API_ENV);
-const key = apiEnv.GEMINI_API_KEY;
+const key = apiEnv.GEMINI_API_KEY?.trim();
 if (!key) {
   console.error('[deploy-ai] GEMINI_API_KEY bulunamadı — packages/api/.env');
+  console.error('  Google AI Studio: https://aistudio.google.com/apikey');
   process.exit(1);
 }
 
 console.log('[deploy-ai] Firebase oturumu kontrol ediliyor…');
-const whoami = spawnSync('npx', ['firebase', 'projects:list', '--project', PROJECT], {
-  cwd: ROOT,
-  encoding: 'utf8',
-});
-if (whoami.status !== 0) {
+const saPath = join(ROOT, 'packages/api/.secrets/firebase-adminsdk.json');
+if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && existsSync(saPath)) {
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = saPath;
+}
+const whoami = spawnSync('npx', ['firebase', 'login:list'], { cwd: ROOT, encoding: 'utf8' });
+const hasLogin = whoami.stdout?.includes('@') || existsSync(saPath);
+if (!hasLogin) {
   console.error('\n[deploy-ai] Firebase girişi gerekli:\n  npx firebase login\n');
   process.exit(1);
+}
+if (!whoami.stdout?.includes('@') && existsSync(saPath)) {
+  console.log('[deploy-ai] Service account ile deploy deneniyor…');
 }
 
 writeFileSync(
@@ -65,7 +74,7 @@ writeFileSync(
     '',
   ].join('\n'),
 );
-console.log('[deploy-ai] functions/.env yazıldı (GEMINI_API_KEY)');
+console.log('[deploy-ai] functions/.env yazıldı → Firebase Cloud Function ortamına yüklenecek');
 
 console.log('[deploy-ai] Cloud Functions deploy…');
 const deploy = run('npx', [
@@ -76,18 +85,36 @@ const deploy = run('npx', [
   '--project',
   PROJECT,
 ]);
-if (deploy !== 0) process.exit(deploy);
-
-console.log('\n[deploy-ai] Health kontrolü…');
-await new Promise((r) => setTimeout(r, 12000));
-const health = await fetch(`${PRODUCTION_AI_API_URL}/health`).catch(() => null);
-if (health?.ok) {
-  const data = await health.json();
-  console.log(`[deploy-ai] ✓ ${PRODUCTION_AI_API_URL}/health`);
-  console.log(`    ai=${data.ai} provider=${data.provider} model=${data.model}`);
-} else {
-  console.warn(`[deploy-ai] Health: HTTP ${health?.status ?? 'network'} — birkaç dakika bekleyip tekrar deneyin.`);
+if (deploy !== 0) {
+  console.error('\n[deploy-ai] Deploy başarısız. Sık nedenler:');
+  console.error('  1. Blaze plan kapalı → Firebase Console → Upgrade');
+  console.error('  2. API kapalı → https://console.cloud.google.com/apis/library?project=bn-astro');
+  console.error('     (Cloud Functions, Cloud Build, Artifact Registry)');
+  console.error('  3. Oturum → npx firebase login\n');
+  process.exit(deploy);
 }
 
-console.log('\n[deploy-ai] Mobil .env (zaten ayarlı olmalı):');
+console.log('\n[deploy-ai] Health kontrolü (30 sn bekleniyor)…');
+await new Promise((r) => setTimeout(r, 30_000));
+
+let healthOk = false;
+for (let attempt = 1; attempt <= 3; attempt++) {
+  const health = await fetch(`${PRODUCTION_AI_API_URL}/health`).catch(() => null);
+  if (health?.ok) {
+    const data = await health.json();
+    console.log(`[deploy-ai] ✓ ${PRODUCTION_AI_API_URL}/health`);
+    console.log(`    ai=${data.ai} provider=${data.provider} model=${data.model}`);
+    healthOk = true;
+    break;
+  }
+  console.warn(`[deploy-ai] Health deneme ${attempt}/3: HTTP ${health?.status ?? 'network'}`);
+  if (attempt < 3) await new Promise((r) => setTimeout(r, 15_000));
+}
+
+if (!healthOk) {
+  console.warn('[deploy-ai] Health henüz yanıt vermiyor — birkaç dakika sonra tekrar deneyin.');
+}
+
+console.log('\n[deploy-ai] Mobil (Gemini anahtarı YOK — yalnızca public AI URL):');
 console.log(`EXPO_PUBLIC_AI_API_URL=${PRODUCTION_AI_API_URL}`);
+console.log('\n[deploy-ai] Mağaza build: npm run ios:archive:store\n');

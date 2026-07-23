@@ -140,7 +140,11 @@ export function getGeminiRuntime(): AiRuntime {
   return geminiRuntime;
 }
 
-/** Mobil: doğrudan Gemini (geçerli AI Studio API anahtarı varsa). */
+/**
+ * Mobil: doğrudan Gemini — yalnızca yerel geliştirmede.
+ * Mağaza build'inde anahtar bundle'a gömülmez; AI Cloud Functions üzerinden gider.
+ */
 export function usesDirectGemini(): boolean {
+  if (IS_PRODUCTION) return false;
   return isGeminiApiKey(getGeminiApiKey());
 }

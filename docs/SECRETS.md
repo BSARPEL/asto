@@ -57,25 +57,37 @@ GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/asto/packages/api/.secrets/fire
 **Kaynak:** [Google AI Studio](https://aistudio.google.com/apikey) — `generativelanguage.googleapis.com`  
 **Firebase ile ilgisi yok.**
 
-### Mobil (production — varsayılan)
+### Production (mağaza)
 
-AI öngörü, sinastri ve sohbet **doğrudan Gemini** üzerinden çalışır (Cloud Functions gerekmez):
+AI öngörü, sinastri ve sohbet **Cloud Functions AI API** üzerinden çalışır. Gemini anahtarı yalnızca sunucudadır:
 
-`apps/mobile/.env`:
+`apps/mobile/.env` / `.env.production` (gitignore — commit etmeyin):
 
 ```env
-EXPO_PUBLIC_GEMINI_API_KEY=<Google AI Studio anahtarı>
-EXPO_PUBLIC_GEMINI_MODEL=gemini-flash-latest
+EXPO_PUBLIC_APP_ENV=production
+EXPO_PUBLIC_AI_API_URL=https://europe-west1-bn-astro.cloudfunctions.net/astoApi/api
 ```
 
-iOS kısıtlaması: Google Cloud Console'da anahtarı `com.bn.astro.app` bundle ID ile sınırlayın.
+**Mobilde `EXPO_PUBLIC_GEMINI_API_KEY` kullanmayın** — GitHub secret scanning anahtarı Google'a bildirir ve Google otomatik iptal eder.
 
-### Sunucu (opsiyonel yedek — `packages/api/.env`)
+### Sunucu (`packages/api/.env` — gitignore)
 
 ```env
 GEMINI_API_KEY=<anahtarınız>
-GEMINI_MODEL=gemini-flash-latest
+GEMINI_MODEL=gemini-2.5-flash-lite
 ```
+
+Deploy: `npm run deploy:ai-api` → Firebase Cloud Function env (`functions/.env`, gitignore).
+
+### Yerel geliştirme (opsiyonel doğrudan Gemini)
+
+Yalnızca `apps/mobile/.env` (gitignore). Asla `.env.production` veya GitHub'a koymayın:
+
+```env
+EXPO_PUBLIC_GEMINI_API_KEY=<yalnızca yerel test>
+```
+
+Alternatif (önerilen): `npm run api` + `EXPO_PUBLIC_AI_API_URL=http://127.0.0.1:8788/api`
 
 ### Yerel doğrulama (terminal)
 
@@ -91,8 +103,8 @@ Başarılı yanıt: HTTP 200, `candidates[0].content.parts[0].text`.
 
 ### Production deploy
 
-Gemini anahtarı Cloud Functions **Secret Manager**’a yazılır (`npm run deploy:ai-api` → `GEMINI_API_KEY` secret).  
-Kaynak: `packages/api/.env` (deploy script okur).
+Gemini anahtarı Cloud Functions ortamına yazılır (`npm run deploy:ai-api` → `functions/.env`, gitignore).  
+Kaynak: `packages/api/.env` (yalnızca deploy makinesinde).
 
 ---
 
@@ -153,6 +165,7 @@ npm run ios:archive:store
 
 ## Güvenlik
 
-- `packages/api/.secrets/` ve `packages/api/.env` → git’e **eklenmez**
-- Admin SDK veya Gemini anahtarını mobil `EXPO_PUBLIC_*` içine koymayın
-- Anahtar sızdıysa: Google Cloud / AI Studio’dan rotate edin, yeni JSON indirin
+- `packages/api/.secrets/`, `packages/api/.env`, `apps/mobile/.env*` (production/device) → git'e **eklenmez**
+- Gemini anahtarını mobil `EXPO_PUBLIC_GEMINI_API_KEY` içine koymayın (mağaza build'i bundle'dan da okunabilir)
+- Commit öncesi: `npm run check:secrets`
+- Anahtar sızdıysa: Google AI Studio'dan yeni anahtar → `packages/api/.env` → `npm run deploy:ai-api`; Git geçmişinden temizlemek için `git filter-repo` veya BFG gerekebilir
