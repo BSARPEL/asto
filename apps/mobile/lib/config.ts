@@ -126,13 +126,15 @@ export function isAiAvailable(): boolean {
 }
 
 let geminiRuntime: AiRuntime | undefined;
+let geminiRuntimeKey: string | undefined;
 
 export function getGeminiRuntime(): AiRuntime {
   const issue = getGeminiKeyIssue();
   if (issue) throw new Error(issue);
   const key = getGeminiApiKey();
   if (!key) throw new Error('Gemini API anahtarı tanımlı değil');
-  if (!geminiRuntime) {
+  if (!geminiRuntime || geminiRuntimeKey !== key) {
+    geminiRuntimeKey = key;
     geminiRuntime = createGeminiRuntime(key, getGeminiModel());
   }
   return geminiRuntime;
