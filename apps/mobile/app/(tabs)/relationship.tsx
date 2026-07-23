@@ -260,27 +260,48 @@ export default function RelationshipScreen() {
     setView('detail');
   };
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     setView('hub');
     setQuestion('');
     setPendingQuestion('');
     setError(null);
-  };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      load().catch((e) => setError(e.message));
-    }, [load]),
+      load().catch((e) => {
+        if (view !== 'detail') setError(e.message);
+      });
+    }, [load, view]),
   );
 
   const selected = partners.find((p) => p.id === selectedId) ?? null;
 
   useLayoutEffect(() => {
+    const inDetailView = view === 'detail' && Boolean(selected);
     navigation.setOptions({
-      headerShown: view !== 'detail',
-      title: view === 'detail' && selected ? selected.birth.name : 'İlişki',
+      headerShown: true,
+      title: inDetailView ? selected!.birth.name : 'İlişki',
+      headerBackVisible: false,
+      headerLeft: inDetailView
+        ? () => (
+            <Pressable onPress={goBack} hitSlop={8} style={styles.headerBackBtn}>
+              <Text style={styles.backText}>← Geri</Text>
+            </Pressable>
+          )
+        : undefined,
+      headerRight: () =>
+        inDetailView && selected?.synastryScore != null ? (
+          <View style={styles.headerRightPad}>
+            <ScoreBadge score={selected.synastryScore} compact />
+          </View>
+        ) : !inDetailView ? (
+          <View style={styles.headerRightPad}>
+            <TokenBadge compact balance={profile?.tokenBalance ?? 0} />
+          </View>
+        ) : null,
     });
-  }, [navigation, view, selected]);
+  }, [navigation, view, selected, profile?.tokenBalance, goBack]);
 
   // Sohbet yalnızca detay ekranında ve partner değişince yüklenir
   useEffect(() => {
@@ -406,7 +427,11 @@ export default function RelationshipScreen() {
 
   const inDetail = view === 'detail';
   const messageCount = conversation?.messages?.length ?? 0;
-  const keyboardOffset = Platform.OS === 'ios' ? (inDetail ? insets.top + 8 : insets.top + 56) : 0;
+  const keyboardOffset = Platform.OS === 'ios' ? insets.top + 44 : 0;
+
+  const detailMetaLine = selected
+    ? `${selected.birth.birthDate} · ${formatBirthPlace(selected.birth)}`
+    : '';
 
   const chatPanel = selected ? (
     <AiChatPanel
@@ -447,152 +472,163 @@ export default function RelationshipScreen() {
     </>
   ) : null;
 
-  const synastryDetailView = (
-    <View style={[styles.detailRoot, { paddingHorizontal: gutter }]}>
-      {!selected ? (
+  const renderDetailBody = () => {
+    if (!selected) {
+      return (
         <View style={styles.detailLoading}>
           <ActivityIndicator color={colors.teal} />
           <Text style={styles.detailLoadingText}>Partner yükleniyor…</Text>
         </View>
-      ) : (
-        <>
-          <View style={styles.detailTopBar}>
-            <Pressable onPress={goBack} style={styles.backBtn} hitSlop={8}>
-              <Text style={styles.backText}>← Geri</Text>
-            </Pressable>
-            <View style={styles.detailTopMain}>
-              <Text style={styles.detailTopName} numberOfLines={1}>
-                {selected.birth.name}
-              </Text>
-              <Text style={styles.detailTopMeta} numberOfLines={1}>
-                {selected.birth.birthDate} · {formatBirthPlace(selected.birth)}
-              </Text>
-            </View>
-            {selected.synastryScore != null ? (
-              <ScoreBadge score={selected.synastryScore} compact />
-            ) : null}
+      );
+    }
+
+    if (!selected.analysis) {
+      return (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.detailEmptyContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Card compact style={styles.promptCard}>
+            <SectionTitle compact>Sinastri yorumu yok</SectionTitle>
+            <Body muted style={styles.promptBody}>
+              Bu partner için kayıtlı yorum bulunamadı.
+            </Body>
+            <Button
+              compact
+              label={analyzeLabel(profile?.isSubscribed ?? false, false)}
+              onPress={() => analyze(selected, false)}
+              loading={loadingId === selected.id}
+              icon="◎"
+            />
+            <Button compact label="Listeye dön" variant="ghost" onPress={goBack} />
+          </Card>
+        </ScrollView>
+      );
+    }
+
+    if (isSplitLayout) {
+      return (
+        <View style={styles.detailSplit}>
+          <View style={styles.detailSplitCol}>
+            <ScrollView
+              style={styles.flex}
+              contentContainerStyle={styles.analysisScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator
+            >
+              <Card compact accent={colors.teal}>
+                <View style={styles.analysisHeader}>
+                  <SectionTitle compact>Sinastri yorumu</SectionTitle>
+                  <Button
+                    compact
+                    label="Düzenle"
+                    variant="ghost"
+                    onPress={() => openEdit(selected)}
+                    icon="✎"
+                  />
+                </View>
+                {analysisContent}
+              </Card>
+            </ScrollView>
           </View>
+          <View style={styles.detailSplitCol}>
+            <View style={styles.chatShell}>
+              <Text style={styles.chatShellTitle}>
+                Sohbet{messageCount > 0 ? ` · ${messageCount}` : ''}
+              </Text>
+              <View style={styles.chatShellBody}>{chatPanel}</View>
+            </View>
+          </View>
+        </View>
+      );
+    }
 
-          <ErrorText>{error}</ErrorText>
-
-          {!selected.analysis ? (
-            <Card compact style={styles.promptCard}>
-              <SectionTitle compact>Sinastri yorumu yok</SectionTitle>
-              <Body muted style={styles.promptBody}>
-                Bu partner için kayıtlı yorum bulunamadı.
-              </Body>
+    if (detailTab === 'analysis') {
+      return (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.analysisScrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator
+        >
+          <Card compact accent={colors.teal}>
+            <View style={styles.analysisHeader}>
+              <SectionTitle compact>Sinastri yorumu</SectionTitle>
               <Button
                 compact
-                label={analyzeLabel(profile?.isSubscribed ?? false, false)}
-                onPress={() => analyze(selected, false)}
-                loading={loadingId === selected.id}
-                icon="◎"
+                label="Düzenle"
+                variant="ghost"
+                onPress={() => openEdit(selected)}
+                icon="✎"
               />
-              <Button compact label="Listeye dön" variant="ghost" onPress={goBack} />
-            </Card>
-          ) : isSplitLayout ? (
-            <View style={styles.detailBody}>
-              <View style={styles.detailSplit}>
-                <View style={styles.detailSplitCol}>
-                  <ScrollView
-                    style={styles.flex}
-                    contentContainerStyle={styles.analysisScrollContent}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator
-                  >
-                    <Card compact accent={colors.teal}>
-                      <View style={styles.analysisHeader}>
-                        <SectionTitle compact>Sinastri yorumu</SectionTitle>
-                        <Button
-                          compact
-                          label="Düzenle"
-                          variant="ghost"
-                          onPress={() => openEdit(selected)}
-                          icon="✎"
-                        />
-                      </View>
-                      {analysisContent}
-                    </Card>
-                  </ScrollView>
-                </View>
-                <View style={styles.detailSplitCol}>
-                  <View style={styles.chatShell}>
-                    <Text style={styles.chatShellTitle}>
-                      Sohbet{messageCount > 0 ? ` · ${messageCount}` : ''}
-                    </Text>
-                    <View style={styles.chatShellBody}>{chatPanel}</View>
-                  </View>
-                </View>
-              </View>
             </View>
-          ) : (
-            <>
-              <View style={styles.detailTabs}>
-                <Chip
-                  label="Yorum"
-                  active={detailTab === 'analysis'}
-                  onPress={() => setDetailTab('analysis')}
-                  compact
-                />
-                <Chip
-                  label={messageCount > 0 ? `Sohbet (${messageCount})` : 'Sohbet'}
-                  active={detailTab === 'chat'}
-                  onPress={() => setDetailTab('chat')}
-                  compact
-                />
-              </View>
+            {analysisContent}
+          </Card>
+          <Button
+            compact
+            label="Sohbete geç"
+            onPress={() => setDetailTab('chat')}
+            icon="◉"
+          />
+        </ScrollView>
+      );
+    }
 
-              <View style={styles.detailBody}>
-                {detailTab === 'analysis' ? (
-                  <ScrollView
-                    style={styles.flex}
-                    contentContainerStyle={styles.analysisScrollContent}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator
-                  >
-                    <Card compact accent={colors.teal}>
-                      <View style={styles.analysisHeader}>
-                        <SectionTitle compact>Sinastri yorumu</SectionTitle>
-                        <Button
-                          compact
-                          label="Düzenle"
-                          variant="ghost"
-                          onPress={() => openEdit(selected)}
-                          icon="✎"
-                        />
-                      </View>
-                      {analysisContent}
-                    </Card>
-                    <Button
-                      compact
-                      label="Sohbete geç"
-                      onPress={() => setDetailTab('chat')}
-                      icon="◉"
-                    />
-                  </ScrollView>
-                ) : (
-                  <View style={styles.chatShell}>
-                    <View style={styles.chatShellBody}>{chatPanel}</View>
-                  </View>
-                )}
-              </View>
-            </>
-          )}
-        </>
-      )}
+    return (
+      <View style={styles.chatShell}>
+        <View style={styles.chatShellBody}>{chatPanel}</View>
+      </View>
+    );
+  };
+
+  const synastryDetailView = (
+    <View style={[styles.detailScreen, { paddingHorizontal: gutter }]}>
+      <View style={styles.detailChrome}>
+        {selected ? (
+          <Text style={styles.detailMetaLine} numberOfLines={2}>
+            {detailMetaLine}
+          </Text>
+        ) : null}
+        {selected?.analysis && !isSplitLayout ? (
+          <View style={styles.detailTabs}>
+            <Chip
+              label="Yorum"
+              active={detailTab === 'analysis'}
+              onPress={() => setDetailTab('analysis')}
+              compact
+            />
+            <Chip
+              label={messageCount > 0 ? `Sohbet (${messageCount})` : 'Sohbet'}
+              active={detailTab === 'chat'}
+              onPress={() => setDetailTab('chat')}
+              compact
+            />
+          </View>
+        ) : null}
+        <ErrorText>{error}</ErrorText>
+      </View>
+
+      <KeyboardAvoidingView
+        style={styles.detailBody}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={keyboardOffset}
+      >
+        {renderDetailBody()}
+      </KeyboardAvoidingView>
     </View>
   );
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={keyboardOffset}
-      >
-        {inDetail ? (
-          synastryDetailView
-        ) : (
+      {inDetail ? (
+        synastryDetailView
+      ) : (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
+        >
           <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
           compact
@@ -715,8 +751,8 @@ export default function RelationshipScreen() {
           </>
         )}
           </ScreenScroll>
-        )}
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      )}
 
       <SheetModal
         visible={showForm || Boolean(editingPartner)}
@@ -741,46 +777,45 @@ export default function RelationshipScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  detailRoot: {
+  detailScreen: {
     flex: 1,
     minHeight: 0,
     width: '100%',
   },
-  detailTopBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: spacing.sm,
+  detailChrome: {
     flexShrink: 0,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    gap: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.bg,
   },
-  backBtn: {
-    flexShrink: 0,
-  },
-  detailTopMain: {
-    flex: 1,
-    minWidth: 0,
-  },
-  detailTopName: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 17,
-    color: colors.text,
-  },
-  detailTopMeta: {
+  detailMetaLine: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 17,
     color: colors.textMuted,
-    marginTop: 2,
   },
   detailBody: {
     flex: 1,
     minHeight: 0,
+    paddingTop: spacing.sm,
+  },
+  detailEmptyContent: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  headerBackBtn: {
+    paddingHorizontal: 4,
+  },
+  headerRightPad: {
+    paddingRight: 4,
   },
   detailTabs: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: spacing.sm,
-    flexShrink: 0,
   },
   detailSplit: {
     flex: 1,
