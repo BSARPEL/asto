@@ -16,8 +16,12 @@ export type RelationshipAnalysisResult = {
   scoreSource: 'ai' | 'engine';
 };
 
+export type AiCompleteOptions = {
+  maxOutputTokens?: number;
+};
+
 export type AiRuntime = {
-  complete: (userPrompt: string) => Promise<string>;
+  complete: (userPrompt: string, options?: AiCompleteOptions) => Promise<string>;
 };
 
 /** Google Gemini API keys: classic AIzaSy… or newer AQ.… format. */
@@ -63,12 +67,14 @@ export async function geminiComplete(
   userPrompt: string,
   apiKey: string,
   model = 'gemini-2.5-flash-lite',
+  options?: AiCompleteOptions,
 ): Promise<string> {
   if (!isGeminiApiKey(apiKey)) {
     throw new Error(geminiApiKeyHelpMessage());
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const maxOutputTokens = options?.maxOutputTokens ?? 4096;
 
   const res = await fetch(url, {
     method: 'POST',
@@ -81,13 +87,16 @@ export async function geminiComplete(
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 1800,
+        maxOutputTokens,
       },
     }),
   });
 
   const data = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
+    }>;
     error?: { message?: string };
   };
 
@@ -95,14 +104,24 @@ export async function geminiComplete(
     throw new Error(formatGeminiHttpError(res.status, data.error?.message));
   }
 
-  const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text).join('').trim();
-  if (!text) throw new Error('Gemini boş yanıt döndü');
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text).join('').trim();
+  if (!text) {
+    const reason = candidate?.finishReason;
+    if (reason === 'MAX_TOKENS') {
+      throw new Error('AI yanıtı kesildi (token limiti). Lütfen tekrar dene.');
+    }
+    if (reason === 'SAFETY') {
+      throw new Error('AI yanıtı güvenlik filtresi nedeniyle engellendi.');
+    }
+    throw new Error(reason ? `Gemini boş yanıt döndü (${reason})` : 'Gemini boş yanıt döndü');
+  }
   return text;
 }
 
 export function createGeminiRuntime(apiKey: string, model?: string): AiRuntime {
   return {
-    complete: (prompt) => geminiComplete(prompt, apiKey, model),
+    complete: (prompt, options) => geminiComplete(prompt, apiKey, model, options),
   };
 }
 
@@ -330,6 +349,7 @@ ZORUNLU KURALLAR:
 - Yukarıdaki 6 odak başlığının HER BİRİNİ aşağıdaki sırayla, ayrı bölüm olarak yaz; atlama.
 - Engine verisinde olmayan yeni açı, gezegen konumu veya burç uydurma.
 - Motor skoru referans al; kendi değerlendirmenle 0–100 arası nihai sinastri skoru ver.
+- Her bölüm 2-4 cümle; gereksiz uzatma.
 
 BAŞLIKLAR (sırayla):
 1) Genel dinamik
@@ -345,6 +365,7 @@ BAŞLIKLAR (sırayla):
 METİN BİTTİKTEN SONRA (ayrı satırlar, zorunlu):
 SİNASTRİ_SKORU: <0-100 tam sayı>
 SKOR_GEREKÇESİ: <1-2 cümle, neden bu puan>`,
+      { maxOutputTokens: 8192 },
     ),
     synastry.score,
   );

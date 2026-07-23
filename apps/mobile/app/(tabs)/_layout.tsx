@@ -1,8 +1,15 @@
 import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { useEffect } from 'react';
 import { colors, fonts } from '@/constants/theme';
 import { glyphTextStyle } from '@/constants/astro';
+import { SoftPulse } from '@/components/motion';
 
 const TAB_ICONS = {
   chart: '✦',
@@ -19,11 +26,25 @@ function TabIcon({
   glyph: string;
   focused: boolean;
 }) {
+  const scale = useSharedValue(focused ? 1 : 0.92);
+
+  useEffect(() => {
+    scale.value = withSpring(focused ? 1 : 0.92, { damping: 14, stiffness: 220 });
+  }, [focused, scale]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
-    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-      {focused ? <View style={styles.iconGlow} /> : null}
+    <Animated.View style={[styles.iconWrap, focused && styles.iconWrapActive, animStyle]}>
+      {focused ? (
+        <SoftPulse active style={styles.iconGlowHost}>
+          <View style={styles.iconGlow} />
+        </SoftPulse>
+      ) : null}
       <Text style={[styles.icon, glyphTextStyle, focused && styles.iconActive]}>{glyph}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -124,12 +145,16 @@ const styles = StyleSheet.create({
   iconWrapActive: {
     backgroundColor: 'rgba(196, 165, 122, 0.15)',
   },
+  iconGlowHost: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   iconGlow: {
-    position: 'absolute',
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(196, 165, 122, 0.2)',
+    backgroundColor: 'rgba(196, 165, 122, 0.22)',
   },
   icon: {
     color: colors.textMuted,

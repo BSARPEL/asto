@@ -89,6 +89,10 @@ export async function updatePartner(userId: string, partnerId: string, birth: Bi
 }
 
 export async function loadPartnerConversation(userId: string, partner: Partner) {
+  if (usesDirectGemini()) {
+    return directAi.directLoadPartnerReading(partner.id);
+  }
+  // Offline-friendly fallback: list path already has partner; only fetch conversation
   if (!partner.conversationId) return { partner, conversation: null as Conversation | null };
   const conversation = await firebaseGetConversation(partner.conversationId, userId);
   return { partner, conversation };

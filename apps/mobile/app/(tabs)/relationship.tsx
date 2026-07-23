@@ -24,7 +24,6 @@ import {
   EmptyState,
   ErrorText,
   HeaderRow,
-  ResponsiveSplit,
   Screen,
   ScreenScroll,
   ScoreBadge,
@@ -213,6 +212,7 @@ export default function RelationshipScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<'hub' | 'detail'>('hub');
   const [hubTab, setHubTab] = useState<'partners' | 'history'>('partners');
+  const [detailTab, setDetailTab] = useState<'analysis' | 'chat'>('analysis');
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -250,12 +250,16 @@ export default function RelationshipScreen() {
   const openDetail = (partnerId: string, from: 'partners' | 'history' = 'partners') => {
     setSelectedId(partnerId);
     if (from === 'history') setHubTab('history');
+    setDetailTab('analysis');
+    setError(null);
     setView('detail');
   };
 
   const goBack = () => {
     setView('hub');
     setQuestion('');
+    setPendingQuestion('');
+    setError(null);
   };
 
   useFocusEffect(
@@ -276,23 +280,25 @@ export default function RelationshipScreen() {
       return;
     }
 
-    const partner = partnersRef.current.find((p) => p.id === selectedId);
-    if (!partner?.analysis) {
-      setConversation(null);
-      setQuestion('');
-      return;
-    }
-
     let cancelled = false;
     setLoadingConversation(true);
     setError(null);
 
+    const partnerHint = partnersRef.current.find((p) => p.id === selectedId);
     aiService
-      .loadPartnerConversation(profile.id, partner)
+      .loadPartnerConversation(profile.id, partnerHint ?? ({ id: selectedId } as Partner))
       .then((res) => {
         if (cancelled) return;
+        setPartners((prev) => {
+          const exists = prev.some((p) => p.id === res.partner.id);
+          if (!exists) return [...prev, res.partner];
+          return prev.map((p) => (p.id === res.partner.id ? res.partner : p));
+        });
         setConversation(res.conversation);
-        setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
+        if (!res.partner.analysis) {
+          setView('hub');
+          setError('Bu partner için kayıtlı sinastri yorumu bulunamadı.');
+        }
       })
       .catch((e) => {
         if (cancelled) return;
@@ -318,6 +324,7 @@ export default function RelationshipScreen() {
       setProfile(res.profile);
       setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
       if (res.conversation) setConversation(res.conversation);
+      setDetailTab('analysis');
       setView('detail');
     } catch (e) {
       setError((e as Error).message);
@@ -372,6 +379,7 @@ export default function RelationshipScreen() {
   };
 
   const inDetail = view === 'detail' && Boolean(selected?.analysis);
+  const messageCount = conversation?.messages?.length ?? 0;
 
   const analysisCard = selected?.analysis ? (
     <Card compact accent={colors.teal} style={styles.analysisCard}>
@@ -390,6 +398,11 @@ export default function RelationshipScreen() {
           />
         </View>
       </View>
+      {selected.analysisAt || selected.createdAt ? (
+        <Text style={styles.analysisDate}>
+          {formatHistoryDate(selected.analysisAt ?? selected.createdAt)}
+        </Text>
+      ) : null}
       {selected.synastryScoreNote ? (
         <Text style={styles.scoreNote}>{selected.synastryScoreNote}</Text>
       ) : null}
@@ -407,8 +420,10 @@ export default function RelationshipScreen() {
 
   const chatCard = selected ? (
     <Card compact style={styles.chatCard}>
-      <SectionTitle compact>Sinastri sohbeti</SectionTitle>
-      <View style={isSplitLayout ? styles.chatHostWide : styles.chatHostPhone}>
+      <SectionTitle compact>
+        Sinastri sohbeti{messageCount > 0 ? ` · ${messageCount}` : ''}
+      </SectionTitle>
+      <View style={styles.chatHost}>
         <AiChatPanel
           messages={conversation?.messages ?? []}
           loading={loadingConversation}
@@ -429,13 +444,13 @@ export default function RelationshipScreen() {
 
   const synastryDetailView = selected?.analysis ? (
     <View style={[styles.detailRoot, { paddingHorizontal: gutter }]}>
-      <Pressable onPress={goBack} style={styles.backRow}>
+      <Pressable onPress={goBack} style={styles.backRow} hitSlop={8}>
         <Text style={styles.backText}>← Geri</Text>
       </Pressable>
 
       <HeaderRow
         compact
-        eyebrow="Sinastri geçmişi"
+        eyebrow="Sinastri"
         title={selected.birth.name}
         subtitle={`${selected.birth.birthDate} · ${formatBirthPlace(selected.birth)}`}
         right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
@@ -454,6 +469,7 @@ export default function RelationshipScreen() {
             active={selectedId === p.id}
             onPress={() => {
               setSelectedId(p.id);
+              setDetailTab('analysis');
               if (!p.analysis) setView('hub');
             }}
             compact
@@ -472,34 +488,54 @@ export default function RelationshipScreen() {
 
       <ErrorText>{error}</ErrorText>
 
+      {!isSplitLayout ? (
+        <View style={styles.detailTabs}>
+          <Chip
+            label="Yorum"
+            active={detailTab === 'analysis'}
+            onPress={() => setDetailTab('analysis')}
+            compact
+          />
+          <Chip
+            label={messageCount > 0 ? `Sohbet (${messageCount})` : 'Sohbet'}
+            active={detailTab === 'chat'}
+            onPress={() => setDetailTab('chat')}
+            compact
+          />
+        </View>
+      ) : null}
+
       {isSplitLayout ? (
-        <ResponsiveSplit
-          leading={
+        <View style={styles.detailSplit}>
+          <View style={styles.detailSplitCol}>
             <ScrollView
-              style={styles.analysisScrollWide}
+              style={styles.flex}
               contentContainerStyle={styles.analysisScrollContent}
               keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled
               showsVerticalScrollIndicator
             >
               {analysisCard}
             </ScrollView>
-          }
-          trailing={chatCard}
-        />
-      ) : (
-        <View style={styles.detailBody}>
-          <ScrollView
-            style={styles.analysisScrollPhone}
-            contentContainerStyle={styles.analysisScrollContent}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-            showsVerticalScrollIndicator
-          >
-            {analysisCard}
-          </ScrollView>
-          {chatCard}
+          </View>
+          <View style={styles.detailSplitCol}>{chatCard}</View>
         </View>
+      ) : detailTab === 'analysis' ? (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.analysisScrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator
+        >
+          {analysisCard}
+          <Button
+            compact
+            label="Sohbete geç"
+            onPress={() => setDetailTab('chat')}
+            icon="◉"
+          />
+        </ScrollView>
+      ) : (
+        <View style={styles.chatPane}>{chatCard}</View>
       )}
     </View>
   ) : null;
@@ -666,22 +702,30 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingBottom: spacing.sm,
   },
-  detailBody: {
+  detailTabs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  detailSplit: {
     flex: 1,
     minHeight: 0,
+    flexDirection: 'row',
     gap: spacing.sm,
   },
-  analysisScrollPhone: {
-    maxHeight: 220,
-    marginBottom: spacing.sm,
+  detailSplitCol: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 0,
   },
-  analysisScrollWide: {
+  chatPane: {
     flex: 1,
     minHeight: 0,
-    marginBottom: spacing.sm,
   },
   analysisScrollContent: {
-    paddingBottom: spacing.xs,
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
   },
   partnerStrip: {
     flexDirection: 'row',
@@ -692,19 +736,19 @@ const styles = StyleSheet.create({
   analysisCard: {
     marginBottom: spacing.sm,
   },
+  analysisDate: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
+  },
   chatCard: {
     flex: 1,
-    minHeight: 320,
-    marginBottom: spacing.sm,
+    minHeight: 0,
   },
-  chatHostPhone: {
+  chatHost: {
     flex: 1,
-    minHeight: 300,
-    marginTop: spacing.xs,
-  },
-  chatHostWide: {
-    flex: 1,
-    minHeight: 360,
+    minHeight: 280,
     marginTop: spacing.xs,
   },
   addCard: {

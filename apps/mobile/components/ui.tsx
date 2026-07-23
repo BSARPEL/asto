@@ -20,6 +20,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signColor, glyphTextStyle } from '@/constants/astro';
 import { AstroGlyph } from '@/components/AstroGlyph';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import {
+  AnimatedScoreFill,
+  FadeIn,
+  SoftPulse,
+  Shimmer,
+  TwinkleDot,
+  enterChatAssistant,
+  enterChatUser,
+} from '@/components/motion';
 import {
   colors,
   contentMaxWidth,
@@ -128,10 +142,11 @@ function Starfield() {
     () =>
       Array.from({ length: 28 }, (_, i) => ({
         id: i,
-        left: `${(i * 37 + 11) % 100}%` as const,
-        top: `${(i * 53 + 7) % 100}%` as const,
+        left: `${(i * 37 + 11) % 100}%` as `${number}%`,
+        top: `${(i * 53 + 7) % 100}%` as `${number}%`,
         size: i % 5 === 0 ? 2.5 : i % 3 === 0 ? 1.8 : 1.2,
         opacity: 0.15 + (i % 4) * 0.08,
+        delayMs: (i * 97) % 2200,
       })),
     [],
   );
@@ -139,18 +154,13 @@ function Starfield() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {dots.map((d) => (
-        <View
+        <TwinkleDot
           key={d.id}
-          style={{
-            position: 'absolute',
-            left: d.left,
-            top: d.top,
-            width: d.size,
-            height: d.size,
-            borderRadius: d.size,
-            backgroundColor: colors.star,
-            opacity: d.opacity,
-          }}
+          left={d.left}
+          top={d.top}
+          size={d.size}
+          baseOpacity={d.opacity}
+          delayMs={d.delayMs}
         />
       ))}
     </View>
@@ -238,17 +248,21 @@ export function ScreenScroll({
 export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
   const large = size === 'lg';
   return (
-    <View style={styles.brandWrap}>
-      <View style={[styles.brandOrb, large && styles.brandOrbLg]}>
-        <LinearGradient
-          colors={['rgba(61,154,148,0.2)', 'rgba(196,165,122,0.15)']}
-          style={StyleSheet.absoluteFill}
-        />
-        <Text style={[styles.brandOrbGlyph, glyphTextStyle]}>✦</Text>
+    <FadeIn from="down" delayMs={40}>
+      <View style={styles.brandWrap}>
+        <SoftPulse>
+          <View style={[styles.brandOrb, large && styles.brandOrbLg]}>
+            <LinearGradient
+              colors={['rgba(61,154,148,0.2)', 'rgba(196,165,122,0.15)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <Text style={[styles.brandOrbGlyph, glyphTextStyle]}>✦</Text>
+          </View>
+        </SoftPulse>
+        <Text style={large ? typography.brandLg : typography.brand}>Asto</Text>
+        {large ? <Text style={styles.brandTag}>Astroloji · AI</Text> : null}
       </View>
-      <Text style={large ? typography.brandLg : typography.brand}>Asto</Text>
-      {large ? <Text style={styles.brandTag}>Astroloji · AI</Text> : null}
-    </View>
+    </FadeIn>
   );
 }
 
@@ -303,24 +317,26 @@ export function HeaderRow({
 }) {
   const { isCompact } = useLayout();
   return (
-    <View style={[styles.headerRow, compact && styles.headerRowTight, isCompact && styles.headerRowCompact]}>
-      <View style={styles.headerCopy}>
-        {eyebrow ? <Text style={[styles.eyebrow, styles.textShrink]}>{eyebrow}</Text> : null}
-        <Title style={compact ? [styles.headerTitle, styles.headerTitleCompact] : styles.headerTitle}>
-          {title}
-        </Title>
-        {subtitle ? (
-          <Subtitle
-            style={
-              compact ? [styles.headerSubtitle, styles.headerSubtitleCompact] : styles.headerSubtitle
-            }
-          >
-            {subtitle}
-          </Subtitle>
-        ) : null}
+    <FadeIn from="down" delayMs={20}>
+      <View style={[styles.headerRow, compact && styles.headerRowTight, isCompact && styles.headerRowCompact]}>
+        <View style={styles.headerCopy}>
+          {eyebrow ? <Text style={[styles.eyebrow, styles.textShrink]}>{eyebrow}</Text> : null}
+          <Title style={compact ? [styles.headerTitle, styles.headerTitleCompact] : styles.headerTitle}>
+            {title}
+          </Title>
+          {subtitle ? (
+            <Subtitle
+              style={
+                compact ? [styles.headerSubtitle, styles.headerSubtitleCompact] : styles.headerSubtitle
+              }
+            >
+              {subtitle}
+            </Subtitle>
+          ) : null}
+        </View>
+        {right ? <View style={styles.headerRight}>{right}</View> : null}
       </View>
-      {right ? <View style={styles.headerRight}>{right}</View> : null}
-    </View>
+    </FadeIn>
   );
 }
 
@@ -392,35 +408,55 @@ export function Button({
   compact?: boolean;
 }) {
   const isPrimary = variant === 'primary';
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  const blocked = Boolean(disabled || loading);
+
+  const onPressIn = () => {
+    if (!blocked) scale.value = withSpring(0.97, { damping: 16, stiffness: 340 });
+  };
+  const onPressOut = () => {
+    scale.value = withSpring(1, { damping: 14, stiffness: 280 });
+  };
 
   if (isPrimary) {
     return (
       <Pressable
         onPress={onPress}
-        disabled={disabled || loading}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        disabled={blocked}
         accessibilityRole="button"
         style={({ pressed }) => [
           styles.btn,
           compact && styles.btnCompact,
-          (disabled || loading) && styles.btnDisabled,
+          blocked && styles.btnDisabled,
           pressed && styles.btnPressed,
         ]}
       >
-        <LinearGradient
-          colors={['#D4B896', '#C4A57A', '#B8956B']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.btnGradient, compact && styles.btnGradientCompact]}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.onAccent} />
-          ) : (
-            <View style={styles.btnInner}>
-              {icon ? <Text style={[styles.btnIcon, compact && styles.btnIconCompact, glyphTextStyle]}>{icon}</Text> : null}
-              <Text style={[styles.btnText, compact && styles.btnTextCompact]}>{label}</Text>
-            </View>
-          )}
-        </LinearGradient>
+        <Animated.View style={animStyle}>
+          <LinearGradient
+            colors={['#D4B896', '#C4A57A', '#B8956B']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.btnGradient, compact && styles.btnGradientCompact]}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.onAccent} />
+            ) : (
+              <View style={styles.btnInner}>
+                {icon ? (
+                  <Text style={[styles.btnIcon, compact && styles.btnIconCompact, glyphTextStyle]}>
+                    {icon}
+                  </Text>
+                ) : null}
+                <Text style={[styles.btnText, compact && styles.btnTextCompact]}>{label}</Text>
+              </View>
+            )}
+          </LinearGradient>
+        </Animated.View>
       </Pressable>
     );
   }
@@ -428,39 +464,50 @@ export function Button({
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled || loading}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      disabled={blocked}
       accessibilityRole="button"
       style={({ pressed }) => [
         styles.btn,
         compact && styles.btnCompact,
         variant === 'ghost' && styles.btnGhost,
         variant === 'danger' && styles.btnDanger,
-        (disabled || loading) && styles.btnDisabled,
+        blocked && styles.btnDisabled,
         pressed && styles.btnPressed,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color={variant === 'danger' ? colors.danger : colors.accent} />
-      ) : (
-        <View style={styles.btnInner}>
-          {icon ? (
-            <Text style={[styles.btnIcon, compact && styles.btnIconCompact, glyphTextStyle, variant === 'ghost' && styles.btnTextGhost]}>
-              {icon}
+      <Animated.View style={animStyle}>
+        {loading ? (
+          <ActivityIndicator color={variant === 'danger' ? colors.danger : colors.accent} />
+        ) : (
+          <View style={styles.btnInner}>
+            {icon ? (
+              <Text
+                style={[
+                  styles.btnIcon,
+                  compact && styles.btnIconCompact,
+                  glyphTextStyle,
+                  variant === 'ghost' && styles.btnTextGhost,
+                ]}
+              >
+                {icon}
+              </Text>
+            ) : null}
+            <Text
+              style={[
+                styles.btnText,
+                compact && styles.btnTextCompact,
+                styles.btnTextOutline,
+                variant === 'ghost' && styles.btnTextGhost,
+                variant === 'danger' && styles.btnTextDanger,
+              ]}
+            >
+              {label}
             </Text>
-          ) : null}
-          <Text
-            style={[
-              styles.btnText,
-              compact && styles.btnTextCompact,
-              styles.btnTextOutline,
-              variant === 'ghost' && styles.btnTextGhost,
-              variant === 'danger' && styles.btnTextDanger,
-            ]}
-          >
-            {label}
-          </Text>
-        </View>
-      )}
+          </View>
+        )}
+      </Animated.View>
     </Pressable>
   );
 }
@@ -743,23 +790,34 @@ export function ScoreBadge({ score, compact }: { score: number; compact?: boolea
   const tone = score >= 75 ? colors.success : score >= 55 ? colors.teal : colors.accent;
   const label = score >= 75 ? 'Güçlü' : score >= 55 ? 'Dengeli' : 'Gelişen';
   return (
-    <View style={[styles.scoreBadge, compact && styles.scoreBadgeCompact, { borderColor: tone }]}>
-      <Text style={[styles.scoreValue, compact && styles.scoreValueCompact, { color: tone }]}>
-        {score}
-      </Text>
-      {!compact ? <Text style={styles.scoreUnit}>/100</Text> : null}
-      <Text style={[styles.scoreLabel, compact && styles.scoreLabelCompact, { color: tone }]}>
-        {compact ? '/100' : label}
-      </Text>
-    </View>
+    <FadeIn from="up" delayMs={80}>
+      <View style={[styles.scoreBadge, compact && styles.scoreBadgeCompact, { borderColor: tone }]}>
+        <Text style={[styles.scoreValue, compact && styles.scoreValueCompact, { color: tone }]}>
+          {score}
+        </Text>
+        {!compact ? <Text style={styles.scoreUnit}>/100</Text> : null}
+        <Text style={[styles.scoreLabel, compact && styles.scoreLabelCompact, { color: tone }]}>
+          {compact ? '/100' : label}
+        </Text>
+      </View>
+    </FadeIn>
   );
 }
 
 export function ScoreBar({ score, compact }: { score: number; compact?: boolean }) {
   const tone = score >= 75 ? colors.success : score >= 55 ? colors.teal : colors.accent;
+  const [trackWidth, setTrackWidth] = React.useState(0);
   return (
-    <View style={[styles.scoreBarTrack, compact && styles.scoreBarTrackCompact]}>
-      <View style={[styles.scoreBarFill, { width: `${score}%`, backgroundColor: tone }]} />
+    <View
+      style={[styles.scoreBarTrack, compact && styles.scoreBarTrackCompact]}
+      onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+    >
+      <AnimatedScoreFill
+        score={score}
+        color={tone}
+        trackWidth={trackWidth}
+        style={styles.scoreBarFill}
+      />
     </View>
   );
 }
@@ -777,7 +835,8 @@ export function MessageBubble({
 }) {
   const isUser = role === 'user';
   return (
-    <View
+    <Animated.View
+      entering={isUser ? enterChatUser : enterChatAssistant}
       style={[
         styles.bubble,
         compact && styles.bubbleCompact,
@@ -796,7 +855,7 @@ export function MessageBubble({
         </View>
       ) : null}
       <Body style={[styles.bubbleBody, compact && styles.bubbleBodyCompact, styles.textShrink]}>{content}</Body>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -813,7 +872,7 @@ export function NarrativeCard({ title, children }: { title: string; children: Re
 }
 
 export function Skeleton({ height = 16, width = '100%', style }: { height?: number; width?: number | `${number}%`; style?: ViewStyle }) {
-  return <View style={[styles.skeleton, { height, width }, style]} />;
+  return <Shimmer style={[styles.skeleton, { height, width }, style]} />;
 }
 
 export function EmptyState({
@@ -860,13 +919,19 @@ export function EmptyState({
 
   if (compact) {
     return (
-      <Card compact style={styles.emptyStateCompact}>
-        {content}
-      </Card>
+      <FadeIn from="down">
+        <Card compact style={styles.emptyStateCompact}>
+          {content}
+        </Card>
+      </FadeIn>
     );
   }
 
-  return <HeroCard accent={colors.accent}>{content}</HeroCard>;
+  return (
+    <FadeIn from="down">
+      <HeroCard accent={colors.accent}>{content}</HeroCard>
+    </FadeIn>
+  );
 }
 
 export function InfoRow({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
@@ -892,18 +957,22 @@ export function Divider() {
 export function ErrorText({ children }: { children?: string | null }) {
   if (!children) return null;
   return (
-    <View style={styles.errorBox}>
-      <Text style={styles.errorIcon}>!</Text>
-      <Text style={styles.error}>{children}</Text>
-    </View>
+    <FadeIn from="up" delayMs={0}>
+      <View style={styles.errorBox}>
+        <Text style={styles.errorIcon}>!</Text>
+        <Text style={styles.error}>{children}</Text>
+      </View>
+    </FadeIn>
   );
 }
 
 export function SuccessBanner({ children }: { children: string }) {
   return (
-    <View style={styles.successBox}>
-      <Text style={styles.success}>{children}</Text>
-    </View>
+    <FadeIn from="up">
+      <View style={styles.successBox}>
+        <Text style={styles.success}>{children}</Text>
+      </View>
+    </FadeIn>
   );
 }
 

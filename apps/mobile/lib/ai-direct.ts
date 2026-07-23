@@ -224,9 +224,25 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
   });
 
   if (partner.analysis && !force) {
-    const conv = partner.conversationId
-      ? await firebaseGetConversation(partner.conversationId, userId)
-      : null;
+    const conv = await ensureSynastryConversation(
+      userId,
+      partner.id,
+      partner.birth.name,
+      partner.conversationId,
+    );
+    if (!partner.conversationId || partner.conversationId !== conv.id) {
+      const linked = await firebaseUpdatePartnerFields(userId, partner.id, {
+        conversationId: conv.id,
+      });
+      return {
+        partner: linked,
+        synastry,
+        conversation: conv,
+        profile,
+        cost: 0,
+        cached: true,
+      };
+    }
     return {
       partner,
       synastry,
@@ -236,9 +252,6 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
       cached: true,
     };
   }
-
-  const cost = profile.isSubscribed ? 0 : TOKEN_COSTS.relationshipAnalysis;
-  if (cost > 0) await firebaseAdjustTokens(userId, -cost, 'relationship_analysis');
 
   const result = await generateRelationshipAnalysis(
     profile.displayName,
@@ -252,6 +265,10 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
       partnerGender: partner.birth.gender,
     },
   );
+
+  if (!result.analysis?.trim()) {
+    throw new Error('Sinastri yorumu üretilemedi. Lütfen tekrar dene.');
+  }
 
   const conv = await ensureSynastryConversation(
     userId,
@@ -269,7 +286,15 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
     natalChart: partnerChart,
   });
 
-  const updatedProfile = (await firebaseGetUserProfile(userId))!;
+  // Charge after successful save so failed AI/save does not eat tokens
+  const cost = profile.isSubscribed ? 0 : TOKEN_COSTS.relationshipAnalysis;
+  let updatedProfile = profile;
+  if (cost > 0) {
+    updatedProfile = await firebaseAdjustTokens(userId, -cost, 'relationship_analysis');
+  } else {
+    updatedProfile = (await firebaseGetUserProfile(userId))!;
+  }
+
   return {
     partner: updated,
     synastry,
@@ -280,6 +305,30 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
   };
 }
 
+/** Firestore'dan partner + sohbeti taze yükler; conversation yoksa oluşturur. */
+export async function directLoadPartnerReading(partnerId: string) {
+  const { userId, profile } = await requireProfile();
+  const partner = await firebaseGetPartner(userId, partnerId);
+  if (!partner) throw new Error('Partner bulunamadı');
+  if (!partner.analysis) {
+    return { partner, conversation: null as Conversation | null, profile };
+  }
+
+  const conv = await ensureSynastryConversation(
+    userId,
+    partner.id,
+    partner.birth.name,
+    partner.conversationId,
+  );
+
+  let fresh = partner;
+  if (!partner.conversationId || partner.conversationId !== conv.id) {
+    fresh = await firebaseUpdatePartnerFields(userId, partner.id, { conversationId: conv.id });
+  }
+
+  return { partner: fresh, conversation: conv, profile };
+}
+
 export async function directAskPartnerQuestion(
   partnerId: string,
   question: string,
@@ -288,9 +337,6 @@ export async function directAskPartnerQuestion(
   const { userId, profile } = await requireProfile();
   const partner = await firebaseGetPartner(userId, partnerId);
   if (!partner?.analysis) throw new Error('Önce sinastri yorumu alın');
-
-  const cost = profile.isSubscribed ? 0 : TOKEN_COSTS.askQuestion;
-  if (cost > 0) await firebaseAdjustTokens(userId, -cost, 'synastry_ask');
 
   let conv: Conversation | null = conversationId
     ? await firebaseGetConversation(conversationId, userId)
@@ -313,7 +359,11 @@ export async function directAskPartnerQuestion(
   const selfChart = profile.birth ? computeNatalChart(profile.birth) : profile.natalChart!;
   const partnerChart = computeNatalChart(partner.birth);
   const now = new Date().toISOString();
-  conv.messages.push({ id: newId(), role: 'user', content: question, createdAt: now });
+  const userMsg = { id: newId(), role: 'user' as const, content: question, createdAt: now };
+  const historyForPrompt = [
+    ...conv.messages.map((m) => ({ role: m.role, content: m.content })),
+    { role: 'user' as const, content: question },
+  ];
 
   const answer = await answerSynastryQuestion(
     profile.displayName,
@@ -323,7 +373,7 @@ export async function directAskPartnerQuestion(
     partner.analysis,
     partner.synastryScore,
     question,
-    conv.messages.map((m) => ({ role: m.role, content: m.content })),
+    historyForPrompt,
     getGeminiRuntime(),
     {
       selfGender: profile.birth?.gender,
@@ -333,6 +383,7 @@ export async function directAskPartnerQuestion(
     },
   );
 
+  conv.messages.push(userMsg);
   conv.messages.push({
     id: newId(),
     role: 'assistant',
@@ -342,6 +393,13 @@ export async function directAskPartnerQuestion(
   conv.updatedAt = new Date().toISOString();
   await firebaseSaveConversation(conv);
 
-  const updatedProfile = (await firebaseGetUserProfile(userId))!;
+  const cost = profile.isSubscribed ? 0 : TOKEN_COSTS.askQuestion;
+  let updatedProfile = profile;
+  if (cost > 0) {
+    updatedProfile = await firebaseAdjustTokens(userId, -cost, 'synastry_ask');
+  } else {
+    updatedProfile = (await firebaseGetUserProfile(userId))!;
+  }
+
   return { conversation: conv, profile: updatedProfile, cost };
 }

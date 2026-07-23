@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import type { ChatMessage } from '@asto/shared';
 import { Chip, MessageBubble } from '@/components/ui';
+import { FadeIn, SoftPulse, enterChatAssistant } from '@/components/motion';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
+import Animated from 'react-native-reanimated';
 
 type Props = {
   messages: ChatMessage[];
@@ -30,10 +32,12 @@ type Props = {
 
 function TypingBubble() {
   return (
-    <View style={[styles.typingBubble]}>
-      <ActivityIndicator size="small" color={colors.teal} />
+    <Animated.View entering={enterChatAssistant} style={styles.typingBubble}>
+      <SoftPulse>
+        <ActivityIndicator size="small" color={colors.teal} />
+      </SoftPulse>
       <Text style={styles.typingText}>Asto yazıyor…</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -96,18 +100,20 @@ export function AiChatPanel({
             <Text style={styles.loadingText}>Sohbet yükleniyor…</Text>
           </View>
         ) : displayMessages.length === 0 && !asking ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyGlyph}>✦</Text>
-            <Text style={styles.emptyTitle}>{emptyTitle}</Text>
-            <Text style={styles.emptyBody}>{emptyBody}</Text>
-            {suggestions.length > 0 ? (
-              <View style={styles.suggestionWrap}>
-                {suggestions.map((s) => (
-                  <Chip key={s} label={s} onPress={() => onSuggestion?.(s)} compact />
-                ))}
-              </View>
-            ) : null}
-          </View>
+          <FadeIn from="up">
+            <View style={styles.empty}>
+              <Text style={styles.emptyGlyph}>✦</Text>
+              <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+              <Text style={styles.emptyBody}>{emptyBody}</Text>
+              {suggestions.length > 0 ? (
+                <View style={styles.suggestionWrap}>
+                  {suggestions.map((s) => (
+                    <Chip key={s} label={s} onPress={() => onSuggestion?.(s)} compact />
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          </FadeIn>
         ) : (
           <>
             {loading ? (
