@@ -47,7 +47,14 @@ async function aiRequest<T>(
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new AiApiError((data as { error?: string }).error || 'AI isteği başarısız', res.status);
+      const serverError = (data as { error?: string }).error;
+      if (res.status === 404) {
+        throw new AiApiError(
+          'AI sunucusu bulunamadı (404). Cloud Functions deploy edilmemiş — terminalde: firebase login && npm run deploy:ai-api',
+          res.status,
+        );
+      }
+      throw new AiApiError(serverError || 'AI isteği başarısız', res.status);
     }
     return data as T;
   } catch (e) {
