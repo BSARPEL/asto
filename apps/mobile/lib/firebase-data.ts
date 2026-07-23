@@ -43,7 +43,13 @@ export async function firebaseListPartners(userId: string): Promise<Partner[]> {
   return snap.docs.map((d) => d.data() as Partner);
 }
 
-export async function firebaseAddPartner(userId: string, birthInput: BirthInput): Promise<Partner> {
+export async function firebaseAddPartner(
+  userId: string,
+  birthInput: BirthInput,
+  meta?: Partial<
+    Pick<Partner, 'relationshipType' | 'analysisFocus' | 'fullUnlocked' | 'previewSummary'>
+  >,
+): Promise<Partner> {
   const birth = normalizeBirthInput(birthInput);
   if (!birth?.name || !birth?.birthDate) throw new Error('Partner doğum bilgileri eksik');
   if (!birth.country || !birth.countryName || !birth.city) throw new Error('Ülke ve şehir gerekli');
@@ -55,6 +61,7 @@ export async function firebaseAddPartner(userId: string, birthInput: BirthInput)
     birth,
     natalChart: computeNatalChart(birth),
     createdAt: new Date().toISOString(),
+    ...meta,
   };
   await setDoc(ref, forFirestore(partner));
   return partner;
@@ -257,6 +264,11 @@ export async function firebaseSimulatePurchase(
     await setDoc(userRef, profile, { merge: true });
     const { updatedAt: _, ...p } = profile;
     return { profile: p, granted: 'subscription' };
+  }
+
+  if (productId === IAP_PRODUCTS.fullReport.id) {
+    const { updatedAt: _, ...p } = { ...user, updatedAt: now };
+    return { profile: p, granted: 'full_report' };
   }
 
   const pack = Object.values(IAP_PRODUCTS).find((p) => p.id === productId && 'tokens' in p);

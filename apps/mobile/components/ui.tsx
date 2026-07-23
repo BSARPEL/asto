@@ -40,6 +40,7 @@ import {
   contentMaxWidth,
   fonts,
   getLayoutSize,
+  nightCardGradient,
   pageGutter,
   radii,
   screenGradient,
@@ -342,6 +343,28 @@ export function HeroCard({
       />
       <View style={[styles.heroAccent, { backgroundColor: accent }]} />
       {children}
+    </View>
+  );
+}
+
+/** Harmony-style dark insight card */
+export function NightCard({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+}) {
+  return (
+    <View style={[styles.nightCard, style]}>
+      <LinearGradient
+        colors={[...nightCardGradient]}
+        start={{ x: 0.8, y: 0 }}
+        end={{ x: 0.2, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.nightCardStars} pointerEvents="none" />
+      <View style={styles.nightCardInner}>{children}</View>
     </View>
   );
 }
@@ -1227,6 +1250,23 @@ const styles = StyleSheet.create({
     width: 3,
     borderTopLeftRadius: radii.xl,
     borderBottomLeftRadius: radii.xl,
+  },
+
+  nightCard: {
+    width: '100%',
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+    minHeight: 120,
+  },
+  nightCardStars: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.55,
+    backgroundColor: 'transparent',
+  },
+  nightCardInner: {
+    padding: spacing.md,
+    position: 'relative',
   },
 
   card: {

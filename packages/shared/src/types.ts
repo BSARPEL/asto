@@ -105,10 +105,17 @@ export interface Partner {
   /** Brief AI rationale for synastryScore */
   synastryScoreNote?: string;
   analysis?: string;
+  /** Short free teaser before full unlock */
+  previewSummary?: string;
   /** ISO timestamp when analysis was last generated */
   analysisAt?: string;
   /** Sinastri sohbeti — analiz sonrası soru-cevap */
   conversationId?: string;
+  /** Harmony funnel meta */
+  relationshipType?: 'love' | 'friendship' | 'family' | 'work';
+  analysisFocus?: string;
+  /** Full detailed report unlocked */
+  fullUnlocked?: boolean;
   createdAt: string;
 }
 

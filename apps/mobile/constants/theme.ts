@@ -1,48 +1,49 @@
 import { Dimensions, Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 /**
- * BN Astro — marka paleti + açık güven arayüzü.
- * Icon/splash: Deep Cosmic Violet. UI: Astro Light zemin + Nebula/Magenta aksan.
- * Eternal synastry (∞ + moons).
+ * BN Astro UI — Harmony akış dili + BN Astro markası.
+ * Sıcak krem zemin, serif başlık, mor/rose aksan, logo splash koyu kalır.
  */
 export const brand = {
   cosmic: '#280F5F',
   nebula: '#6B3AA8',
   magenta: '#C73892',
-  light: '#E6E1F1',
+  harmonyPurple: '#6B4E7A',
+  harmonyRose: '#C98B9B',
+  light: '#FBF8F4',
 } as const;
 
 export const colors = {
-  bg: '#F6F3FA',
-  bgMid: '#E6E1F1',
+  bg: '#FBF8F4',
+  bgMid: '#F1ECE3',
   bgElevated: '#FFFFFF',
-  bgSoft: '#EDE8F5',
-  bgHighlight: '#E0D9EF',
-  border: 'rgba(40, 15, 95, 0.10)',
-  borderStrong: 'rgba(40, 15, 95, 0.18)',
-  text: '#280F5F',
-  textMuted: '#6B6280',
-  textSoft: '#4A3F66',
-  /** Stellar Magenta — brand vurgu */
-  accent: '#C73892',
-  accentStrong: '#280F5F',
-  accentLight: 'rgba(199, 56, 146, 0.12)',
+  bgSoft: 'rgba(255,255,255,0.72)',
+  bgHighlight: '#F1E9E1',
+  border: 'rgba(34, 30, 40, 0.08)',
+  borderStrong: 'rgba(34, 30, 40, 0.14)',
+  text: '#221E28',
+  textMuted: '#8A8494',
+  textSoft: '#5B5462',
+  accent: '#C98B9B',
+  accentStrong: '#4A3556',
+  accentLight: 'rgba(201, 139, 155, 0.16)',
   onAccent: '#FFFFFF',
-  /** Nebula Purple — CTA / etkileşim (token adı teal: mevcut UI API) */
-  teal: '#6B3AA8',
-  tealDim: 'rgba(107, 58, 168, 0.12)',
+  /** CTA / etkileşim — Harmony mor (token adı teal korunur) */
+  teal: '#6B4E7A',
+  tealDim: 'rgba(107, 78, 122, 0.12)',
   danger: '#D15A4F',
   dangerDim: 'rgba(209, 90, 79, 0.12)',
   success: '#3D9A68',
   successDim: 'rgba(61, 154, 104, 0.12)',
-  overlay: 'rgba(40, 15, 95, 0.48)',
-  userBubble: '#F6E8F3',
-  assistantBubble: '#F0ECF7',
-  star: 'rgba(199, 56, 146, 0.35)',
-  glowTeal: 'rgba(107, 58, 168, 0.07)',
-  glowMoon: 'rgba(199, 56, 146, 0.05)',
-  /** Splash / native chrome */
+  overlay: 'rgba(34, 30, 40, 0.48)',
+  userBubble: '#F3E8F0',
+  assistantBubble: '#F4F0EA',
+  star: 'rgba(107, 78, 122, 0.35)',
+  glowTeal: 'rgba(107, 78, 122, 0.07)',
+  glowMoon: 'rgba(201, 139, 155, 0.08)',
   splash: '#280F5F',
+  nightCard: '#221E28',
+  nightCardText: '#F1EDE5',
 };
 
 export const spacing = {
@@ -55,20 +56,20 @@ export const spacing = {
 };
 
 export const radii = {
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
+  sm: 12,
+  md: 16,
+  lg: 22,
+  xl: 28,
   pill: 999,
 };
 
 export const fonts = {
-  display: 'Poppins_700Bold',
-  displaySemi: 'Poppins_600SemiBold',
-  displayExtra: 'Poppins_800ExtraBold',
-  body: 'Poppins_400Regular',
-  bodySemi: 'Poppins_600SemiBold',
-  bodyBold: 'Poppins_700Bold',
+  display: 'CormorantGaramond_600SemiBold',
+  displaySemi: 'CormorantGaramond_500Medium',
+  displayExtra: 'CormorantGaramond_700Bold',
+  body: 'Inter_400Regular',
+  bodySemi: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
 };
 
 export const breakpoints = {
@@ -101,59 +102,56 @@ export function pageGutter(size: LayoutSize): number {
 
 export const shadowSoft: ViewStyle =
   Platform.OS === 'web'
-    ? ({ boxShadow: '0 8px 28px rgba(40, 15, 95, 0.10)' } as ViewStyle)
+    ? ({ boxShadow: '0 8px 28px rgba(34, 30, 40, 0.08)' } as ViewStyle)
     : {
-        shadowColor: '#280F5F',
-        shadowOpacity: 0.12,
+        shadowColor: '#221E28',
+        shadowOpacity: 0.08,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 4 },
-        elevation: 3,
+        elevation: 2,
       };
 
-/** Açık UI — Astro Light gökyüzü */
-export const screenGradient = ['#F6F3FA', '#E6E1F1', '#F3EFF8', '#F6F3FA'] as const;
+export const screenGradient = ['#FBF8F4', '#F6F0EA', '#F1E9E1', '#FBF8F4'] as const;
 
-/** Primary CTA — Nebula → Magenta */
-export const accentGradient = ['#8B4FC4', '#6B3AA8', '#C73892'] as const;
+export const accentGradient = ['#7A5A8C', '#6B4E7A', '#C98B9B'] as const;
 
-/** Splash / brand moment */
 export const splashGradient = ['#1A083F', '#280F5F', '#3A1878', '#280F5F'] as const;
+
+export const nightCardGradient = ['#2A2433', '#221E28', '#1A1620'] as const;
 
 export const typography = {
   brandLg: {
     fontFamily: fonts.displayExtra,
     fontSize: 36,
     lineHeight: 42,
-    letterSpacing: 1.2,
-    color: colors.accentStrong,
-    textTransform: 'uppercase' as const,
+    letterSpacing: 0.6,
+    color: colors.text,
   } satisfies TextStyle,
   brand: {
     fontFamily: fonts.display,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: 0.8,
-    color: colors.accentStrong,
-    textTransform: 'uppercase' as const,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: 0.4,
+    color: colors.text,
   } satisfies TextStyle,
   title: {
     fontFamily: fonts.display,
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 28,
+    lineHeight: 34,
     letterSpacing: 0.2,
     color: colors.text,
   } satisfies TextStyle,
   titleSm: {
     fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 22,
+    lineHeight: 28,
     color: colors.text,
   } satisfies TextStyle,
   section: {
-    fontFamily: fonts.displaySemi,
-    fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: 0.3,
+    fontFamily: fonts.bodySemi,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: 0.2,
     color: colors.teal,
   } satisfies TextStyle,
   body: {
@@ -173,13 +171,14 @@ export const typography = {
     fontSize: 12,
     lineHeight: 16,
     color: colors.textMuted,
-    letterSpacing: 0.4,
+    letterSpacing: 0.1,
   } satisfies TextStyle,
   label: {
     fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.textMuted,
-    letterSpacing: 0.3,
+    letterSpacing: 0.12,
+    textTransform: 'uppercase' as const,
   } satisfies TextStyle,
 };

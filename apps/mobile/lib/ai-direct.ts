@@ -39,6 +39,12 @@ function newId(): string {
   return doc(collection(getFirebaseDb(), '_meta')).id;
 }
 
+function makePreviewSummary(analysis: string): string {
+  const cleaned = analysis.replace(/\s+/g, ' ').trim();
+  if (cleaned.length <= 280) return cleaned;
+  return `${cleaned.slice(0, 280).trim()}…`;
+}
+
 async function requireProfile(): Promise<{ userId: string; profile: Profile }> {
   const user = getAuth().currentUser;
   if (!user) throw new Error('Oturum gerekli');
@@ -314,15 +320,24 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
     synastryScore: result.score,
     synastryScoreNote: result.scoreNote || undefined,
     analysis: result.analysis,
+    previewSummary: makePreviewSummary(result.analysis),
     analysisAt: new Date().toISOString(),
     conversationId: conv.id,
     natalChart: partnerChart,
+    fullUnlocked: partner.fullUnlocked || profile.isSubscribed ? true : false,
   });
 
-  // Charge after successful save so failed AI/save does not eat tokens
-  const cost = profile.isSubscribed ? 0 : TOKEN_COSTS.relationshipAnalysis;
+  // Preview (first analysis) is free; re-analyze costs. Unlock is charged separately.
+  const hadAnalysis = Boolean(partner.analysis);
+  const cost =
+    profile.isSubscribed || !hadAnalysis
+      ? 0
+      : force
+        ? TOKEN_COSTS.relationshipAnalysis
+        : TOKEN_COSTS.relationshipAnalysis;
   let updatedProfile = profile;
   if (cost > 0) {
+    if (profile.tokenBalance < cost) throw new Error('Yetersiz jeton');
     updatedProfile = await firebaseAdjustTokens(userId, -cost, 'relationship_analysis');
   } else {
     updatedProfile = (await firebaseGetUserProfile(userId))!;
@@ -336,6 +351,46 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
     cost,
     cached: false,
   };
+}
+
+/** Unlock full relationship report via tokens, IAP simulation, or Plus. */
+export async function directUnlockPartnerReport(
+  partnerId: string,
+  method: 'tokens' | 'iap' | 'plus' = 'tokens',
+) {
+  const { userId, profile } = await requireProfile();
+  const partner = await firebaseGetPartner(userId, partnerId);
+  if (!partner) throw new Error('Partner bulunamadı');
+  if (!partner.analysis) throw new Error('Önce ön izleme analizi oluştur');
+  if (partner.fullUnlocked || profile.isSubscribed) {
+    const unlocked =
+      partner.fullUnlocked
+        ? partner
+        : await firebaseUpdatePartnerFields(userId, partnerId, { fullUnlocked: true });
+    return { partner: unlocked, profile, cost: 0, method: 'plus' as const };
+  }
+
+  let updatedProfile = profile;
+  let cost = 0;
+  let used: 'tokens' | 'iap' | 'plus' = method;
+
+  if (method === 'plus') {
+    throw new Error('Plus aboneliği gerekli');
+  }
+
+  if (method === 'iap') {
+    const purchase = await firebaseSimulatePurchase(userId, IAP_PRODUCTS.fullReport.id);
+    updatedProfile = purchase.profile;
+    used = 'iap';
+  } else {
+    cost = TOKEN_COSTS.fullRelationshipReport;
+    if (profile.tokenBalance < cost) throw new Error('Yetersiz jeton');
+    updatedProfile = await firebaseAdjustTokens(userId, -cost, 'full_relationship_report');
+    used = 'tokens';
+  }
+
+  const unlocked = await firebaseUpdatePartnerFields(userId, partnerId, { fullUnlocked: true });
+  return { partner: unlocked, profile: updatedProfile, cost, method: used };
 }
 
 /** Firestore'dan partner + sohbeti taze yükler; conversation yoksa oluşturur. */

@@ -6,6 +6,7 @@ export const TOKEN_COSTS = {
   chartNarrative: 2,
   relationshipAnalysis: 3,
   soulmateReading: 2,
+  fullRelationshipReport: 5,
   dailyReadingFreePerDay: 1,
 } as const;
 
@@ -20,7 +21,37 @@ export const IAP_PRODUCTS = {
   tokens10: { id: 'asto_tokens_10', tokens: 10, priceLabel: '₺49,99' },
   tokens50: { id: 'asto_tokens_50', tokens: 50, priceLabel: '₺199,99' },
   monthly: { id: 'asto_sub_monthly', priceLabel: '₺249,99/ay' },
+  fullReport: { id: 'asto_full_report', priceLabel: '₺129,99' },
 } as const;
+
+export type RelationshipType = 'love' | 'friendship' | 'family' | 'work';
+
+export const RELATIONSHIP_TYPES: Array<{
+  id: RelationshipType;
+  title: string;
+  subtitle: string;
+}> = [
+  {
+    id: 'love',
+    title: 'Çekim / Aşk',
+    subtitle: 'Duygusal bağ ve uzun vadeli dinamikler',
+  },
+  {
+    id: 'friendship',
+    title: 'Arkadaşlık',
+    subtitle: 'Güven, destek ve dostluğun ritmi',
+  },
+  {
+    id: 'family',
+    title: 'Aile / Bağlar',
+    subtitle: 'Roller ve iletişim kalıpları',
+  },
+  {
+    id: 'work',
+    title: 'İş birliği',
+    subtitle: 'Karar alma ve çatışma yönetimi',
+  },
+];
 
 export const SIGNS_TR = [
   'Koç',
