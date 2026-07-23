@@ -319,8 +319,8 @@ export default function ForecastScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  dailyTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
-  dailyMeta: { flex: 1 },
+  dailyTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8, width: '100%' },
+  dailyMeta: { flex: 1, minWidth: 0 },
   dailyTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -340,8 +340,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
-  dailySummary: { fontSize: 14, lineHeight: 21 },
-  themes: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+  dailySummary: { fontSize: 14, lineHeight: 21, flexShrink: 1 },
+  themes: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, width: '100%' },
   fetchBtn: { marginTop: 10 },
   askHint: { fontSize: 13, marginBottom: 6 },
   suggestions: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },

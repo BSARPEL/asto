@@ -1,5 +1,12 @@
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import {
+  getAuth,
+  initializeAuth,
+  getReactNativePersistence,
+  type Auth,
+} from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { firebaseConfig, FIRESTORE_DATABASE_ID, firebaseConfigured } from './firebase-config';
 
@@ -19,7 +26,19 @@ export function getFirebaseApp(): FirebaseApp {
 
 export function getFirebaseAuth(): Auth {
   if (!auth) {
-    auth = getAuth(getFirebaseApp());
+    const firebaseApp = getFirebaseApp();
+    if (Platform.OS === 'web') {
+      auth = getAuth(firebaseApp);
+    } else {
+      try {
+        auth = initializeAuth(firebaseApp, {
+          persistence: getReactNativePersistence(AsyncStorage),
+        });
+      } catch {
+        // Zaten başlatılmış (hot reload) — mevcut instance
+        auth = getAuth(firebaseApp);
+      }
+    }
   }
   return auth;
 }

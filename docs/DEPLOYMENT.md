@@ -29,7 +29,8 @@ npm run deploy:ai-api
 
 URL örneği: `https://europe-west1-bn-astro.cloudfunctions.net/astoApi/api`
 
-Gerekli: Blaze plan, `cloudfunctions.googleapis.com` etkin, `packages/api/.env` içinde `GEMINI_API_KEY` ve Firebase Admin service account.
+Gerekli: Blaze plan, `cloudfunctions.googleapis.com` etkin.  
+Anahtarlar: **[docs/SECRETS.md](./SECRETS.md)** (`packages/api/.env` + Admin SDK JSON).
 
 ### Docker / VPS (alternatif)
 

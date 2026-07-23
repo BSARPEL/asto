@@ -27,6 +27,7 @@ docs/             Mimari ve API dokümantasyonu
 
 ## Temel ilkeler
 
+- **Yayın odaklı:** Tüm kullanıcılar Firebase + HTTPS Cloud Functions kullanır; LAN/localhost yalnızca `.env.development` ile yerel test içindir.
 - UI metinleri Türkçe; kod/yorumlar İngilizce veya Türkçe tutarlı olsun
 - Gemini/OpenAI anahtarları yalnızca `packages/api/.env`; mobile’da `EXPO_PUBLIC_FIREBASE_*` + `EXPO_PUBLIC_AI_API_URL`
 - Harita `computeNatalChart` ile hesaplanır (mobil → Firestore); LLM’e hazır JSON verilir
@@ -36,4 +37,4 @@ docs/             Mimari ve API dokümantasyonu
 
 ## Dokümantasyon
 
-Detay: [docs/ARCHITECTURE.md](mdc:docs/ARCHITECTURE.md), [docs/API.md](mdc:docs/API.md), [docs/DEVELOPMENT.md](mdc:docs/DEVELOPMENT.md), [AGENTS.md](mdc:AGENTS.md)
+Detay: [docs/ARCHITECTURE.md](mdc:docs/ARCHITECTURE.md), [docs/SECRETS.md](mdc:docs/SECRETS.md), [docs/API.md](mdc:docs/API.md), [docs/DEVELOPMENT.md](mdc:docs/DEVELOPMENT.md), [AGENTS.md](mdc:AGENTS.md)

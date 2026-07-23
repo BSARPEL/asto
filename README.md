@@ -58,13 +58,13 @@ asto/
 |----------|--------|----------|
 | `EXPO_PUBLIC_FIREBASE_*` | Mobile | Auth + Firestore |
 | `EXPO_PUBLIC_AI_API_URL` | Mobile | Gemini AI API (HTTPS prod) |
-| `GEMINI_API_KEY` | API | Gemini (mobilde yok) |
-| `FIREBASE_SERVICE_ACCOUNT_PATH` | API | Admin SDK → Firestore |
+| `GEMINI_API_KEY` | API | Gemini — bkz. [docs/SECRETS.md](./docs/SECRETS.md) |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | API | Admin SDK JSON (gitignore) |
 
 ## Dokümantasyon
 
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — Firebase + AI ayrımı
 - [docs/API.md](./docs/API.md) — endpoint referansı
 - [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) — geliştirme / iOS
-- [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) — production deploy
+- [docs/SECRETS.md](./docs/SECRETS.md) — Admin SDK, Gemini, env kurulumu
 - [AGENTS.md](./AGENTS.md) — AI agent bağlamı

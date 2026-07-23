@@ -68,11 +68,14 @@ export function getLayoutSize(width = Dimensions.get('window').width): LayoutSiz
   return 'phone';
 }
 
-export function contentMaxWidth(size: LayoutSize): number {
-  if (size === 'desktop') return 720;
-  if (size === 'tablet') return 640;
-  return 560;
+export function contentMaxWidth(size: LayoutSize, screenWidth?: number): number {
+  const cap = size === 'desktop' ? 720 : size === 'tablet' ? 640 : 560;
+  if (screenWidth != null) return Math.min(screenWidth, cap);
+  return cap;
 }
+
+/** Yan yana iki sütun (ResponsiveSplit) için minimum genişlik */
+export const splitLayoutMinWidth = 720;
 
 export function pageGutter(size: LayoutSize): number {
   if (size === 'desktop') return spacing.xl;

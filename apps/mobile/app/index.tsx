@@ -5,9 +5,9 @@ import { useAuth } from '@/lib/auth';
 import { colors } from '@/constants/theme';
 
 export default function Index() {
-  const { loading, token, profile } = useAuth();
+  const { loading, profile } = useAuth();
 
-  useEffect(() => {}, [loading, token, profile]);
+  useEffect(() => {}, [loading, profile]);
 
   if (loading) {
     return (
@@ -17,7 +17,8 @@ export default function Index() {
     );
   }
 
-  if (!token || !profile) return <Redirect href="/(auth)/login" />;
+  // Oturum: Firebase Auth kalıcı (AsyncStorage) — çıkış yapılana kadar açık kalır
+  if (!profile) return <Redirect href="/(auth)/login" />;
   if (!profile.natalChart) return <Redirect href="/(onboarding)/birth" />;
   return <Redirect href="/(tabs)/chart" />;
 }

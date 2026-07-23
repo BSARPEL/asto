@@ -35,24 +35,25 @@ Kullanıcı doğum bilgisi girer → natal harita cihazda hesaplanır (Firestore
 | Firestore (server) | `packages/api/src/store-firestore.ts` |
 | Shared types | `packages/shared/src/` |
 | Cursor rules | `.cursor/rules/*.mdc` |
-| İnsan dokümantasyonu | `docs/` |
+| İnsan dokümantasyonu | `docs/` (anahtarlar: `docs/SECRETS.md`) |
 
 ## Agent çalışma kuralları
 
-1. Shared sabiti değiştirirsen `npm run sync:shared` çalıştır (veya `dev:all` açıksa otomatik olur).
-2. `apps/mobile/app.json`, mobile `package.json` veya native paket eklersen `npm run sync:ios` çalıştır.
-3. Gezegen konumunu LLM’e hesaplatma — `computeNatalChart` engine’den ver.
-4. Gemini/OpenAI anahtarlarını mobile’a koyma — yalnızca `packages/api/.env`.
-5. Mevcut tema/UI bileşenlerini tercih et; yeni tasarım sistemi icat etme.
-6. Plan dosyasını (`.cursor/plans/`) kullanıcı istemedikçe düzenleme.
-7. Commit yalnızca kullanıcı istediğinde.
-8. **iOS:** Metro/Expo Go kullanılmaz. `withNativeIosStandalone` plugin gömülü bundle zorunlu kılar. JS değişince Xcode ⌘R veya `ios:device`. Native değişince `sync:ios`.
+1. **Yayın odaklı düşün:** Mağaza build'leri LAN/localhost kullanmaz; AI = HTTPS Cloud Functions, veri = Firebase. Yerel API yalnızca `.env.development`.
+2. Shared sabiti değiştirirsen `npm run sync:shared` çalıştır (veya `dev:all` açıksa otomatik olur).
+3. `apps/mobile/app.json`, mobile `package.json` veya native paket eklersen `npm run sync:ios` çalıştır.
+4. Gezegen konumunu LLM’e hesaplatma — `computeNatalChart` engine’den ver.
+5. API secret’larını mobile’a koyma — bkz. [docs/SECRETS.md](docs/SECRETS.md).
+6. Mevcut tema/UI bileşenlerini tercih et; yeni tasarım sistemi icat etme.
+7. Plan dosyasını (`.cursor/plans/`) kullanıcı istemedikçe düzenleme.
+8. Commit yalnızca kullanıcı istediğinde.
+9. **iOS:** Metro/Expo Go kullanılmaz. `withNativeIosStandalone` plugin gömülü bundle zorunlu kılar. JS değişince Xcode ⌘R veya `ios:device`. Native değişince `sync:ios`.
 
 ## Tipik görev akışları
 
 **Yeni AI özelliği:** `packages/api/src/ai.ts` + `routes/ai-routes.ts` + `lib/ai-api.ts` + `lib/ai-service.ts` + tab ekranı + `TOKEN_COSTS`.
 
-**App Store build:** AI API’yi HTTPS deploy et → `EXPO_PUBLIC_AI_API_URL` → `npm run build:ios`. Bkz. `docs/DEPLOYMENT.md`.
+**App Store build:** `npm run deploy:ai-api` → `npm run ios:archive:store`. Bkz. `docs/DEPLOYMENT.md`.
 
 **Yeni ekran:** `apps/mobile/app/...` + gerekirse tab layout; `Screen`/`Card`/`Button` kullan.
 
@@ -79,4 +80,4 @@ Smoke (Firebase modu): register → doğum haritası → günlük öngörü (AI)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/API.md](docs/API.md)
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-- [README.md](README.md)
+- [docs/SECRETS.md](docs/SECRETS.md)

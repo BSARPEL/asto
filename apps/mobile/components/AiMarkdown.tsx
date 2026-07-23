@@ -131,6 +131,7 @@ export function AiMarkdown({ content, compact }: { content: string; compact?: bo
 const styles = StyleSheet.create({
   root: {
     width: '100%',
+    maxWidth: '100%',
   },
   headingWrap: {
     flexDirection: 'row',
@@ -150,6 +151,8 @@ const styles = StyleSheet.create({
   },
   heading: {
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
     fontFamily: fonts.bodySemi,
     fontSize: 15,
     lineHeight: 22,
@@ -160,6 +163,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   body: {
+    flexShrink: 1,
+    minWidth: 0,
     fontFamily: fonts.body,
     fontSize: 14,
     lineHeight: 22,
@@ -192,6 +197,8 @@ const styles = StyleSheet.create({
   },
   bulletBody: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
   },
   numberedRow: {
     flexDirection: 'row',
@@ -220,5 +227,7 @@ const styles = StyleSheet.create({
   },
   numberedBody: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
   },
 });

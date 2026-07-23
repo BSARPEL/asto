@@ -148,6 +148,8 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     minHeight: 0,
+    width: '100%',
+    maxWidth: '100%',
   },
   messages: {
     flex: 1,
@@ -239,6 +241,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    minWidth: 0,
     minHeight: 40,
     maxHeight: 100,
     borderWidth: 1,

@@ -11,6 +11,7 @@ import {
   getDocs,
   query,
   setDoc,
+  deleteField,
   where,
 } from 'firebase/firestore';
 import {
@@ -21,6 +22,7 @@ import {
   type Profile,
 } from '@asto/shared';
 import { getFirebaseAuth, getFirebaseDb } from './firebase';
+import { forFirestore } from './firestore-write';
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -87,14 +89,14 @@ export async function firebaseRegister(
 
   const ledgerRef = doc(collection(db, FIRESTORE_COLLECTIONS.ledger));
   try {
-    await setDoc(doc(db, FIRESTORE_COLLECTIONS.users, user.uid), profile);
-    await setDoc(ledgerRef, {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.users, user.uid), forFirestore(profile));
+    await setDoc(ledgerRef, forFirestore({
       id: ledgerRef.id,
       userId: user.uid,
       delta: TOKEN_REWARDS.signupBonus,
       reason: 'signup_bonus',
       createdAt: now,
-    });
+    }));
   } catch (e) {
     throw wrapFirestoreError(e);
   }
@@ -152,17 +154,21 @@ export async function firebaseSaveProfile(userId: string, patch: Partial<Profile
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('Kullanıcı bulunamadı');
 
-  const cleanPatch = Object.fromEntries(
-    Object.entries(patch).filter(([, v]) => v !== undefined),
-  ) as Partial<Profile>;
-
-  const merged = {
+  const now = new Date().toISOString();
+  const writeData: Record<string, unknown> = {
     ...(snap.data() as Profile),
-    ...cleanPatch,
-    updatedAt: new Date().toISOString(),
+    ...patch,
+    updatedAt: now,
   };
-  await setDoc(ref, merged, { merge: true });
-  const { updatedAt: _, ...profile } = merged as Profile & { updatedAt: string };
+
+  if (patch.birth || patch.natalChart) {
+    writeData.chartNarrative = deleteField();
+  }
+
+  await setDoc(ref, forFirestore(writeData), { merge: true });
+
+  const updated = await getDoc(ref);
+  const { updatedAt: _, ...profile } = updated.data() as Profile & { updatedAt: string };
   return profile;
 }
 

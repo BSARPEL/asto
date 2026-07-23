@@ -29,6 +29,7 @@ import {
   radii,
   shadowSoft,
   spacing,
+  splitLayoutMinWidth,
   typography,
   type LayoutSize,
 } from '@/constants/theme';
@@ -39,7 +40,7 @@ export function useLayout() {
   const { width, height } = useWindowDimensions();
   const size = getLayoutSize(width);
   const gutter = pageGutter(size);
-  const maxWidth = contentMaxWidth(size);
+  const maxWidth = contentMaxWidth(size, width);
   return {
     width,
     height,
@@ -48,6 +49,7 @@ export function useLayout() {
     maxWidth,
     isCompact: size === 'phone',
     isWide: size !== 'phone',
+    isSplitLayout: width >= splitLayoutMinWidth,
   };
 }
 
@@ -73,8 +75,8 @@ export function ResponsiveSplit({
   leadingFlex?: number;
   trailingFlex?: number;
 }) {
-  const { isWide } = useLayout();
-  if (!isWide) {
+  const { isSplitLayout } = useLayout();
+  if (!isSplitLayout) {
     return (
       <View style={styles.splitStack}>
         {leading}
@@ -84,8 +86,8 @@ export function ResponsiveSplit({
   }
   return (
     <View style={styles.splitRow}>
-      <View style={{ flex: leadingFlex, minWidth: 0 }}>{leading}</View>
-      <View style={{ flex: trailingFlex, minWidth: 0 }}>{trailing}</View>
+      <View style={[styles.splitCol, { flex: leadingFlex }]}>{leading}</View>
+      <View style={[styles.splitCol, { flex: trailingFlex }]}>{trailing}</View>
     </View>
   );
 }
@@ -202,20 +204,31 @@ export function ScreenScroll({
       style={styles.screenScroll}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}
+      horizontal={false}
+      bounces
+      alwaysBounceHorizontal={false}
       {...rest}
       contentContainerStyle={[
+        styles.screenScrollContent,
         {
-          paddingHorizontal: gutter,
-          paddingTop: spacing.md,
           paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.xxl,
-          width: '100%',
-          maxWidth,
-          alignSelf: 'center',
         },
         contentContainerStyle,
       ]}
     >
-      {children}
+      <View
+        style={[
+          styles.screenContent,
+          {
+            paddingHorizontal: gutter,
+            paddingTop: spacing.md,
+            maxWidth,
+          },
+        ]}
+      >
+        {children}
+      </View>
     </ScrollView>
   );
 }
@@ -240,11 +253,13 @@ export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
 }
 
 export function Title({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[typography.title, style]}>{children}</Text>;
+  return (
+    <Text style={[typography.title, styles.textShrink, style]}>{children}</Text>
+  );
 }
 
 export function Subtitle({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[styles.subtitle, style]}>{children}</Text>;
+  return <Text style={[styles.subtitle, styles.textShrink, style]}>{children}</Text>;
 }
 
 export function Body({
@@ -256,12 +271,16 @@ export function Body({
   muted?: boolean;
   style?: StyleProp<TextStyle>;
 }) {
-  return <Text style={[muted ? typography.bodyMuted : typography.body, style]}>{children}</Text>;
+  return (
+    <Text style={[muted ? typography.bodyMuted : typography.body, styles.textShrink, style]}>
+      {children}
+    </Text>
+  );
 }
 
 export function SectionTitle({ children, compact }: { children: React.ReactNode; compact?: boolean }) {
   return (
-    <Text style={[typography.section, styles.sectionTitle, compact && styles.sectionTitleCompact]}>
+    <Text style={[typography.section, styles.sectionTitle, styles.textShrink, compact && styles.sectionTitleCompact]}>
       {children}
     </Text>
   );
@@ -286,7 +305,7 @@ export function HeaderRow({
   return (
     <View style={[styles.headerRow, compact && styles.headerRowTight, isCompact && styles.headerRowCompact]}>
       <View style={styles.headerCopy}>
-        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+        {eyebrow ? <Text style={[styles.eyebrow, styles.textShrink]}>{eyebrow}</Text> : null}
         <Title style={compact ? [styles.headerTitle, styles.headerTitleCompact] : styles.headerTitle}>
           {title}
         </Title>
@@ -564,9 +583,8 @@ export function SignTrio({
   rising: string;
   compact?: boolean;
 }) {
-  const { isWide } = useLayout();
   return (
-    <View style={[styles.signTrio, compact && styles.signTrioCompact, isWide && styles.signTrioWide]}>
+    <View style={[styles.signTrio, compact && styles.signTrioCompact]}>
       <SignPill label="Güneş" value={sun} signKey={sun} color={signColor(sun)} compact={compact} />
       <SignPill label="Ay" value={moon} signKey={moon} color={signColor(moon)} compact={compact} />
       <SignPill
@@ -604,7 +622,9 @@ export function SignPill({
         style={compact ? styles.signGlyphWrapCompact : styles.signGlyphWrap}
       />
       <Text style={[styles.signLabel, compact && styles.signLabelCompact]}>{label}</Text>
-      <Text style={[styles.signValue, compact && styles.signValueCompact]}>{value}</Text>
+      <Text style={[styles.signValue, compact && styles.signValueCompact]} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -775,7 +795,7 @@ export function MessageBubble({
           </Text>
         </View>
       ) : null}
-      <Body style={[styles.bubbleBody, compact && styles.bubbleBodyCompact]}>{content}</Body>
+      <Body style={[styles.bubbleBody, compact && styles.bubbleBodyCompact, styles.textShrink]}>{content}</Body>
     </View>
   );
 }
@@ -852,8 +872,15 @@ export function EmptyState({
 export function InfoRow({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
   return (
     <View style={[styles.infoRow, compact && styles.infoRowCompact]}>
-      <Text style={[styles.infoLabel, compact && styles.infoLabelCompact]}>{label}</Text>
-      <Text style={[styles.infoValue, compact && styles.infoValueCompact]}>{value}</Text>
+      <Text style={[styles.infoLabel, compact && styles.infoLabelCompact]} numberOfLines={2}>
+        {label}
+      </Text>
+      <Text
+        style={[styles.infoValue, compact && styles.infoValueCompact]}
+        numberOfLines={3}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -977,9 +1004,22 @@ export type { LayoutSize };
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  screenRoot: { flex: 1, backgroundColor: colors.bg },
-  screenInner: { flex: 1 },
-  screenScroll: { flex: 1 },
+  screenRoot: { flex: 1, width: '100%', backgroundColor: colors.bg, overflow: 'hidden' },
+  screenInner: { flex: 1, width: '100%', maxWidth: '100%', overflow: 'hidden' },
+  screenScroll: { flex: 1, width: '100%' },
+  screenScrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    width: '100%',
+  },
+  screenContent: {
+    width: '100%',
+    alignSelf: 'center',
+  },
+  textShrink: {
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
   glowTop: {
     position: 'absolute',
     top: -100,
@@ -1040,14 +1080,17 @@ const styles = StyleSheet.create({
   },
   headerRowTight: { marginBottom: spacing.sm, gap: spacing.sm },
   headerRowCompact: { flexWrap: 'wrap' },
-  headerCopy: { flex: 1, minWidth: 180 },
+  headerCopy: { flex: 1, minWidth: 0 },
   headerTitle: { marginBottom: 0, fontSize: 28, lineHeight: 34 },
   headerTitleCompact: { fontSize: 22, lineHeight: 28 },
   headerSubtitle: { marginBottom: 0, marginTop: spacing.xs },
   headerSubtitleCompact: { fontSize: 13, lineHeight: 18, marginTop: 2 },
-  headerRight: { paddingTop: 6 },
+  headerRight: { paddingTop: 6, flexShrink: 0 },
 
   heroCard: {
+    width: '100%',
+    maxWidth: '100%',
+    alignSelf: 'stretch',
     backgroundColor: colors.bgElevated,
     borderColor: colors.border,
     borderWidth: 1,
@@ -1068,6 +1111,9 @@ const styles = StyleSheet.create({
   },
 
   card: {
+    width: '100%',
+    maxWidth: '100%',
+    alignSelf: 'stretch',
     backgroundColor: colors.bgElevated,
     borderColor: colors.border,
     borderWidth: 1,
@@ -1091,6 +1137,9 @@ const styles = StyleSheet.create({
     width: 3,
   },
   glassCard: {
+    width: '100%',
+    maxWidth: '100%',
+    alignSelf: 'stretch',
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
     borderColor: colors.borderStrong,
     borderWidth: 1,
@@ -1100,6 +1149,8 @@ const styles = StyleSheet.create({
   },
 
   btn: {
+    width: '100%',
+    alignSelf: 'stretch',
     minHeight: 52,
     borderRadius: radii.md,
     overflow: 'hidden',
@@ -1141,11 +1192,13 @@ const styles = StyleSheet.create({
   btnTextGhost: { color: colors.accentStrong },
   btnTextDanger: { color: colors.danger },
 
-  fieldWrap: { marginBottom: spacing.md },
+  fieldWrap: { marginBottom: spacing.md, width: '100%', maxWidth: '100%' },
   fieldWrapCompact: { marginBottom: spacing.sm },
   fieldLabelCompact: { fontSize: 11 },
   fieldHint: { ...typography.caption, marginTop: 4 },
   input: {
+    width: '100%',
+    maxWidth: '100%',
     marginTop: 6,
     backgroundColor: colors.bgSoft,
     borderWidth: 1,
@@ -1231,13 +1284,13 @@ const styles = StyleSheet.create({
   avatarTextLg: { fontSize: 20 },
   avatarTextXs: { fontSize: 11 },
 
-  signTrio: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
+  signTrio: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg, width: '100%' },
   signTrioCompact: { gap: 6, marginBottom: 0 },
-  signTrioWide: { flexWrap: 'nowrap' },
   signPill: {
     flexGrow: 1,
-    flexBasis: '28%',
-    minWidth: 100,
+    flexBasis: '30%',
+    flexShrink: 1,
+    minWidth: 0,
     borderWidth: 1,
     borderRadius: radii.lg,
     paddingVertical: spacing.md,
@@ -1300,6 +1353,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderStrong,
+    width: '100%',
   },
   planetTableHeadText: {
     ...typography.caption,
@@ -1313,23 +1367,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     minHeight: 36,
+    width: '100%',
   },
   planetColPlanet: {
-    flex: 1.05,
-    minWidth: 92,
-    paddingRight: 8,
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 6,
   },
   planetColSign: {
-    flex: 1.2,
-    minWidth: 112,
-    paddingRight: 8,
+    flex: 1.15,
+    minWidth: 0,
+    paddingRight: 6,
   },
   planetColSignWide: {
-    flex: 1.5,
+    flex: 1.35,
+    minWidth: 0,
     paddingRight: 0,
   },
   planetColHouse: {
-    width: 36,
+    width: 32,
+    flexShrink: 0,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
@@ -1337,17 +1394,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: 6,
+    gap: 4,
+    minWidth: 0,
+    flexShrink: 1,
   },
   planetTableName: {
+    flex: 1,
     flexShrink: 1,
+    minWidth: 0,
     fontFamily: fonts.bodySemi,
     fontSize: 13,
     color: colors.text,
     textAlign: 'left',
   },
   planetTableSign: {
+    flex: 1,
     flexShrink: 1,
+    minWidth: 0,
     fontFamily: fonts.body,
     fontSize: 12,
     color: colors.textMuted,
@@ -1484,15 +1547,24 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+    width: '100%',
   },
   infoRowCompact: { paddingVertical: 7 },
-  infoLabel: { ...typography.bodyMuted, flex: 1 },
+  infoLabel: { ...typography.bodyMuted, flex: 1, minWidth: 0, flexShrink: 1 },
   infoLabelCompact: { fontSize: 13 },
-  infoValue: { fontFamily: fonts.bodySemi, color: colors.text, textAlign: 'right', flex: 1 },
+  infoValue: {
+    fontFamily: fonts.bodySemi,
+    color: colors.text,
+    textAlign: 'right',
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+  },
   infoValueCompact: { fontSize: 13 },
 
   divider: {
@@ -1588,9 +1660,16 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  tabScroll: { paddingTop: spacing.sm, flexGrow: 1 },
-  splitStack: { gap: spacing.sm },
-  splitRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
-  gridStack: { gap: spacing.sm },
-  gridRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  tabScroll: { paddingTop: spacing.sm, flexGrow: 1, width: '100%' },
+  splitStack: { gap: spacing.sm, width: '100%' },
+  splitRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+    width: '100%',
+    maxWidth: '100%',
+  },
+  splitCol: { flex: 1, minWidth: 0, maxWidth: '100%' },
+  gridStack: { gap: spacing.sm, width: '100%' },
+  gridRow: { flexDirection: 'row', flexWrap: 'wrap', width: '100%' },
 });

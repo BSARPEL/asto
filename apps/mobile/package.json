@@ -44,6 +44,7 @@
     "ios:sim": "expo run:ios --configuration Release --no-bundler",
     "ios:device": "expo run:ios --device --configuration Release --no-bundler",
     "ios:archive": "node ../../scripts/ios-archive.mjs",
+    "ios:archive:store": "node ../../scripts/verify-store-build.mjs && node ../../scripts/ios-archive.mjs",
     "ios:open": "node ../../scripts/ios-open.mjs",
     "ios:sync": "expo prebuild -p ios --no-install && cd ios && pod install && node ../../../scripts/apply-native-ios.mjs",
     "ios:prebuild": "expo prebuild -p ios --clean && cd ios && pod install && node ../../../scripts/apply-native-ios.mjs",

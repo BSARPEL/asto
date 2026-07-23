@@ -4,6 +4,7 @@ import { basename, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import { loadMobileEnv } from './load-mobile-env.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IOS_DIR = join(__dirname, '..', 'apps/mobile/ios');
@@ -48,6 +49,14 @@ function findIosTarget() {
 const { workspace, scheme, archivePath } = findIosTarget();
 console.log(`[ios-archive] workspace=${workspace} scheme=${scheme}`);
 
+const buildEnv = loadMobileEnv();
+const geminiKey = buildEnv.EXPO_PUBLIC_GEMINI_API_KEY || '';
+if (geminiKey.length < 10) {
+  console.warn('[ios-archive] UYARI: EXPO_PUBLIC_GEMINI_API_KEY yok — AI Cloud Functions yedeklenecek (404 riski).');
+} else {
+  console.log(`[ios-archive] Gemini anahtarı yüklendi (${geminiKey.slice(0, 8)}…)`);
+}
+
 const result = spawnSync(
   'xcodebuild',
   [
@@ -63,7 +72,7 @@ const result = spawnSync(
     archivePath,
     'archive',
   ],
-  { stdio: 'inherit' },
+  { stdio: 'inherit', env: buildEnv },
 );
 
 process.exit(result.status ?? 1);

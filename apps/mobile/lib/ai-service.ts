@@ -1,6 +1,7 @@
 import type { BirthInput, Conversation, DailyReading, Partner, Profile } from '@asto/shared';
 import { aiApi, aiApiUnavailableMessage, AiApiError } from './ai-api';
-import { isAiApiConfigured } from './config';
+import * as directAi from './ai-direct';
+import { IS_PRODUCTION, isAiApiConfigured, usesDirectGemini } from './config';
 import {
   firebaseAddPartner,
   firebaseGetConversation,
@@ -13,16 +14,18 @@ import { localTodayKey } from './dates';
 export { AiApiError, aiApiUnavailableMessage };
 
 /**
- * Uygulama servis katmanı — Firebase veri + AI üretimini birleştirir.
- *
- * | İşlem              | Katman    |
- * |--------------------|-----------|
- * | Oturum, profil     | Firebase  |
- * | Harita, partner    | Firebase  |
- * | Önbellek okuma     | Firebase  |
- * | Jeton, reklam      | Firebase  |
- * | Öngörü, soru, AI   | AI API    |
+ * AI katmanı:
+ * 1. Google AI Studio (Gemini) — doğrudan mobil (varsayılan, EXPO_PUBLIC_GEMINI_API_KEY)
+ * 2. HTTPS AI API — yedek (Cloud Functions / Express)
+ * Firebase = yalnızca veri (profil, harita, jeton, önbellek)
  */
+
+function geminiUnavailable(): never {
+  throw new AiApiError(
+    'AI yapılandırılmamış. EXPO_PUBLIC_GEMINI_API_KEY ekleyin (Google AI Studio).',
+    0,
+  );
+}
 
 export async function loadCachedDailyReading(
   userId: string,
@@ -44,23 +47,30 @@ export async function loadCachedDailyReading(
   return { reading, conversation, cached: true, today };
 }
 
-export async function generateDailyReading(firebaseIdToken: string, force = false) {
-  if (!isAiApiConfigured()) throw new AiApiError(aiApiUnavailableMessage(), 0);
-  return aiApi.generateDailyReading(firebaseIdToken, force);
+export async function generateDailyReading(_firebaseIdToken: string, force = false) {
+  if (usesDirectGemini()) return directAi.directGenerateDailyReading(force);
+  // Mağaza sürümünde ölü Cloud Functions URL'sine düşme — Gemini zorunlu
+  if (IS_PRODUCTION) geminiUnavailable();
+  if (isAiApiConfigured()) return aiApi.generateDailyReading(_firebaseIdToken, force);
+  geminiUnavailable();
 }
 
-export async function generateChartNarrative(firebaseIdToken: string, force = false) {
-  if (!isAiApiConfigured()) throw new AiApiError(aiApiUnavailableMessage(), 0);
-  return aiApi.chartNarrative(firebaseIdToken, force);
+export async function generateChartNarrative(_firebaseIdToken: string, force = false) {
+  if (usesDirectGemini()) return directAi.directGenerateChartNarrative(force);
+  if (IS_PRODUCTION) geminiUnavailable();
+  if (isAiApiConfigured()) return aiApi.chartNarrative(_firebaseIdToken, force);
+  geminiUnavailable();
 }
 
 export async function askDailyQuestion(
-  firebaseIdToken: string,
+  _firebaseIdToken: string,
   question: string,
   conversationId?: string,
 ) {
-  if (!isAiApiConfigured()) throw new AiApiError(aiApiUnavailableMessage(), 0);
-  return aiApi.ask(firebaseIdToken, question, conversationId);
+  if (usesDirectGemini()) return directAi.directAskDailyQuestion(question, conversationId);
+  if (IS_PRODUCTION) geminiUnavailable();
+  if (isAiApiConfigured()) return aiApi.ask(_firebaseIdToken, question, conversationId);
+  geminiUnavailable();
 }
 
 export async function listPartners(userId: string) {
@@ -84,22 +94,27 @@ export async function loadPartnerConversation(userId: string, partner: Partner) 
   return { partner, conversation };
 }
 
-export async function analyzePartner(firebaseIdToken: string, partnerId: string, force = false) {
-  if (!isAiApiConfigured()) throw new AiApiError(aiApiUnavailableMessage(), 0);
-  return aiApi.analyzePartner(firebaseIdToken, partnerId, force);
+export async function analyzePartner(_firebaseIdToken: string, partnerId: string, force = false) {
+  if (usesDirectGemini()) return directAi.directAnalyzePartner(partnerId, force);
+  if (IS_PRODUCTION) geminiUnavailable();
+  if (isAiApiConfigured()) return aiApi.analyzePartner(_firebaseIdToken, partnerId, force);
+  geminiUnavailable();
 }
 
 export async function askPartnerQuestion(
-  firebaseIdToken: string,
+  _firebaseIdToken: string,
   partnerId: string,
   question: string,
   conversationId?: string,
 ) {
-  if (!isAiApiConfigured()) throw new AiApiError(aiApiUnavailableMessage(), 0);
-  return aiApi.askPartner(firebaseIdToken, partnerId, question, conversationId);
+  if (usesDirectGemini()) {
+    return directAi.directAskPartnerQuestion(partnerId, question, conversationId);
+  }
+  if (IS_PRODUCTION) geminiUnavailable();
+  if (isAiApiConfigured()) return aiApi.askPartner(_firebaseIdToken, partnerId, question, conversationId);
+  geminiUnavailable();
 }
 
-/** Profil güncellemesi — AI yanıtından sonra */
 export function mergeProfile(current: Profile | null, next: Profile): Profile {
   return next ?? current!;
 }

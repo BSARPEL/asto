@@ -233,11 +233,13 @@ const styles = StyleSheet.create({
   aspectDash: { color: colors.textMuted, fontSize: 11 },
   aspectText: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     fontFamily: 'Manrope_400Regular',
     fontSize: 12,
     lineHeight: 17,
     color: colors.textMuted,
   },
   narrativeCard: { marginBottom: spacing.sm },
-  narrativeBody: { fontSize: 14, lineHeight: 21 },
+  narrativeBody: { fontSize: 14, lineHeight: 21, flexShrink: 1 },
 });

@@ -9,15 +9,15 @@ export class AiApiError extends Error {
   }
 }
 
-/** AI sunucusu (Gemini proxy) yapılandırılmamış. */
+/** Kullanıcıya gösterilen AI bağlantı hatası (mağaza sürümü). */
 export function aiApiUnavailableMessage(): string {
   if (!isAiApiConfigured()) {
     return IS_PRODUCTION
-      ? 'AI sunucusu henüz aktif değil. Yönetici Cloud Functions deploy etmeli (npm run deploy:ai-api).'
+      ? 'Öngörü servisi şu an kullanılamıyor. Lütfen daha sonra tekrar deneyin.'
       : 'AI sunucusu tanımlı değil. EXPO_PUBLIC_AI_API_URL veya yerel "npm run api" gerekir.';
   }
   if (IS_PRODUCTION) {
-    return 'AI sunucusuna bağlanılamadı. İnternet bağlantınızı kontrol edin.';
+    return 'Öngörü servisine bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.';
   }
   return `AI sunucusuna bağlanılamadı (${AI_API_URL}). "npm run api" çalışıyor mu?`;
 }
@@ -48,9 +48,17 @@ async function aiRequest<T>(
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const serverError = (data as { error?: string }).error;
+      if (IS_PRODUCTION) {
+        throw new AiApiError(
+          serverError && !serverError.includes('deploy')
+            ? serverError
+            : 'Öngörü alınamadı. Lütfen biraz sonra tekrar deneyin.',
+          res.status,
+        );
+      }
       if (res.status === 404) {
         throw new AiApiError(
-          'AI sunucusu bulunamadı (404). Cloud Functions deploy edilmemiş — terminalde: firebase login && npm run deploy:ai-api',
+          'AI sunucusu bulunamadı (404). Önce: firebase login && npm run deploy:ai-api',
           res.status,
         );
       }
@@ -61,7 +69,12 @@ async function aiRequest<T>(
     if (e instanceof AiApiError) throw e;
     if (e instanceof Error) {
       if (e.name === 'AbortError') {
-        throw new AiApiError('AI yanıtı zaman aşımına uğradı. Tekrar deneyin.', 0);
+        throw new AiApiError(
+          IS_PRODUCTION
+            ? 'İstek zaman aşımına uğradı. Tekrar deneyin.'
+            : 'AI yanıtı zaman aşımına uğradı. Tekrar deneyin.',
+          0,
+        );
       }
       const msg = e.message.toLowerCase();
       if (msg.includes('fetch failed') || msg.includes('network request failed')) {
@@ -77,14 +90,12 @@ async function aiRequest<T>(
 const AI_TIMEOUT_MS = 120_000;
 
 /**
- * Gemini AI sunucusu — yalnızca üretim uçları.
- * Veri okuma/yazma Firebase'de (lib/firebase-data.ts).
- * Kimlik: Firebase Auth ID token (Firestore oturumu ile aynı).
+ * Production AI API — Cloud Functions + Gemini.
+ * Tüm kullanıcılar aynı HTTPS endpoint'e bağlanır; kimlik Firebase ID token.
  */
 export const aiApi = {
   health: () => aiRequest<{ ok: boolean; ai: boolean; model?: string }>('/health'),
 
-  /** Günlük öngörü üret (Gemini) — sonuç Firestore'a sunucu yazar */
   generateDailyReading: (firebaseIdToken: string, force = false) =>
     aiRequest<{
       reading: DailyReading;
@@ -100,7 +111,6 @@ export const aiApi = {
       body: JSON.stringify({ force }),
     }),
 
-  /** Natal harita AI yorumu */
   chartNarrative: (firebaseIdToken: string, force = false) =>
     aiRequest<{ text: string; cost: number; profile: Profile; cached: boolean }>(
       '/readings/chart-narrative',
@@ -112,7 +122,6 @@ export const aiApi = {
       },
     ),
 
-  /** Günlük sohbet sorusu */
   ask: (firebaseIdToken: string, question: string, conversationId?: string) =>
     aiRequest<{ conversation: Conversation; profile: Profile; cost: number }>(
       '/conversations/ask',
@@ -124,7 +133,6 @@ export const aiApi = {
       },
     ),
 
-  /** Sinastri analizi (Gemini) */
   analyzePartner: (firebaseIdToken: string, partnerId: string, force = false) =>
     aiRequest<{
       partner: import('@asto/shared').Partner;
@@ -140,7 +148,6 @@ export const aiApi = {
       body: JSON.stringify({ force }),
     }),
 
-  /** Partner sinastri sohbeti */
   askPartner: (
     firebaseIdToken: string,
     partnerId: string,

@@ -21,9 +21,12 @@
     "build:cities": "node scripts/build-world-cities.mjs",
     "deploy:firestore-rules": "node scripts/deploy-firestore-rules.mjs",
     "deploy:ai-api": "node scripts/deploy-ai-api.mjs",
+    "verify:store": "node scripts/verify-store-build.mjs",
+    "ios:archive:store": "npm run verify:store && npm run ios:archive --workspace=mobile",
     "test:auth": "node scripts/test-mobile-auth-flow.mjs",
     "test:birth": "node scripts/test-birth-flow.mjs",
     "test:ai": "node scripts/test-ai-api.mjs",
+    "test:journey": "node scripts/test-user-journey.mjs",
     "shared:build": "npm run build --workspace=@asto/shared",
     "postinstall": "npm run shared:build"
   },

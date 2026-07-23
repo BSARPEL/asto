@@ -25,7 +25,11 @@ FIREBASE_PROJECT_ID=bn-astro
 FIREBASE_DATABASE_ID=bnastro
 FIREBASE_SERVICE_ACCOUNT_PATH=.secrets/firebase-adminsdk.json
 GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-flash-latest
 ```
+
+Admin SDK hesabı: `firebase-adminsdk-fbsvc@bn-astro.iam.gserviceaccount.com`  
+Kurulum: **[docs/SECRETS.md](./SECRETS.md)**
 
 ## Şema başlatma
 

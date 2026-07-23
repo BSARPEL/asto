@@ -127,18 +127,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginBottom: 8,
+    width: '100%',
   },
-  profileMeta: { flex: 1 },
+  profileMeta: { flex: 1, minWidth: 0 },
   profileName: {
     fontFamily: fonts.bodySemi,
     fontSize: 15,
     color: colors.text,
+    flexShrink: 1,
   },
   profileEmail: {
     fontFamily: fonts.body,
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 1,
+    flexShrink: 1,
   },
   badgeRow: { marginTop: 6 },
   link: {

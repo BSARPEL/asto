@@ -32,13 +32,19 @@ cp packages/api/.env.example packages/api/.env
 
 ## Ortam değişkenleri
 
-### `packages/api/.env`
+### API (`packages/api/.env`)
 
+Tam rehber: **[SECRETS.md](./SECRETS.md)**
+
+```env
+GEMINI_API_KEY=...          # Google AI Studio — mobilde YOK
+GEMINI_MODEL=gemini-flash-latest
+FIREBASE_PROJECT_ID=bn-astro
+FIREBASE_DATABASE_ID=bnastro
+FIREBASE_SERVICE_ACCOUNT_PATH=.secrets/firebase-adminsdk.json
 ```
-PORT=8788
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
-```
+
+Admin SDK JSON: `packages/api/.secrets/firebase-adminsdk.json` (gitignore).
 
 ### `apps/mobile/.env` (yerel geliştirme)
 

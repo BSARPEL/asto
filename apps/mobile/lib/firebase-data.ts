@@ -6,6 +6,7 @@ import {
   query,
   runTransaction,
   setDoc,
+  deleteField,
   where,
 } from 'firebase/firestore';
 import {
@@ -24,6 +25,7 @@ import {
   type TokenLedgerEntry,
 } from '@asto/shared';
 import { getFirebaseDb } from './firebase';
+import { forFirestore } from './firestore-write';
 
 /**
  * Firebase Firestore veri katmanı — oturum, profil, partner, okuma önbelleği, jeton.
@@ -54,7 +56,7 @@ export async function firebaseAddPartner(userId: string, birthInput: BirthInput)
     natalChart: computeNatalChart(birth),
     createdAt: new Date().toISOString(),
   };
-  await setDoc(ref, partner);
+  await setDoc(ref, forFirestore(partner));
   return partner;
 }
 
@@ -72,21 +74,111 @@ export async function firebaseUpdatePartner(
   const birth = normalizeBirthInput(birthInput);
   if (!birth?.name || !birth?.birthDate) throw new Error('Partner doğum bilgileri eksik');
 
-  const patch: Partner = {
-    ...(snap.data() as Partner),
-    birth,
-    natalChart: computeNatalChart(birth),
-    analysis: undefined,
-    synastryScore: undefined,
-    conversationId: undefined,
-  };
-  await setDoc(ref, patch);
-  return patch;
+  await setDoc(
+    ref,
+    forFirestore({
+      ...(snap.data() as Partner),
+      birth,
+      natalChart: computeNatalChart(birth),
+      analysis: deleteField(),
+      synastryScore: deleteField(),
+      synastryScoreNote: deleteField(),
+      conversationId: deleteField(),
+    }),
+    { merge: true },
+  );
+
+  const updatedSnap = await getDoc(ref);
+  return updatedSnap.data() as Partner;
 }
 
 export async function firebaseGetReading(userId: string, date: string): Promise<DailyReading | null> {
   const snap = await getDoc(doc(db(), FIRESTORE_COLLECTIONS.readings, readingDocId(userId, date)));
   return snap.exists() ? (snap.data() as DailyReading) : null;
+}
+
+export async function firebaseSaveReading(reading: DailyReading): Promise<void> {
+  await setDoc(
+    doc(db(), FIRESTORE_COLLECTIONS.readings, readingDocId(reading.userId, reading.date)),
+    forFirestore(reading),
+  );
+}
+
+export async function firebaseSaveConversation(conversation: Conversation): Promise<void> {
+  await setDoc(
+    doc(db(), FIRESTORE_COLLECTIONS.conversations, conversation.id),
+    forFirestore(conversation),
+  );
+}
+
+export async function firebaseGetUserProfile(userId: string): Promise<Profile | null> {
+  const snap = await getDoc(doc(db(), FIRESTORE_COLLECTIONS.users, userId));
+  if (!snap.exists()) return null;
+  const { updatedAt: _, ...profile } = snap.data() as Profile & { updatedAt?: string };
+  return profile;
+}
+
+export async function firebaseUpdateUserProfile(
+  userId: string,
+  patch: Partial<Profile>,
+): Promise<Profile> {
+  const ref = doc(db(), FIRESTORE_COLLECTIONS.users, userId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('Kullanıcı bulunamadı');
+  const now = new Date().toISOString();
+  const merged = { ...snap.data(), ...patch, updatedAt: now };
+  await setDoc(ref, forFirestore(merged), { merge: true });
+  const { updatedAt: _, ...profile } = merged as Profile & { updatedAt?: string };
+  return profile;
+}
+
+export async function firebaseAdjustTokens(
+  userId: string,
+  delta: number,
+  reason: string,
+): Promise<Profile> {
+  const userRef = doc(db(), FIRESTORE_COLLECTIONS.users, userId);
+  return runTransaction(db(), async (tx) => {
+    const userSnap = await tx.get(userRef);
+    if (!userSnap.exists()) throw new Error('Kullanıcı bulunamadı');
+    const user = userSnap.data() as Profile & { updatedAt?: string };
+    const tokenBalance = user.tokenBalance + delta;
+    if (tokenBalance < 0) throw new Error('Yetersiz jeton');
+    const now = new Date().toISOString();
+    tx.set(userRef, { ...user, tokenBalance, updatedAt: now }, { merge: true });
+    const ledgerRef = doc(collection(db(), FIRESTORE_COLLECTIONS.ledger));
+    tx.set(ledgerRef, {
+      id: ledgerRef.id,
+      userId,
+      delta,
+      reason,
+      createdAt: now,
+    });
+    const { updatedAt: _, ...profile } = { ...user, tokenBalance, updatedAt: now };
+    return profile;
+  });
+}
+
+export async function firebaseGetPartner(userId: string, partnerId: string): Promise<Partner | null> {
+  const snap = await getDoc(doc(db(), FIRESTORE_COLLECTIONS.partners, partnerId));
+  if (!snap.exists()) return null;
+  const partner = snap.data() as Partner;
+  return partner.userId === userId ? partner : null;
+}
+
+export async function firebaseUpdatePartnerFields(
+  userId: string,
+  partnerId: string,
+  patch: Partial<Partner>,
+): Promise<Partner> {
+  const ref = doc(db(), FIRESTORE_COLLECTIONS.partners, partnerId);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || (snap.data() as Partner).userId !== userId) {
+    throw new Error('Partner bulunamadı');
+  }
+  const updated = { ...(snap.data() as Partner), ...patch };
+  await setDoc(ref, forFirestore(updated), { merge: true });
+  return updated;
 }
 
 export async function firebaseGetConversation(

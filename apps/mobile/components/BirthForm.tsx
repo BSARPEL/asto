@@ -75,23 +75,64 @@ function isValidBirthDate(dateStr: string): boolean {
   );
 }
 
+function wallClockDate(hours: number, minutes: number): Date {
+  const today = new Date();
+  return new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    hours,
+    minutes,
+    0,
+    0,
+  );
+}
+
 function parseBirthTimeString(timeStr: string): Date {
   const match = /^(\d{2}):(\d{2})$/.exec(timeStr);
   if (match) {
     const hours = Number(match[1]);
     const minutes = Number(match[2]);
     if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
-      const date = new Date(2000, 0, 1, hours, minutes, 0, 0);
-      return date;
+      // Bugünün tarihi — iOS time picker DST/offset ile aynı referansı kullanır (2000 anchor +1 saat yapabiliyordu)
+      return wallClockDate(hours, minutes);
     }
   }
-  return new Date(2000, 0, 1, 12, 0, 0, 0);
+  return wallClockDate(12, 0);
 }
 
 function formatBirthTime(date: Date): string {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
+}
+
+/** Picker'dan gelen Date → HH:mm (yalnızca saat/dakika, gün ay yok sayılır). */
+function timeFromPickerSelection(selected: Date): string {
+  return formatBirthTime(selected);
+}
+
+/** Kullanıcının yazdığı saati HH:mm yap (23:15, 9:05, 2305). */
+function normalizeTypedBirthTime(raw: string): string | null {
+  const t = raw.trim();
+  const colon = /^(\d{1,2}):(\d{1,2})$/.exec(t);
+  if (colon) {
+    const hours = Number(colon[1]);
+    const minutes = Number(colon[2]);
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+    return null;
+  }
+  const digits = t.replace(/\D/g, '');
+  if (digits.length === 4) {
+    const hours = Number(digits.slice(0, 2));
+    const minutes = Number(digits.slice(2, 4));
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+  }
+  return null;
 }
 
 function isValidBirthTime(timeStr: string): boolean {
@@ -139,6 +180,7 @@ export function BirthForm({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => parseBirthDateString('1995-06-15'));
   const [pickerTime, setPickerTime] = useState(() => parseBirthTimeString('12:00'));
+  const [draftBirthTime, setDraftBirthTime] = useState('12:00');
   const [showCountryList, setShowCountryList] = useState(false);
   const [showCityList, setShowCityList] = useState(false);
 
@@ -161,7 +203,10 @@ export function BirthForm({
     closePickers();
     setShowCountryList(false);
     setShowCityList(false);
-    setPickerTime(parseBirthTimeString(birthTime));
+    const normalized = normalizeTypedBirthTime(birthTime) ?? birthTime;
+    const timeForPicker = isValidBirthTime(normalized) ? normalized : '12:00';
+    setDraftBirthTime(timeForPicker);
+    setPickerTime(parseBirthTimeString(timeForPicker));
     setShowTimePicker(true);
   };
 
@@ -220,7 +265,9 @@ export function BirthForm({
   const onTimePicked = (event: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') setShowTimePicker(false);
     if (event.type === 'dismissed' || !selected) return;
-    setBirthTime(formatBirthTime(selected));
+    const next = timeFromPickerSelection(selected);
+    setBirthTime(next);
+    setDraftBirthTime(next);
   };
 
   const handleSubmit = async () => {
@@ -241,11 +288,12 @@ export function BirthForm({
       setError('Geçerli bir doğum tarihi girin');
       return;
     }
-    if (!/^\d{2}:\d{2}$/.test(birthTime)) {
-      setError('Saat SS:DD formatında olmalı');
+    const normalizedTime = normalizeTypedBirthTime(birthTime) ?? birthTime;
+    if (!/^\d{2}:\d{2}$/.test(normalizedTime)) {
+      setError('Saat SS:DD formatında olmalı (örn. 23:15)');
       return;
     }
-    if (!isValidBirthTime(birthTime)) {
+    if (!isValidBirthTime(normalizedTime)) {
       setError('Geçerli bir doğum saati girin');
       return;
     }
@@ -264,14 +312,14 @@ export function BirthForm({
       await onSubmit({
         name: name.trim(),
         birthDate,
-        birthTime,
+        birthTime: normalizedTime,
         city: location.city,
         country: location.country,
         countryName: location.countryName,
         latitude: location.latitude,
         longitude: location.longitude,
         timezone: location.timezone,
-        gender,
+        ...(gender ? { gender } : {}),
       });
     } catch (e) {
       setError((e as Error).message);
@@ -337,7 +385,7 @@ export function BirthForm({
                 label="Doğum saati"
                 value={birthTime}
                 editable={false}
-                placeholder="14:30"
+                placeholder="09:45"
               />
             </View>
           </Pressable>
@@ -390,7 +438,7 @@ export function BirthForm({
             title="Doğum saati"
             onClose={() => setShowTimePicker(false)}
             onConfirm={() => {
-              setBirthTime(formatBirthTime(pickerTime));
+              setBirthTime(draftBirthTime);
               setShowTimePicker(false);
             }}
           >
@@ -399,7 +447,9 @@ export function BirthForm({
               mode="time"
               display="spinner"
               onChange={(_, selected) => {
-                if (selected) setPickerTime(selected);
+                if (!selected) return;
+                setPickerTime(selected);
+                setDraftBirthTime(timeFromPickerSelection(selected));
               }}
               is24Hour
               locale="tr-TR"
@@ -552,8 +602,8 @@ function SuggestionList({
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 0 },
-  embedded: { paddingBottom: spacing.sm },
+  wrap: { marginBottom: 0, width: '100%', maxWidth: '100%' },
+  embedded: { paddingBottom: spacing.sm, width: '100%', maxWidth: '100%' },
   partnerHint: {
     ...typography.bodyMuted,
     fontSize: 13,
@@ -572,11 +622,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    width: '100%',
   },
   half: {
     flexGrow: 1,
-    flexBasis: 140,
-    minWidth: 140,
+    flexBasis: '47%',
+    minWidth: 0,
+    maxWidth: '100%',
   },
   pickerBackdrop: {
     flex: 1,
@@ -612,6 +664,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSoft,
     maxHeight: 240,
     overflow: 'hidden',
+    width: '100%',
+    maxWidth: '100%',
   },
   suggestionsScroll: {
     maxHeight: 200,

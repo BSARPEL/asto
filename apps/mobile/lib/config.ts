@@ -1,5 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { createGeminiRuntime, type AiRuntime } from '@asto/shared';
+import { PRODUCTION_AI_API_URL } from '@/constants/endpoints';
 
 const AI_API_PORT = 8788;
 
@@ -28,9 +30,15 @@ function stripTrailingSlash(url: string) {
   return url.replace(/\/$/, '');
 }
 
+function isLocalUrl(url: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(
+    url,
+  );
+}
+
 /**
- * AI sunucusu (Express / Cloud Functions + Gemini).
- * Firebase Auth + Firestore'dan BAĞIMSIZ — yalnızca Gemini istekleri için.
+ * AI sunucusu (Cloud Functions + Gemini).
+ * Mağaza sürümü: yalnızca HTTPS production URL — LAN/localhost asla kullanılmaz.
  */
 function resolveAiApiUrl(): string {
   const fromExtra = Constants.expoConfig?.extra?.aiApiUrl as string | undefined;
@@ -38,28 +46,34 @@ function resolveAiApiUrl(): string {
     process.env.EXPO_PUBLIC_AI_API_URL ||
     process.env.EXPO_PUBLIC_API_URL ||
     fromExtra;
-  if (fromEnv) return stripTrailingSlash(fromEnv);
 
-  if (__DEV__ && !IS_PRODUCTION) {
-    const metroHost = devMetroHost();
-    if (metroHost) return `http://${metroHost}:${AI_API_PORT}/api`;
-    if (Platform.OS === 'android') return `http://10.0.2.2:${AI_API_PORT}/api`;
-    return `http://127.0.0.1:${AI_API_PORT}/api`;
+  if (fromEnv) {
+    const url = stripTrailingSlash(fromEnv);
+    if (IS_PRODUCTION && isLocalUrl(url)) {
+      console.warn('[config] Production build cannot use LAN AI URL — using Cloud Functions.');
+      return PRODUCTION_AI_API_URL;
+    }
+    return url;
   }
 
-  return '';
+  // Release bundle without explicit env → production Cloud Functions
+  if (IS_PRODUCTION || !__DEV__) {
+    return PRODUCTION_AI_API_URL;
+  }
+
+  // Yerel geliştirme (Expo Go / simülatör) — opsiyonel localhost
+  const metroHost = devMetroHost();
+  if (metroHost) return `http://${metroHost}:${AI_API_PORT}/api`;
+  if (Platform.OS === 'android') return `http://10.0.2.2:${AI_API_PORT}/api`;
+  return `http://127.0.0.1:${AI_API_PORT}/api`;
 }
 
 export const AI_API_URL = resolveAiApiUrl();
 
 export function isAiApiConfigured(): boolean {
-  return AI_API_URL.length > 0;
-}
-
-/** @deprecated Use isAiApiConfigured */
-export const API_URL = AI_API_URL;
-export function apiUrlConfigured(): boolean {
-  return isAiApiConfigured();
+  if (!AI_API_URL.length) return false;
+  if (IS_PRODUCTION || !__DEV__) return AI_API_URL.startsWith('https://');
+  return true;
 }
 
 export function usesEmbeddedBundle(): boolean {
@@ -74,4 +88,38 @@ export function usesFirebaseDirect(): boolean {
   const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
   const appId = process.env.EXPO_PUBLIC_FIREBASE_APP_ID;
   return Boolean(apiKey && appId);
+}
+
+/** Google AI Studio — doğrudan Gemini (Firebase'den bağımsız). */
+export function getGeminiApiKey(): string {
+  const fromExtra = Constants.expoConfig?.extra?.geminiApiKey as string | undefined;
+  return (
+    process.env.EXPO_PUBLIC_GEMINI_API_KEY ||
+    fromExtra ||
+    ''
+  );
+}
+
+export function getGeminiModel(): string {
+  return (
+    process.env.EXPO_PUBLIC_GEMINI_MODEL ||
+    (Constants.expoConfig?.extra?.geminiModel as string | undefined) ||
+    'gemini-2.5-flash-lite'
+  );
+}
+
+let geminiRuntime: AiRuntime | undefined;
+
+export function getGeminiRuntime(): AiRuntime {
+  const key = getGeminiApiKey();
+  if (!key) throw new Error('Gemini API anahtarı tanımlı değil');
+  if (!geminiRuntime) {
+    geminiRuntime = createGeminiRuntime(key, getGeminiModel());
+  }
+  return geminiRuntime;
+}
+
+/** Mobil: Gemini doğrudan veya (yedek) HTTPS AI API */
+export function usesDirectGemini(): boolean {
+  return getGeminiApiKey().length > 10;
 }
