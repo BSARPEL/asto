@@ -44,7 +44,7 @@ export default function LoginScreen() {
           <BrandMark size="lg" />
           <Title>Yıldızlara hoş geldin</Title>
           <Subtitle>
-            Kişisel gökyüzü rehberin — natal harita, günlük öngörü ve sinastri.
+            BN Astro ile natal haritanı oku, gökyüzünü takip et, sinastri bağını keşfet.
           </Subtitle>
         </>
       ) : (

@@ -14,7 +14,7 @@ import { SoftPulse } from '@/components/motion';
 const TAB_ICONS = {
   chart: '☉',
   forecast: '☽',
-  relationship: '☍',
+  relationship: '∞',
   tokens: '◆',
   profile: '✧',
 } as const;
@@ -82,14 +82,14 @@ export default function TabLayout() {
         headerTitleStyle: { fontFamily: fonts.display, fontSize: 17, letterSpacing: 0.3 },
         headerShadowVisible: false,
         tabBarStyle: {
-          backgroundColor: Platform.OS === 'ios' ? 'rgba(11, 15, 22, 0.96)' : colors.bgElevated,
+          backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.94)' : colors.bgElevated,
           borderTopColor: colors.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           height: 60 + bottom,
           paddingBottom: bottom,
           paddingTop: 6,
           ...(Platform.OS === 'web'
-            ? ({ boxShadow: '0 -6px 24px rgba(0, 0, 0, 0.35)' } as object)
+            ? ({ boxShadow: '0 -4px 16px rgba(40, 15, 95, 0.08)' } as object)
             : {}),
         },
         tabBarActiveTintColor: colors.teal,
@@ -123,7 +123,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="relationship"
         options={{
-          title: 'Sinastri',
+          title: 'Ruh eşi',
           tabBarIcon: ({ focused }) => (
             <TabIcon glyph={TAB_ICONS.relationship} focused={focused} />
           ),
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: 'rgba(98, 189, 181, 0.18)',
+    backgroundColor: colors.tealDim,
   },
   icon: {
     color: colors.textMuted,

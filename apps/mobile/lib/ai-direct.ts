@@ -12,10 +12,12 @@ import {
   generateChartNarrative,
   generateDailyReading,
   generateRelationshipAnalysis,
+  generateSoulmateReading,
   type Conversation,
   type DailyReading,
   type Partner,
   type Profile,
+  type SoulmateReading,
 } from '@asto/shared';
 import { collection, doc } from 'firebase/firestore';
 import { getGeminiRuntime } from './config';
@@ -164,6 +166,37 @@ export async function directGenerateChartNarrative(force = false) {
   );
   const updated = await firebaseUpdateUserProfile(userId, { chartNarrative: text });
   return { text, profile: updated, cost, cached: false };
+}
+
+export async function directGenerateSoulmateReading(force = false) {
+  const { userId, profile } = await requireProfile();
+
+  if (profile.soulmateReading?.summary && !force) {
+    return { reading: profile.soulmateReading, profile, cost: 0, cached: true };
+  }
+
+  const hadCached = Boolean(profile.soulmateReading?.summary);
+  let cost = 0;
+  let currentProfile = profile;
+  if (hadCached && force && !profile.isSubscribed) {
+    cost = TOKEN_COSTS.soulmateReading;
+    currentProfile = await firebaseAdjustTokens(userId, -cost, 'soulmate_reading');
+  }
+
+  const { summary, themes } = await generateSoulmateReading(
+    profile.natalChart!,
+    profile.displayName,
+    getGeminiRuntime(),
+    { gender: profile.birth?.gender },
+  );
+
+  const reading: SoulmateReading = {
+    summary,
+    themes,
+    createdAt: new Date().toISOString(),
+  };
+  const updated = await firebaseUpdateUserProfile(userId, { soulmateReading: reading });
+  return { reading, profile: updated, cost, cached: false };
 }
 
 export async function directAskDailyQuestion(question: string, conversationId?: string) {

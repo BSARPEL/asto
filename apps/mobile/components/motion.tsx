@@ -17,6 +17,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { colors } from '@/constants/theme';
 
 const easeOut = Easing.out(Easing.cubic);
 
@@ -131,7 +132,7 @@ export function TwinkleDot({
           width: size,
           height: size,
           borderRadius: size,
-          backgroundColor: 'rgba(139, 111, 71, 0.45)',
+          backgroundColor: colors.star,
         },
         style,
       ]}

@@ -49,7 +49,7 @@ export default function RegisterScreen() {
           <BrandMark size="lg" />
           <Title>Gökyüzüne katıl</Title>
           <Subtitle>
-            Haritanı çıkar, günlük gökyüzünü oku, ilişki bağlarını keşfet.
+            Haritanı çıkar, günlük gökyüzünü oku, sonsuz sinastri bağını keşfet.
           </Subtitle>
         </>
       ) : (

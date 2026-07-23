@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signColor, glyphTextStyle } from '@/constants/astro';
 import { AstroGlyph } from '@/components/AstroGlyph';
+import { BrandMark } from '@/components/BrandLogo';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -28,7 +29,6 @@ import Animated, {
 import {
   AnimatedScoreFill,
   FadeIn,
-  SoftPulse,
   Shimmer,
   TwinkleDot,
   enterChatAssistant,
@@ -173,7 +173,7 @@ export function Screen({
   children,
   style,
   edges = ['left', 'right'],
-  stars = true,
+  stars = false,
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
@@ -198,7 +198,6 @@ export function Screen({
       {stars ? <Starfield /> : null}
       <View pointerEvents="none" style={styles.glowTop} />
       <View pointerEvents="none" style={styles.glowMoon} />
-      <View pointerEvents="none" style={styles.glowBottom} />
       <View style={[styles.screenInner, pad]}>{children}</View>
     </View>
   );
@@ -248,28 +247,7 @@ export function ScreenScroll({
 
 // ─── Typography ───────────────────────────────────────────────────────────────
 
-export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
-  const large = size === 'lg';
-  return (
-    <FadeIn from="down" delayMs={40}>
-      <View style={styles.brandWrap}>
-        <SoftPulse>
-          <View style={[styles.brandOrb, large && styles.brandOrbLg]}>
-            <LinearGradient
-              colors={['rgba(98,189,181,0.26)', 'rgba(217,201,165,0.16)']}
-              style={StyleSheet.absoluteFill}
-            />
-            <Text style={[styles.brandOrbGlyph, glyphTextStyle]}>☽</Text>
-          </View>
-        </SoftPulse>
-        <Text style={large ? typography.brandLg : typography.brand}>BN Astro</Text>
-        {large ? (
-          <Text style={styles.brandTag}>Natal · Gökyüzü · Sinastri</Text>
-        ) : null}
-      </View>
-    </FadeIn>
-  );
-}
+export { BrandMark, BrandLogoMark, BrandSplash } from '@/components/BrandLogo';
 
 export function Title({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
   return (
@@ -426,7 +404,7 @@ export function SynastryBond({
       </View>
       <View style={[styles.bondCenter, compact && styles.bondCenterCompact]}>
         <View style={[styles.bondLine, compact && styles.bondLineCompact]} />
-        <Text style={[styles.bondAspect, compact && styles.bondAspectCompact, glyphTextStyle]}>☍</Text>
+        <Text style={[styles.bondAspect, compact && styles.bondAspectCompact, glyphTextStyle]}>∞</Text>
         <View style={[styles.bondLine, compact && styles.bondLineCompact]} />
       </View>
       <View style={[styles.bondSide, compact && styles.bondSideCompact]}>
@@ -544,7 +522,7 @@ export function Button({
     >
       <Animated.View style={animStyle}>
         {loading ? (
-          <ActivityIndicator color={variant === 'danger' ? colors.danger : colors.accent} />
+          <ActivityIndicator color={variant === 'danger' ? colors.danger : colors.teal} />
         ) : (
           <View style={styles.btnInner}>
             {icon ? (
@@ -640,7 +618,7 @@ export function TokenBadge({ balance, compact }: { balance: number; compact?: bo
   return (
     <View style={[styles.tokenBadge, compact && styles.tokenBadgeCompact]}>
       <LinearGradient
-        colors={['rgba(212,196,160,0.22)', 'rgba(212,196,160,0.06)']}
+        colors={[colors.accentLight, 'rgba(168, 146, 94, 0.04)']}
         style={StyleSheet.absoluteFill}
       />
       <Text style={[styles.tokenGlyph, compact && styles.tokenGlyphCompact]}>◆</Text>
@@ -668,7 +646,7 @@ export function Avatar({ name, size = 'md' }: { name: string; size?: 'xs' | 'sm'
   return (
     <View style={[styles.avatar, { width: dim, height: dim, borderRadius: dim / 2 }]}>
       <LinearGradient
-        colors={['rgba(94,184,176,0.22)', 'rgba(212,196,160,0.14)']}
+        colors={[colors.tealDim, colors.accentLight]}
         style={StyleSheet.absoluteFill}
       />
       <Text
@@ -1059,7 +1037,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <BrandMark size="lg" />
           <Title style={styles.authWideTitle}>Kişisel gökyüzü rehberin</Title>
           <Subtitle style={styles.authWideSubtitle}>
-            Natal harita, günlük gökyüzü ve sinastri — hepsi haritana özel.
+            Natal harita, günlük gökyüzü ve sinastri — sonsuz bağın stüdyosu.
           </Subtitle>
           <View style={styles.authFeatures}>
             <View style={styles.authFeatureRow}>
@@ -1071,7 +1049,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
               <Text style={styles.authFeature}>Günlük gökyüzü</Text>
             </View>
             <View style={styles.authFeatureRow}>
-              <Text style={[styles.authFeatureGlyph, glyphTextStyle]}>☍</Text>
+              <Text style={[styles.authFeatureGlyph, glyphTextStyle]}>∞</Text>
               <Text style={styles.authFeature}>İlişki sinastrisi</Text>
             </View>
           </View>
@@ -1162,29 +1140,20 @@ const styles = StyleSheet.create({
   },
   glowTop: {
     position: 'absolute',
-    top: -120,
-    right: -80,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
+    top: -140,
+    right: -100,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
     backgroundColor: colors.glowTeal,
   },
   glowMoon: {
     position: 'absolute',
-    top: '18%',
-    left: -100,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: colors.glowMoon,
-  },
-  glowBottom: {
-    position: 'absolute',
-    bottom: 40,
-    left: -60,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    bottom: -80,
+    left: -80,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
     backgroundColor: colors.glowMoon,
   },
 
@@ -1278,7 +1247,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderRadius: radii.md,
   },
-  cardElevated: { ...shadowSoft, backgroundColor: colors.bgSoft },
+  cardElevated: { ...shadowSoft, backgroundColor: colors.bgElevated, borderColor: colors.borderStrong },
   cardAccent: {
     position: 'absolute',
     left: 0,
@@ -1290,7 +1259,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: '100%',
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(20, 28, 42, 0.9)',
+    backgroundColor: colors.bgElevated,
     borderColor: colors.borderStrong,
     borderWidth: 1,
     borderRadius: radii.xl,
@@ -1379,11 +1348,11 @@ const styles = StyleSheet.create({
     width: 10,
   },
   bondAspect: {
-    fontSize: 14,
-    color: colors.teal,
+    fontSize: 18,
+    color: colors.accent,
   },
   bondAspectCompact: {
-    fontSize: 12,
+    fontSize: 14,
   },
   trustNote: {
     ...typography.caption,
@@ -1435,7 +1404,7 @@ const styles = StyleSheet.create({
   btnText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.onAccent },
   btnTextCompact: { fontSize: 14 },
   btnTextOutline: { color: colors.text },
-  btnTextGhost: { color: colors.accentStrong },
+  btnTextGhost: { color: colors.teal },
   btnTextDanger: { color: colors.danger },
 
   fieldWrap: { marginBottom: spacing.md, width: '100%', maxWidth: '100%' },
@@ -1740,7 +1709,7 @@ const styles = StyleSheet.create({
   },
   bubbleUser: {
     backgroundColor: colors.userBubble,
-    borderColor: 'rgba(94, 184, 176, 0.28)',
+    borderColor: colors.tealDim,
     marginLeft: spacing.lg,
   },
   bubbleUserCompact: { marginLeft: spacing.sm },

@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   suggestionBtnPressed: {
     backgroundColor: colors.tealDim,
-    borderColor: 'rgba(61, 154, 148, 0.35)',
+    borderColor: colors.teal,
   },
   suggestionText: {
     fontFamily: fonts.body,

@@ -425,6 +425,7 @@ export function BirthForm({
               value={pickerDate}
               mode="date"
               display="spinner"
+              themeVariant="light"
               onChange={(_, selected) => {
                 if (selected) setPickerDate(selected);
               }}
@@ -446,6 +447,7 @@ export function BirthForm({
               value={pickerTime}
               mode="time"
               display="spinner"
+              themeVariant="light"
               onChange={(_, selected) => {
                 if (!selected) return;
                 setPickerTime(selected);
@@ -634,17 +636,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(5,8,14,0.72)',
+    backgroundColor: colors.overlay,
     padding: spacing.md,
   },
   pickerCard: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.bgElevated,
     borderRadius: 16,
     padding: spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
   pickerTitle: {
     ...typography.label,

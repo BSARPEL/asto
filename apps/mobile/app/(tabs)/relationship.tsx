@@ -12,7 +12,7 @@ import {
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TOKEN_COSTS, formatBirthPlace, type BirthInput } from '@asto/shared';
-import type { Conversation, Partner } from '@asto/shared';
+import type { Conversation, Partner, SoulmateReading } from '@asto/shared';
 import { AiChatPanel } from '@/components/AiChatPanel';
 import { AiMarkdown } from '@/components/AiMarkdown';
 import { BirthForm } from '@/components/BirthForm';
@@ -25,12 +25,14 @@ import {
   EmptyState,
   ErrorText,
   HeaderRow,
+  HeroCard,
   Screen,
   ScreenScroll,
   ScoreBadge,
   ScoreBar,
   SectionTitle,
   SheetModal,
+  Skeleton,
   SynastryBond,
   TokenBadge,
   TrustNote,
@@ -46,6 +48,12 @@ const SYNASTRY_SUGGESTIONS = [
   'Tartışma anında nelere dikkat etmeliyiz?',
   'Uzun vadeli potansiyelimiz nasıl?',
 ];
+
+function soulmateRefreshLabel(isSubscribed: boolean, hasReading: boolean) {
+  if (!hasReading) return 'Ruh eşi öngörüsü al';
+  if (isSubscribed) return 'Yeniden öngör';
+  return `Yeniden öngör (${TOKEN_COSTS.soulmateReading} jeton)`;
+}
 
 function analyzeLabel(isSubscribed: boolean, hasAnalysis: boolean) {
   if (isSubscribed) return hasAnalysis ? 'Yeniden yorumla' : 'Sinastri yorumu al';
@@ -234,8 +242,44 @@ export default function RelationshipScreen() {
   const [asking, setAsking] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState('');
   const [loadingConversation, setLoadingConversation] = useState(false);
+  const [soulmate, setSoulmate] = useState<SoulmateReading | null>(
+    profile?.soulmateReading ?? null,
+  );
+  const [soulmateLoading, setSoulmateLoading] = useState(false);
+  const [soulmateCached, setSoulmateCached] = useState(Boolean(profile?.soulmateReading?.summary));
+  const soulmateRequested = useRef(false);
   const partnersRef = useRef(partners);
   partnersRef.current = partners;
+
+  useEffect(() => {
+    if (profile?.soulmateReading?.summary) {
+      setSoulmate(profile.soulmateReading);
+      setSoulmateCached(true);
+    } else {
+      setSoulmate(null);
+      setSoulmateCached(false);
+      soulmateRequested.current = false;
+    }
+  }, [profile?.soulmateReading]);
+
+  const loadSoulmate = useCallback(
+    async (force = false) => {
+      if (!token) return;
+      setSoulmateLoading(true);
+      setError(null);
+      try {
+        const res = await aiService.generateSoulmateReading(token, force);
+        setSoulmate(res.reading);
+        setSoulmateCached(res.cached);
+        setProfile(res.profile);
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setSoulmateLoading(false);
+      }
+    },
+    [token, setProfile],
+  );
 
   const load = useCallback(async () => {
     if (!profile?.id) return;
@@ -282,7 +326,15 @@ export default function RelationshipScreen() {
       load().catch((e) => {
         if (view !== 'detail') setError(e.message);
       });
-    }, [load, view]),
+      if (view === 'hub' && !soulmateRequested.current) {
+        soulmateRequested.current = true;
+        if (!profile?.soulmateReading?.summary) {
+          loadSoulmate(false).catch(() => {
+            soulmateRequested.current = false;
+          });
+        }
+      }
+    }, [load, view, loadSoulmate, profile?.soulmateReading?.summary]),
   );
 
   const selected = partners.find((p) => p.id === selectedId) ?? null;
@@ -291,7 +343,7 @@ export default function RelationshipScreen() {
     const inDetailView = view === 'detail' && Boolean(selected);
     navigation.setOptions({
       headerShown: true,
-      title: inDetailView ? selected!.birth.name : 'Sinastri',
+      title: inDetailView ? selected!.birth.name : 'Ruh eşi',
       headerBackVisible: false,
       headerLeft: inDetailView
         ? () => (
@@ -650,15 +702,59 @@ export default function RelationshipScreen() {
           <ScreenScroll contentContainerStyle={tabScrollStyle()}>
           <HeaderRow
             compact
-            eyebrow="İki harita · bir bağ"
-            title="Sinastri"
-            subtitle="Güneş–Ay karşılaştırması ve ilişki dinamiği"
+            eyebrow="Sonsuz bağ · natal dil"
+            title="Ruh eşi"
+            subtitle="Haritana göre derin bağ öngörüsü ve partner sinastrisi"
             right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
           />
 
+          <HeroCard accent={colors.accent}>
+            <View style={styles.soulmateHeader}>
+              <SectionTitle compact>Ruh eşi öngörüsü</SectionTitle>
+              {soulmate && !soulmateLoading ? (
+                <Chip label={soulmateCached ? 'Kayıtlı' : 'Yeni'} active={soulmateCached} compact />
+              ) : null}
+            </View>
+            {soulmateLoading && !soulmate ? (
+              <View style={styles.soulmateSkeletons}>
+                <Skeleton height={12} width="100%" />
+                <Skeleton height={12} width="92%" />
+                <Skeleton height={12} width="78%" />
+              </View>
+            ) : soulmate ? (
+              <>
+                <Body style={styles.soulmateBody}>{soulmate.summary}</Body>
+                {soulmate.themes?.length ? (
+                  <View style={styles.soulmateThemes}>
+                    {soulmate.themes.map((t) => (
+                      <Chip key={t} label={t} active compact />
+                    ))}
+                  </View>
+                ) : null}
+                <TrustNote>
+                  Ruh eşi yorumu rehberliktir; harita diline dayanır, kesin kehanet değildir.
+                </TrustNote>
+              </>
+            ) : (
+              <Body muted>
+                Sekmeye girdiğinde natal haritana göre ruh eşi enerjisi okunur. İlk öngörü ücretsizdir.
+              </Body>
+            )}
+            <Button
+              compact
+              label={soulmateRefreshLabel(
+                profile?.isSubscribed ?? false,
+                Boolean(soulmate?.summary),
+              )}
+              onPress={() => loadSoulmate(Boolean(soulmate?.summary))}
+              loading={soulmateLoading}
+              variant={soulmate ? 'ghost' : 'primary'}
+            />
+          </HeroCard>
+
         <View style={styles.hubTabs}>
           <Chip
-            label={`Partnerler (${partners.length})`}
+            label={`Partner sinastrisi (${partners.length})`}
             active={hubTab === 'partners'}
             onPress={() => setHubTab('partners')}
             compact
@@ -677,12 +773,12 @@ export default function RelationshipScreen() {
           <Card compact accent={colors.teal} style={styles.addCard}>
             <View style={styles.addRow}>
               <View style={styles.addIcon}>
-                <Text style={styles.addIconGlyph}>☍</Text>
+                <Text style={styles.addIconGlyph}>∞</Text>
               </View>
               <View style={styles.addCopy}>
                 <Text style={styles.addTitle}>Partner ekle</Text>
                 <Text style={styles.addSubtitle}>
-                  Doğum bilgisiyle iki haritayı yan yana oku
+                  Doğum bilgisiyle ruh eşi / ilişki sinastrisini birlikte oku
                 </Text>
               </View>
               <View style={styles.addPlus}>
@@ -697,9 +793,9 @@ export default function RelationshipScreen() {
         {partners.length === 0 ? (
           <EmptyState
             compact
-            title="Sinastriye hazır"
-            body="Partnerinin doğum bilgisini ekleyerek Güneş–Ay bağını ve ilişki yorumunu aç."
-            glyph="☍"
+            title="Partner sinastrisine hazır"
+            body="Ruh eşi öngörün üstte. Partnerinin doğum bilgisini ekleyerek iki haritayı yan yana oku."
+            glyph="∞"
           />
         ) : (
           <>
@@ -752,7 +848,7 @@ export default function RelationshipScreen() {
             compact
             title="Henüz sinastri geçmişi yok"
             body="Partner ekleyip sinastri yorumu aldığında yorumlar ve sohbetler burada listelenir."
-            glyph="☍"
+            glyph="∞"
           />
         ) : (
           <>
@@ -938,8 +1034,26 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   list: { gap: spacing.sm },
+  soulmateHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginBottom: 6,
+    width: '100%',
+  },
+  soulmateBody: { fontSize: 14, lineHeight: 21, flexShrink: 1 },
+  soulmateThemes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    marginBottom: 4,
+    width: '100%',
+  },
+  soulmateSkeletons: { gap: 6, marginVertical: 8 },
   cardActive: {
-    backgroundColor: 'rgba(98, 189, 181, 0.06)',
+    backgroundColor: colors.tealDim,
   },
   partnerTop: {
     flexDirection: 'row',

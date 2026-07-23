@@ -28,7 +28,7 @@ import * as aiService from '@/lib/ai-service';
 import { aiApiUnavailableMessage } from '@/lib/ai-api';
 import { isAiAvailable, getGeminiKeyIssue } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
-import { colors, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function ChartScreen() {
   const { token, profile, setProfile, refresh } = useAuth();
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     flexShrink: 1,
-    fontFamily: 'Manrope_400Regular',
+    fontFamily: fonts.body,
     fontSize: 12,
     lineHeight: 17,
     color: colors.textMuted,

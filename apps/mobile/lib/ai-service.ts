@@ -55,6 +55,11 @@ export async function generateChartNarrative(_firebaseIdToken: string, force = f
   return directAi.directGenerateChartNarrative(force);
 }
 
+export async function generateSoulmateReading(_firebaseIdToken: string, force = false) {
+  if (!usesDirectGemini()) aiUnavailable();
+  return directAi.directGenerateSoulmateReading(force);
+}
+
 export async function askDailyQuestion(
   _firebaseIdToken: string,
   question: string,

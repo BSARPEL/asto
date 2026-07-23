@@ -84,6 +84,14 @@ export interface Profile {
   natalChart?: ChartData;
   /** Cached AI natal chart narrative — cleared when birth changes */
   chartNarrative?: string;
+  /** Cached soulmate / ruh eşi reading — cleared when birth changes */
+  soulmateReading?: SoulmateReading;
+  createdAt: string;
+}
+
+export interface SoulmateReading {
+  summary: string;
+  themes: string[];
   createdAt: string;
 }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 type Props = {
   error: Error;
@@ -27,19 +27,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: fonts.display,
     color: colors.accentStrong,
     fontSize: 24,
     marginBottom: spacing.sm,
   },
   body: {
-    fontFamily: 'Manrope_400Regular',
+    fontFamily: fonts.body,
     color: colors.textMuted,
     marginBottom: spacing.lg,
     lineHeight: 22,
   },
   link: {
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: fonts.bodySemi,
     color: colors.teal,
     fontSize: 16,
   },

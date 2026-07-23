@@ -189,6 +189,7 @@ export async function firebaseSaveProfile(userId: string, patch: Partial<Profile
 
   if (patch.birth || patch.natalChart) {
     writeData.chartNarrative = deleteField();
+    writeData.soulmateReading = deleteField();
   }
 
   await setDoc(ref, forFirestore(writeData), { merge: true });

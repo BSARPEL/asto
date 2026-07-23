@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
+import { BrandSplash } from '@/components/BrandLogo';
 import { useAuth } from '@/lib/auth';
-import { colors } from '@/constants/theme';
 
 export default function Index() {
   const { loading, profile } = useAuth();
@@ -10,11 +9,7 @@ export default function Index() {
   useEffect(() => {}, [loading, profile]);
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
+    return <BrandSplash message="Haritan hazırlanıyor…" />;
   }
 
   // Oturum: Firebase Auth kalıcı (AsyncStorage) — çıkış yapılana kadar açık kalır

@@ -140,6 +140,17 @@ function mockComplete(prompt: string): string {
   if (prompt.includes('HARİTA ANLATIMI')) {
     return 'Haritan kişilik ve potansiyellerini anlatan kısa bir demo metnidir. (Gemini anahtarı yok)';
   }
+  if (prompt.includes('RUH EŞİ ÖNGÖRÜSÜ')) {
+    return [
+      'Haritana göre ruh eşinle bağın duygusal güvenlik ve karşılıklı büyüme üzerinden kurulur.',
+      '',
+      'Venüs ve Ay dilin, derin bağ kurabileceğin kişide yumuşak ama dürüst bir iletişim arar.',
+      '',
+      'Ruh eşi bir “mükemmel insan” değil; senin gölge yanlarını da nazikçe yansıtan bir aynadır.',
+      '',
+      'TEMALAR: duygusal güvenlik, karşılıklı büyüme, dürüst yakınlık',
+    ].join('\n');
+  }
   return 'Demo yanıt — Gemini API anahtarı tanımlı değil.';
 }
 
@@ -182,6 +193,43 @@ Kişi: ${displayName}
 ${chartSummaryForPrompt(natal)}
 Kişilik, potansiyeller ve dikkat edilmesi gereken temaları 3-4 paragrafta anlat.`,
   );
+}
+
+export async function generateSoulmateReading(
+  natal: ChartData,
+  displayName: string,
+  runtime: AiRuntime,
+  options?: { gender?: Gender },
+): Promise<{ summary: string; themes: string[] }> {
+  const genderLine = options?.gender
+    ? `Cinsiyet: ${options.gender === 'female' ? 'kadın' : 'erkek'}`
+    : '';
+
+  const prompt = `RUH EŞİ ÖNGÖRÜSÜ
+Kişi: ${displayName}
+${genderLine ? `${genderLine}\n` : ''}${chartSummaryForPrompt(natal, 'Natal harita')}
+
+Görev: Bu kişinin natal haritasına göre ruh eşi / derin bağ potansiyelini yorumla.
+Odaklar (sırayla, 3-5 kısa paragraf):
+1) Ruh eşinde aradığı duygusal dil (Ay / Venüs vurgusu)
+2) Karşı tarafta çekici bulduğu enerji (Güneş / Mars / yükselen ipuçları)
+3) Bağın nasıl kurulduğu ve nelere dikkat etmesi gerektiği
+4) Kısa, umut veren ama abartısız bir kapanış
+
+Kurallar:
+- Kesin “şu burç olacak” veya isim/yaş kehaneti yapma; eğilim ve farkındalık dili kullan.
+- Ruh eşini partner sinastrisi gibi tek bir kişiye sabitleme; haritaya dayalı arketip / dinamik anlat.
+- Tıbbi veya ilişki “garanti” vaadi yok.
+
+Son satırda virgülle ayrılmış 3 tema anahtar kelimesi ver: TEMALAR: ...`;
+
+  const text = await runtime.complete(prompt, { maxOutputTokens: 4096 });
+  const themeMatch = text.match(/TEMALAR:\s*(.+)$/i);
+  const themes = themeMatch
+    ? themeMatch[1].split(',').map((t) => t.trim()).filter(Boolean).slice(0, 5)
+    : ['bağ', 'yakınlık', 'büyüme'];
+  const summary = text.replace(/\n?TEMALAR:[\s\S]*$/i, '').trim();
+  return { summary, themes };
 }
 
 export async function answerQuestion(

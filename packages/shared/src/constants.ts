@@ -5,6 +5,7 @@ export const TOKEN_COSTS = {
   dailyReadingRefresh: 1,
   chartNarrative: 2,
   relationshipAnalysis: 3,
+  soulmateReading: 2,
   dailyReadingFreePerDay: 1,
 } as const;
 
