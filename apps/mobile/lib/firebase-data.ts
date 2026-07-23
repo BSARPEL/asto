@@ -81,6 +81,7 @@ export async function firebaseUpdatePartner(
       birth,
       natalChart: computeNatalChart(birth),
       analysis: deleteField(),
+      analysisAt: deleteField(),
       synastryScore: deleteField(),
       synastryScoreNote: deleteField(),
       conversationId: deleteField(),

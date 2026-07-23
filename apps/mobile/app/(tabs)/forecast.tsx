@@ -13,15 +13,14 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import type { Conversation, DailyReading } from '@asto/shared';
 import { TOKEN_COSTS } from '@asto/shared';
+import { AiChatPanel } from '@/components/AiChatPanel';
 import {
   Body,
   Button,
   Card,
   Chip,
   ErrorText,
-  Field,
   HeaderRow,
-  MessageBubble,
   ResponsiveSplit,
   Screen,
   ScreenScroll,
@@ -72,6 +71,7 @@ export default function ForecastScreen() {
   const [fetchingDaily, setFetchingDaily] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState('');
   const [error, setError] = useState<string | null>(null);
   const lastDayRef = useRef(todayKey);
 
@@ -174,11 +174,13 @@ export default function ForecastScreen() {
   };
 
   const ask = async (q: string) => {
-    if (!token || !q.trim()) return;
+    const trimmed = q.trim();
+    if (!token || !trimmed || asking) return;
     setError(null);
+    setPendingQuestion(trimmed);
     setAsking(true);
     try {
-      const res = await aiService.askDailyQuestion(token, q.trim(), conversation?.id);
+      const res = await aiService.askDailyQuestion(token, trimmed, conversation?.id);
       setConversation(res.conversation);
       setProfile(res.profile);
       setQuestion('');
@@ -186,6 +188,7 @@ export default function ForecastScreen() {
       setError((e as Error).message);
     } finally {
       setAsking(false);
+      setPendingQuestion('');
     }
   };
 
@@ -257,25 +260,31 @@ export default function ForecastScreen() {
   );
 
   const askCard = (
-    <Card compact>
+    <Card compact style={styles.chatCard}>
       <SectionTitle compact>Sorunu sor</SectionTitle>
       <Body muted style={styles.askHint}>
-        Günlük öngörüyle aynı sohbette devam eder.
+        Günlük öngörüyle aynı sohbette devam eder. Yanıt gelene kadar mesajın ve “Asto yazıyor…”
+        göstergesi görünür.
       </Body>
-      <View style={styles.suggestions}>
-        {SUGGESTIONS.map((s) => (
-          <Chip key={s} label={s} onPress={() => ask(s)} compact />
-        ))}
+      <View style={styles.chatHost}>
+        <AiChatPanel
+          messages={conversation?.messages ?? []}
+          asking={asking}
+          pendingUserText={pendingQuestion}
+          value={question}
+          onChangeText={setQuestion}
+          onSend={() => ask(question)}
+          suggestions={SUGGESTIONS}
+          onSuggestion={ask}
+          placeholder={
+            profile?.isSubscribed
+              ? 'Haritana özel bir soru yaz…'
+              : 'Haritana özel bir soru yaz… (1 jeton)'
+          }
+          emptyTitle="Öngörü sohbeti"
+          emptyBody="Günlük öngörünle ilgili veya haritana dair sorularını buradan sorabilirsin."
+        />
       </View>
-      <Field
-        compact
-        label={profile?.isSubscribed ? 'Mesajın' : 'Mesajın (1 jeton)'}
-        value={question}
-        onChangeText={setQuestion}
-        placeholder="Haritana özel bir soru yaz…"
-        multiline
-      />
-      <Button compact label="Gönder" onPress={() => ask(question)} loading={asking} icon="→" />
     </Card>
   );
 
@@ -302,15 +311,6 @@ export default function ForecastScreen() {
           <ResponsiveSplit leading={dailyCard} trailing={askCard} />
 
           <ErrorText>{error}</ErrorText>
-
-          {conversation?.messages.length ? (
-            <Card compact style={styles.thread}>
-              <SectionTitle compact>Bugünkü sohbet</SectionTitle>
-              {conversation.messages.map((m) => (
-                <MessageBubble key={m.id} role={m.role} content={m.content} compact />
-              ))}
-            </Card>
-          ) : null}
         </ScreenScroll>
       </KeyboardAvoidingView>
     </Screen>
@@ -344,7 +344,11 @@ const styles = StyleSheet.create({
   themes: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, width: '100%' },
   fetchBtn: { marginTop: 10 },
   askHint: { fontSize: 13, marginBottom: 6 },
-  suggestions: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },
+  chatCard: { marginBottom: spacing.sm },
+  chatHost: {
+    height: 420,
+    minHeight: 320,
+    marginTop: spacing.xs,
+  },
   skeletons: { gap: 6 },
-  thread: { marginBottom: spacing.sm },
 });

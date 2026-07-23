@@ -264,6 +264,7 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
     synastryScore: result.score,
     synastryScoreNote: result.scoreNote || undefined,
     analysis: result.analysis,
+    analysisAt: new Date().toISOString(),
     conversationId: conv.id,
     natalChart: partnerChart,
   });
@@ -327,6 +328,8 @@ export async function directAskPartnerQuestion(
     {
       selfGender: profile.birth?.gender,
       partnerGender: partner.birth.gender,
+      selfBirth: profile.birth,
+      partnerBirth: partner.birth,
     },
   );
 

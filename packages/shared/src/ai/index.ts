@@ -1,5 +1,6 @@
-import type { ChartData, Gender, SynastryResult } from '../types';
+import type { BirthInput, ChartData, Gender, SynastryResult } from '../types';
 import { PLANET_LABELS_TR } from '../constants';
+import { birthSummaryForPrompt } from '../birth';
 import { chartSummaryForPrompt } from '../chart/engine';
 import { computeTransits } from '../chart/engine';
 import {
@@ -19,6 +20,37 @@ export type AiRuntime = {
   complete: (userPrompt: string) => Promise<string>;
 };
 
+/** Google Gemini API keys: classic AIzaSy… or newer AQ.… format. */
+export function isGeminiApiKey(key?: string | null): boolean {
+  const trimmed = key?.trim();
+  if (!trimmed || trimmed.length < 20) return false;
+  return /^AIza[\w-]{20,}/.test(trimmed) || /^AQ\.[\w-]{20,}/.test(trimmed);
+}
+
+/** @deprecated Use isGeminiApiKey */
+export const isGoogleAiStudioApiKey = isGeminiApiKey;
+
+export function geminiApiKeyHelpMessage(): string {
+  return [
+    'Gemini API anahtarı geçersiz veya süresi dolmuş.',
+    'Google AI Studio’dan yeni anahtar oluşturun: aistudio.google.com/apikey',
+  ].join(' ');
+}
+
+function formatGeminiHttpError(status: number, message?: string): string {
+  const lower = (message || '').toLowerCase();
+  if (
+    status === 401 ||
+    status === 403 ||
+    lower.includes('invalid authentication') ||
+    lower.includes('api key not valid') ||
+    lower.includes('access_token_type_unsupported')
+  ) {
+    return geminiApiKeyHelpMessage();
+  }
+  return message || `Gemini HTTP ${status}`;
+}
+
 const SYSTEM = `Sen Asto adlı bir astroloji danışmanısın. Türkçe, sıcak ama abartısız bir dille yazarsın.
 Kurallar:
 - Sadece verilen harita / transit verisine dayan; gezegen konumunu uydurma.
@@ -32,6 +64,10 @@ export async function geminiComplete(
   apiKey: string,
   model = 'gemini-2.5-flash-lite',
 ): Promise<string> {
+  if (!isGeminiApiKey(apiKey)) {
+    throw new Error(geminiApiKeyHelpMessage());
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   const res = await fetch(url, {
@@ -56,7 +92,7 @@ export async function geminiComplete(
   };
 
   if (!res.ok) {
-    throw new Error(data.error?.message || `Gemini HTTP ${res.status}`);
+    throw new Error(formatGeminiHttpError(res.status, data.error?.message));
   }
 
   const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text).join('').trim();
@@ -166,7 +202,12 @@ export async function answerSynastryQuestion(
   question: string,
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
   runtime: AiRuntime,
-  options?: { selfGender?: Gender; partnerGender?: Gender },
+  options?: {
+    selfGender?: Gender;
+    partnerGender?: Gender;
+    selfBirth?: BirthInput;
+    partnerBirth?: BirthInput;
+  },
 ): Promise<string> {
   const genderLine = [
     options?.selfGender ? `Kişi A cinsiyet: ${options.selfGender === 'female' ? 'kadın' : 'erkek'}` : null,
@@ -177,6 +218,15 @@ export async function answerSynastryQuestion(
     .filter(Boolean)
     .join(' | ');
 
+  const birthBlock = [
+    options?.selfBirth ? birthSummaryForPrompt(selfName, options.selfBirth, 'Kişi A') : null,
+    options?.partnerBirth
+      ? birthSummaryForPrompt(partnerName, options.partnerBirth, 'Kişi B')
+      : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
   const hist = history
     .slice(-10)
     .map((m) => `${m.role}: ${m.content}`)
@@ -184,7 +234,7 @@ export async function answerSynastryQuestion(
 
   return runtime.complete(
     `SİNASTRİ SOHBETİ
-${selfName} (Kişi A):
+${birthBlock ? `DOĞUM BİLGİLERİ:\n${birthBlock}\n\n` : ''}${selfName} (Kişi A):
 ${chartSummaryForPrompt(selfChart, 'Kişi A')}
 ${partnerName} (Kişi B):
 ${chartSummaryForPrompt(partnerChart, 'Kişi B')}

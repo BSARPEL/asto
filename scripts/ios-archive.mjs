@@ -51,10 +51,14 @@ console.log(`[ios-archive] workspace=${workspace} scheme=${scheme}`);
 
 const buildEnv = loadMobileEnv();
 const geminiKey = buildEnv.EXPO_PUBLIC_GEMINI_API_KEY || '';
-if (geminiKey.length < 10) {
-  console.warn('[ios-archive] UYARI: EXPO_PUBLIC_GEMINI_API_KEY yok — AI Cloud Functions yedeklenecek (404 riski).');
+const geminiLooksValid = /^AIza[\w-]{20,}/.test(geminiKey.trim()) || /^AQ\.[\w-]{20,}/.test(geminiKey.trim());
+if (!geminiKey) {
+  console.warn('[ios-archive] UYARI: EXPO_PUBLIC_GEMINI_API_KEY yok — AI çalışmaz.');
+} else if (!geminiLooksValid) {
+  console.error('[ios-archive] HATA: EXPO_PUBLIC_GEMINI_API_KEY geçersiz format.');
+  process.exit(1);
 } else {
-  console.log(`[ios-archive] Gemini anahtarı yüklendi (${geminiKey.slice(0, 8)}…)`);
+  console.log(`[ios-archive] Gemini API anahtarı doğrulandı (${geminiKey.slice(0, 8)}…)`);
 }
 
 const result = spawnSync(

@@ -250,6 +250,7 @@ export function registerAiRoutes(router: Router): void {
         synastryScore: result.score,
         synastryScoreNote: result.scoreNote || undefined,
         analysis: result.analysis,
+        analysisAt: new Date().toISOString(),
         conversationId: conv.id,
       });
       const profile = stripUser((await store.getUser(user.id))!);
@@ -327,6 +328,8 @@ export function registerAiRoutes(router: Router): void {
         {
           selfGender: user.birth?.gender,
           partnerGender: partner.birth.gender,
+          selfBirth: user.birth,
+          partnerBirth: partner.birth,
         },
       );
 

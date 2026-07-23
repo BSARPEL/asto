@@ -97,6 +97,8 @@ export interface Partner {
   /** Brief AI rationale for synastryScore */
   synastryScoreNote?: string;
   analysis?: string;
+  /** ISO timestamp when analysis was last generated */
+  analysisAt?: string;
   /** Sinastri sohbeti — analiz sonrası soru-cevap */
   conversationId?: string;
   createdAt: string;

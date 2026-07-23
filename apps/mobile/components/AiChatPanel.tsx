@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -24,6 +24,8 @@ type Props = {
   placeholder?: string;
   emptyTitle?: string;
   emptyBody?: string;
+  /** Shown immediately while waiting for the assistant (optimistic user bubble). */
+  pendingUserText?: string;
 };
 
 function TypingBubble() {
@@ -47,17 +49,33 @@ export function AiChatPanel({
   placeholder = 'Mesaj yaz…',
   emptyTitle = 'Sohbet',
   emptyBody = 'Bir soru yazarak başla.',
+  pendingUserText,
 }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const canSend = value.trim().length > 0 && !asking;
 
+  const displayMessages = useMemo(() => {
+    const pending = pendingUserText?.trim();
+    if (!asking || !pending) return messages;
+    if (messages.some((m) => m.role === 'user' && m.content === pending)) return messages;
+    return [
+      ...messages,
+      {
+        id: '__pending__',
+        role: 'user' as const,
+        content: pending,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+  }, [messages, pendingUserText, asking]);
+
   useEffect(() => {
-    if (messages.length === 0 && !asking) return;
+    if (displayMessages.length === 0 && !asking) return;
     const timer = setTimeout(() => {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 50);
     return () => clearTimeout(timer);
-  }, [messages.length, asking, messages[messages.length - 1]?.id]);
+  }, [displayMessages.length, asking, displayMessages[displayMessages.length - 1]?.id]);
 
   return (
     <View style={styles.root}>
@@ -66,18 +84,18 @@ export function AiChatPanel({
         style={styles.messages}
         contentContainerStyle={[
           styles.messagesContent,
-          messages.length === 0 && !loading ? styles.messagesEmpty : null,
+          displayMessages.length === 0 && !asking && !loading ? styles.messagesEmpty : null,
         ]}
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
         showsVerticalScrollIndicator
       >
-        {loading ? (
+        {loading && displayMessages.length === 0 ? (
           <View style={styles.centered}>
             <ActivityIndicator color={colors.teal} />
             <Text style={styles.loadingText}>Sohbet yükleniyor…</Text>
           </View>
-        ) : messages.length === 0 ? (
+        ) : displayMessages.length === 0 && !asking ? (
           <View style={styles.empty}>
             <Text style={styles.emptyGlyph}>✦</Text>
             <Text style={styles.emptyTitle}>{emptyTitle}</Text>
@@ -92,7 +110,12 @@ export function AiChatPanel({
           </View>
         ) : (
           <>
-            {messages.map((m) => (
+            {loading ? (
+              <View style={styles.refreshRow}>
+                <ActivityIndicator size="small" color={colors.teal} />
+              </View>
+            ) : null}
+            {displayMessages.map((m) => (
               <MessageBubble key={m.id} role={m.role} content={m.content} compact showRole={false} />
             ))}
             {asking ? <TypingBubble /> : null}
@@ -100,7 +123,7 @@ export function AiChatPanel({
         )}
       </ScrollView>
 
-      {messages.length > 0 && suggestions.length > 0 ? (
+      {displayMessages.length > 0 && suggestions.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -173,6 +196,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 13,
     color: colors.textMuted,
+  },
+  refreshRow: {
+    alignItems: 'center',
+    paddingVertical: 4,
   },
   empty: {
     alignItems: 'center',

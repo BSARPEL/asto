@@ -1,6 +1,22 @@
 import type { BirthInput } from './types';
-import { findCityInCountry, getCountry, resolveBirthPlace } from './cities';
+import { findCityInCountry, getCountry, resolveBirthPlace, formatBirthPlace } from './cities';
 import { stripUndefinedDeep } from './firestore-util';
+
+/** Birth facts for AI prompts (date, time, place, gender). */
+export function birthSummaryForPrompt(name: string, birth: BirthInput, label?: string): string {
+  const who = label ? `${label} — ${name}` : name;
+  const gender =
+    birth.gender === 'female' ? 'kadın' : birth.gender === 'male' ? 'erkek' : null;
+  const place = formatBirthPlace(birth);
+  return [
+    who,
+    `doğum: ${birth.birthDate} ${birth.birthTime}`,
+    `yer: ${place}`,
+    gender ? `cinsiyet: ${gender}` : null,
+  ]
+    .filter(Boolean)
+    .join(' | ');
+}
 
 /** Ensure country fields and coordinates from country+city when possible. */
 export function normalizeBirthInput(birth: BirthInput): BirthInput {

@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { createGeminiRuntime, type AiRuntime } from '@asto/shared';
+import { createGeminiRuntime, isGeminiApiKey, type AiRuntime } from '@asto/shared';
 import { PRODUCTION_AI_API_URL } from '@/constants/endpoints';
 
 const AI_API_PORT = 8788;
@@ -108,9 +108,28 @@ export function getGeminiModel(): string {
   );
 }
 
+/** Set but wrong format (e.g. OAuth token instead of AI Studio API key). */
+export function getGeminiKeyIssue(): string | null {
+  const key = getGeminiApiKey();
+  if (!key) return null;
+  if (!isGeminiApiKey(key)) {
+    return [
+      'EXPO_PUBLIC_GEMINI_API_KEY geçersiz veya eksik.',
+      'Google AI Studio’dan yeni anahtar oluşturun: aistudio.google.com/apikey',
+    ].join(' ');
+  }
+  return null;
+}
+
+export function isAiAvailable(): boolean {
+  return usesDirectGemini() || isAiApiConfigured();
+}
+
 let geminiRuntime: AiRuntime | undefined;
 
 export function getGeminiRuntime(): AiRuntime {
+  const issue = getGeminiKeyIssue();
+  if (issue) throw new Error(issue);
   const key = getGeminiApiKey();
   if (!key) throw new Error('Gemini API anahtarı tanımlı değil');
   if (!geminiRuntime) {
@@ -119,7 +138,7 @@ export function getGeminiRuntime(): AiRuntime {
   return geminiRuntime;
 }
 
-/** Mobil: Gemini doğrudan veya (yedek) HTTPS AI API */
+/** Mobil: doğrudan Gemini (geçerli AI Studio API anahtarı varsa). */
 export function usesDirectGemini(): boolean {
-  return getGeminiApiKey().length > 10;
+  return isGeminiApiKey(getGeminiApiKey());
 }

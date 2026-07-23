@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -51,6 +51,24 @@ function analyzeLabel(isSubscribed: boolean, hasAnalysis: boolean) {
   return hasAnalysis ? `Yeniden yorumla (${TOKEN_COSTS.relationshipAnalysis} jeton)` : `Sinastri yorumu al (${TOKEN_COSTS.relationshipAnalysis} jeton)`;
 }
 
+function formatHistoryDate(iso?: string) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function analysisPreview(text?: string, max = 140) {
+  if (!text) return '';
+  return text.replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
 function PartnerCard({
   partner,
   active,
@@ -59,6 +77,7 @@ function PartnerCard({
   onSelect,
   onAnalyze,
   onEdit,
+  onOpenReading,
 }: {
   partner: Partner;
   active: boolean;
@@ -67,6 +86,7 @@ function PartnerCard({
   onSelect: () => void;
   onAnalyze: (force: boolean) => void;
   onEdit: () => void;
+  onOpenReading: () => void;
 }) {
   const sunC = signColor(partner.natalChart.sunSign);
   const moonC = signColor(partner.natalChart.moonSign);
@@ -112,6 +132,15 @@ function PartnerCard({
         </View>
 
         <View style={styles.actions}>
+          {hasAnalysis ? (
+            <Button
+              compact
+              label="Yorumu ve sohbeti aç"
+              onPress={onOpenReading}
+              variant="primary"
+              icon="◉"
+            />
+          ) : null}
           <Button
             compact
             label={analyzeLabel(isSubscribed, hasAnalysis)}
@@ -127,11 +156,63 @@ function PartnerCard({
   );
 }
 
+function HistoryCard({ partner, onOpen }: { partner: Partner; onOpen: () => void }) {
+  const sunC = signColor(partner.natalChart.sunSign);
+  const moonC = signColor(partner.natalChart.moonSign);
+  const dateLabel = formatHistoryDate(partner.analysisAt ?? partner.createdAt);
+  const preview = analysisPreview(partner.analysis);
+
+  return (
+    <Pressable onPress={onOpen}>
+      <Card compact elevated style={styles.historyCard}>
+        <View style={styles.partnerTop}>
+          <Avatar name={partner.birth.name} size="sm" />
+          <View style={styles.partnerMain}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{partner.birth.name}</Text>
+              {dateLabel ? <Chip label={dateLabel} compact /> : null}
+            </View>
+            <Text style={styles.meta} numberOfLines={2}>
+              {partner.birth.birthDate} · {partner.birth.birthTime} ·{' '}
+              {formatBirthPlace(partner.birth)}
+            </Text>
+            <View style={styles.signRow}>
+              <View style={styles.signItem}>
+                <AstroGlyph planetKey="Sun" size="sm" color={sunC} />
+                <Text style={[styles.signText, { color: sunC }]}>{partner.natalChart.sunSign}</Text>
+              </View>
+              <View style={styles.signItem}>
+                <AstroGlyph planetKey="Moon" size="sm" color={moonC} />
+                <Text style={[styles.signText, { color: moonC }]}>{partner.natalChart.moonSign}</Text>
+              </View>
+            </View>
+            {partner.synastryScore != null ? (
+              <ScoreBar score={partner.synastryScore} compact />
+            ) : null}
+            {preview ? (
+              <Text style={styles.historyPreview} numberOfLines={3}>
+                {preview}
+                {partner.analysis && partner.analysis.length > preview.length ? '…' : ''}
+              </Text>
+            ) : null}
+          </View>
+          {partner.synastryScore != null ? (
+            <ScoreBadge score={partner.synastryScore} compact />
+          ) : null}
+        </View>
+        <Button compact label="Yorumu ve sohbeti aç" onPress={onOpen} icon="◉" />
+      </Card>
+    </Pressable>
+  );
+}
+
 export default function RelationshipScreen() {
   const { token, profile, setProfile } = useAuth();
-  const { isSplitLayout } = useLayout();
+  const { isSplitLayout, gutter } = useLayout();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<'hub' | 'detail'>('hub');
+  const [hubTab, setHubTab] = useState<'partners' | 'history'>('partners');
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -139,7 +220,10 @@ export default function RelationshipScreen() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [question, setQuestion] = useState('');
   const [asking, setAsking] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState('');
   const [loadingConversation, setLoadingConversation] = useState(false);
+  const partnersRef = useRef(partners);
+  partnersRef.current = partners;
 
   const load = useCallback(async () => {
     if (!profile?.id) return;
@@ -147,10 +231,32 @@ export default function RelationshipScreen() {
     setPartners(res.partners);
     setSelectedId((prev) => {
       if (prev && res.partners.some((p) => p.id === prev)) return prev;
-      const withAnalysis = res.partners.find((p) => p.analysis);
-      return withAnalysis?.id ?? res.partners[0]?.id ?? null;
+      return res.partners[0]?.id ?? null;
     });
   }, [profile?.id]);
+
+  const historyPartners = useMemo(
+    () =>
+      partners
+        .filter((p) => p.analysis)
+        .sort((a, b) => {
+          const aTs = a.analysisAt ?? a.createdAt;
+          const bTs = b.analysisAt ?? b.createdAt;
+          return bTs.localeCompare(aTs);
+        }),
+    [partners],
+  );
+
+  const openDetail = (partnerId: string, from: 'partners' | 'history' = 'partners') => {
+    setSelectedId(partnerId);
+    if (from === 'history') setHubTab('history');
+    setView('detail');
+  };
+
+  const goBack = () => {
+    setView('hub');
+    setQuestion('');
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -160,35 +266,47 @@ export default function RelationshipScreen() {
 
   const selected = partners.find((p) => p.id === selectedId) ?? null;
 
-  const loadConversation = useCallback(
-    async (partnerId: string) => {
-      if (!profile?.id) return;
-      setLoadingConversation(true);
-      setError(null);
-      try {
-        const partner = partners.find((p) => p.id === partnerId);
-        if (!partner) return;
-        const res = await aiService.loadPartnerConversation(profile.id, partner);
-        setConversation(res.conversation);
-        setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
-      } catch (e) {
-        setError((e as Error).message);
-        setConversation(null);
-      } finally {
-        setLoadingConversation(false);
-      }
-    },
-    [profile?.id, partners],
-  );
-
+  // Sohbet yalnızca detay ekranında ve partner değişince yüklenir
   useEffect(() => {
-    if (selected?.analysis) {
-      loadConversation(selected.id);
-    } else {
+    if (view !== 'detail' || !selectedId || !profile?.id) {
+      if (view !== 'detail') {
+        setConversation(null);
+        setQuestion('');
+      }
+      return;
+    }
+
+    const partner = partnersRef.current.find((p) => p.id === selectedId);
+    if (!partner?.analysis) {
       setConversation(null);
       setQuestion('');
+      return;
     }
-  }, [selected?.id, selected?.analysis, loadConversation]);
+
+    let cancelled = false;
+    setLoadingConversation(true);
+    setError(null);
+
+    aiService
+      .loadPartnerConversation(profile.id, partner)
+      .then((res) => {
+        if (cancelled) return;
+        setConversation(res.conversation);
+        setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError((e as Error).message);
+        setConversation(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingConversation(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [view, selectedId, profile?.id]);
 
   const analyze = async (partner: Partner, force = false) => {
     if (!token) return;
@@ -200,6 +318,7 @@ export default function RelationshipScreen() {
       setProfile(res.profile);
       setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
       if (res.conversation) setConversation(res.conversation);
+      setView('detail');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -235,7 +354,8 @@ export default function RelationshipScreen() {
 
   const ask = async (raw: string) => {
     const q = raw.trim();
-    if (!token || !selected || !q) return;
+    if (!token || !selected || !q || asking) return;
+    setPendingQuestion(q);
     setAsking(true);
     setError(null);
     try {
@@ -247,20 +367,77 @@ export default function RelationshipScreen() {
       setError((e as Error).message);
     } finally {
       setAsking(false);
+      setPendingQuestion('');
     }
   };
 
-  const inSynastryDetail = Boolean(selected?.analysis);
+  const inDetail = view === 'detail' && Boolean(selected?.analysis);
+
+  const analysisCard = selected?.analysis ? (
+    <Card compact accent={colors.teal} style={styles.analysisCard}>
+      <View style={styles.analysisHeader}>
+        <SectionTitle compact>Sinastri yorumu</SectionTitle>
+        <View style={styles.analysisHeaderRight}>
+          {selected.synastryScore != null ? (
+            <Chip label={`${selected.synastryScore}/100`} active compact />
+          ) : null}
+          <Button
+            compact
+            label="Düzenle"
+            variant="ghost"
+            onPress={() => openEdit(selected)}
+            icon="✎"
+          />
+        </View>
+      </View>
+      {selected.synastryScoreNote ? (
+        <Text style={styles.scoreNote}>{selected.synastryScoreNote}</Text>
+      ) : null}
+      <AiMarkdown content={selected.analysis} compact />
+      <Button
+        compact
+        label={analyzeLabel(profile?.isSubscribed ?? false, true)}
+        onPress={() => analyze(selected, true)}
+        loading={loadingId === selected.id}
+        variant="ghost"
+        icon="◎"
+      />
+    </Card>
+  ) : null;
+
+  const chatCard = selected ? (
+    <Card compact style={styles.chatCard}>
+      <SectionTitle compact>Sinastri sohbeti</SectionTitle>
+      <View style={isSplitLayout ? styles.chatHostWide : styles.chatHostPhone}>
+        <AiChatPanel
+          messages={conversation?.messages ?? []}
+          loading={loadingConversation}
+          asking={asking}
+          pendingUserText={pendingQuestion}
+          value={question}
+          onChangeText={setQuestion}
+          onSend={() => ask(question)}
+          suggestions={SYNASTRY_SUGGESTIONS}
+          onSuggestion={ask}
+          placeholder="Sinastri hakkında mesaj yaz…"
+          emptyTitle="Sinastri sohbeti"
+          emptyBody={`${selected.birth.name} ile ilişkinize dair sorularını sor. Doğum bilgileriniz, partner bilgileri ve sinastri yorumu sohbete dahil edilir.`}
+        />
+      </View>
+    </Card>
+  ) : null;
 
   const synastryDetailView = selected?.analysis ? (
-    <ScreenScroll
-      contentContainerStyle={tabScrollStyle()}
-      keyboardShouldPersistTaps="handled"
-    >
+    <View style={[styles.detailRoot, { paddingHorizontal: gutter }]}>
+      <Pressable onPress={goBack} style={styles.backRow}>
+        <Text style={styles.backText}>← Geri</Text>
+      </Pressable>
+
       <HeaderRow
         compact
-        eyebrow="Sinastri"
+        eyebrow="Sinastri geçmişi"
         title={selected.birth.name}
+        subtitle={`${selected.birth.birthDate} · ${formatBirthPlace(selected.birth)}`}
         right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
       />
 
@@ -275,13 +452,17 @@ export default function RelationshipScreen() {
             key={p.id}
             label={p.birth.name}
             active={selectedId === p.id}
-            onPress={() => setSelectedId(p.id)}
+            onPress={() => {
+              setSelectedId(p.id);
+              if (!p.analysis) setView('hub');
+            }}
             compact
           />
         ))}
         <Chip
           label="+ Partner"
           onPress={() => {
+            goBack();
             setEditingPartner(null);
             setShowForm(true);
           }}
@@ -291,60 +472,36 @@ export default function RelationshipScreen() {
 
       <ErrorText>{error}</ErrorText>
 
-      <ResponsiveSplit
-        leading={
-          <Card compact accent={colors.teal} style={styles.analysisCard}>
-            <View style={styles.analysisHeader}>
-              <SectionTitle compact>Sinastri yorumu</SectionTitle>
-              <View style={styles.analysisHeaderRight}>
-                {selected.synastryScore != null ? (
-                  <Chip label={`${selected.synastryScore}/100`} active compact />
-                ) : null}
-                <Button
-                  compact
-                  label="Düzenle"
-                  variant="ghost"
-                  onPress={() => openEdit(selected)}
-                  icon="✎"
-                />
-              </View>
-            </View>
-            {selected.synastryScoreNote ? (
-              <Text style={styles.scoreNote}>{selected.synastryScoreNote}</Text>
-            ) : null}
-            <AiMarkdown content={selected.analysis} compact />
-            <Button
-              compact
-              label={analyzeLabel(profile?.isSubscribed ?? false, true)}
-              onPress={() => analyze(selected, true)}
-              loading={loadingId === selected.id}
-              variant="ghost"
-              icon="◎"
-            />
-          </Card>
-        }
-        trailing={
-          <Card compact style={styles.chatCard}>
-            <SectionTitle compact>Sinastri sohbeti</SectionTitle>
-            <View style={isSplitLayout ? styles.chatHostWide : styles.chatHostPhone}>
-              <AiChatPanel
-                messages={conversation?.messages ?? []}
-                loading={loadingConversation}
-                asking={asking}
-                value={question}
-                onChangeText={setQuestion}
-                onSend={() => ask(question)}
-                suggestions={SYNASTRY_SUGGESTIONS}
-                onSuggestion={ask}
-                placeholder="Sinastri hakkında mesaj yaz…"
-                emptyTitle="Sinastri sohbeti"
-                emptyBody={`${selected.birth.name} ile ilişkinize dair sorularını sor; geçmiş mesajlar kayıtlı kalır.`}
-              />
-            </View>
-          </Card>
-        }
-      />
-    </ScreenScroll>
+      {isSplitLayout ? (
+        <ResponsiveSplit
+          leading={
+            <ScrollView
+              style={styles.analysisScrollWide}
+              contentContainerStyle={styles.analysisScrollContent}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+            >
+              {analysisCard}
+            </ScrollView>
+          }
+          trailing={chatCard}
+        />
+      ) : (
+        <View style={styles.detailBody}>
+          <ScrollView
+            style={styles.analysisScrollPhone}
+            contentContainerStyle={styles.analysisScrollContent}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+          >
+            {analysisCard}
+          </ScrollView>
+          {chatCard}
+        </View>
+      )}
+    </View>
   ) : null;
 
   return (
@@ -354,7 +511,7 @@ export default function RelationshipScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        {inSynastryDetail ? synastryDetailView : (
+        {inDetail ? synastryDetailView : (
           <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
           compact
@@ -363,6 +520,23 @@ export default function RelationshipScreen() {
           right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
         />
 
+        <View style={styles.hubTabs}>
+          <Chip
+            label={`Partnerler (${partners.length})`}
+            active={hubTab === 'partners'}
+            onPress={() => setHubTab('partners')}
+            compact
+          />
+          <Chip
+            label={`Geçmiş (${historyPartners.length})`}
+            active={hubTab === 'history'}
+            onPress={() => setHubTab('history')}
+            compact
+          />
+        </View>
+
+        {hubTab === 'partners' ? (
+          <>
         <Pressable onPress={() => { setEditingPartner(null); setShowForm(true); }}>
           <Card compact accent={colors.teal} style={styles.addCard}>
             <View style={styles.addRow}>
@@ -407,13 +581,14 @@ export default function RelationshipScreen() {
                   onSelect={() => setSelectedId(p.id)}
                   onAnalyze={(force) => analyze(p, force)}
                   onEdit={() => openEdit(p)}
+                  onOpenReading={() => openDetail(p.id, 'partners')}
                 />
               ))}
             </View>
           </>
         )}
 
-        {selected && !selected.analysis ? (
+        {selected && !selected.analysis && hubTab === 'partners' ? (
             <Card compact style={styles.promptCard}>
               <SectionTitle compact>{selected.birth.name} için analiz</SectionTitle>
               <Body muted style={styles.promptBody}>
@@ -435,6 +610,29 @@ export default function RelationshipScreen() {
               />
             </Card>
         ) : null}
+          </>
+        ) : historyPartners.length === 0 ? (
+          <EmptyState
+            compact
+            title="Henüz sinastri geçmişi yok"
+            body="Partner ekleyip sinastri yorumu aldığında yorumlar ve sohbetler burada listelenir."
+            glyph="◎"
+          />
+        ) : (
+          <>
+            <ErrorText>{error}</ErrorText>
+            <SectionTitle compact>Sinastri geçmişi · {historyPartners.length}</SectionTitle>
+            <Body muted style={styles.historyHint}>
+              Geçmiş yorumları açıp AI ile sohbet edebilirsin; doğum bilgilerin ve partner verileri
+              sohbete otomatik eklenir.
+            </Body>
+            <View style={styles.list}>
+              {historyPartners.map((p) => (
+                <HistoryCard key={p.id} partner={p} onOpen={() => openDetail(p.id, 'history')} />
+              ))}
+            </View>
+          </>
+        )}
           </ScreenScroll>
         )}
       </KeyboardAvoidingView>
@@ -462,6 +660,29 @@ export default function RelationshipScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  detailRoot: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+    paddingBottom: spacing.sm,
+  },
+  detailBody: {
+    flex: 1,
+    minHeight: 0,
+    gap: spacing.sm,
+  },
+  analysisScrollPhone: {
+    maxHeight: 220,
+    marginBottom: spacing.sm,
+  },
+  analysisScrollWide: {
+    flex: 1,
+    minHeight: 0,
+    marginBottom: spacing.sm,
+  },
+  analysisScrollContent: {
+    paddingBottom: spacing.xs,
+  },
   partnerStrip: {
     flexDirection: 'row',
     gap: 6,
@@ -472,16 +693,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   chatCard: {
+    flex: 1,
+    minHeight: 320,
     marginBottom: spacing.sm,
   },
   chatHostPhone: {
-    height: 400,
-    minHeight: 320,
+    flex: 1,
+    minHeight: 300,
     marginTop: spacing.xs,
   },
   chatHostWide: {
-    height: 480,
-    minHeight: 400,
+    flex: 1,
+    minHeight: 360,
     marginTop: spacing.xs,
   },
   addCard: {
@@ -632,4 +855,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSoft,
   },
   promptBody: { fontSize: 13, marginBottom: 8 },
+  hubTabs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  backRow: {
+    alignSelf: 'flex-start',
+    marginBottom: spacing.xs,
+  },
+  backText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    color: colors.teal,
+  },
+  historyCard: {
+    gap: 8,
+  },
+  historyPreview: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  historyHint: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: spacing.sm,
+  },
 });

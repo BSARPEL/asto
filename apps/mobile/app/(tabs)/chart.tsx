@@ -24,7 +24,7 @@ import { AstroGlyph } from '@/components/AstroGlyph';
 import { planetLabel } from '@/constants/astro';
 import * as aiService from '@/lib/ai-service';
 import { aiApiUnavailableMessage } from '@/lib/ai-api';
-import { isAiApiConfigured } from '@/lib/config';
+import { isAiAvailable, getGeminiKeyIssue } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
 import { colors, spacing } from '@/constants/theme';
 
@@ -47,7 +47,12 @@ export default function ChartScreen() {
   const onNarrative = useCallback(
     async (force = false) => {
       if (!token) return;
-      if (!isAiApiConfigured()) {
+      const keyIssue = getGeminiKeyIssue();
+      if (keyIssue) {
+        setError(keyIssue);
+        return;
+      }
+      if (!isAiAvailable()) {
         setError(aiApiUnavailableMessage());
         return;
       }

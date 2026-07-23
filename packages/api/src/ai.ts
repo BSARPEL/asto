@@ -6,17 +6,26 @@ import {
   generateChartNarrative as sharedChartNarrative,
   generateDailyReading as sharedDailyReading,
   generateRelationshipAnalysis as sharedRelationshipAnalysis,
+  isGoogleAiStudioApiKey,
+  isGeminiApiKey,
   mockRuntime,
   type RelationshipAnalysisResult,
 } from '@asto/shared';
-import type { ChartData, Gender, SynastryResult } from '@asto/shared';
+import type { BirthInput, ChartData, Gender, SynastryResult } from '@asto/shared';
 
 export type { RelationshipAnalysisResult };
 
 type AiProvider = 'gemini' | 'openai' | 'mock';
 
 function aiProvider(): AiProvider {
-  if (process.env.GEMINI_API_KEY) return 'gemini';
+  const key = process.env.GEMINI_API_KEY?.trim();
+  if (key) {
+    if (!isGeminiApiKey(key)) {
+      console.error('[api] GEMINI_API_KEY geçersiz — Google AI Studio’dan yeni anahtar alın.');
+    } else {
+      return 'gemini';
+    }
+  }
   if (process.env.OPENAI_API_KEY) return 'openai';
   return 'mock';
 }
@@ -96,7 +105,12 @@ export async function answerSynastryQuestion(
   synastryScore: number | undefined,
   question: string,
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
-  options?: { selfGender?: Gender; partnerGender?: Gender },
+  options?: {
+    selfGender?: Gender;
+    partnerGender?: Gender;
+    selfBirth?: BirthInput;
+    partnerBirth?: BirthInput;
+  },
 ) {
   return sharedAnswerSynastry(
     selfName,
