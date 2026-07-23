@@ -1,10 +1,22 @@
 rules_version = '2';
 
-// BN Astro — mobil uygulama doğrudan Firebase Auth + Firestore (bnastro)
+// BN Astro — mobil: Firebase Auth + Firestore (bnastro)
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function ownsResource() {
+      return isAuthenticated() && resource != null && resource.data.userId == request.auth.uid;
+    }
+
+    function ownsRequest() {
+      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
 
     match /users/{userId} {
@@ -12,37 +24,43 @@ service cloud.firestore {
     }
 
     match /ledger/{entryId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // get on missing doc: resource is null — still allow (returns not-found)
+      allow get: if isAuthenticated() && (resource == null || ownsResource());
+      allow list: if ownsResource();
+      allow create: if ownsRequest();
       allow update, delete: if false;
     }
 
     match /adClaims/{docId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // docId = {userId}_{date} — allow get before first ad claim exists
+      allow get: if isAuthenticated() && docId.matches('^' + request.auth.uid + '_.+');
+      allow list: if ownsResource();
+      allow create, update: if ownsRequest();
     }
 
     match /partners/{partnerId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if ownsResource();
+      allow create: if ownsRequest();
     }
 
     match /conversations/{convId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if ownsResource();
+      allow create: if ownsRequest();
     }
 
     match /readings/{readingId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow get: if isAuthenticated() && readingId.matches('^' + request.auth.uid + '_.+');
+      allow list: if ownsResource();
+      allow create, update: if ownsRequest();
+      allow delete: if ownsResource();
     }
 
     match /_meta/{doc} {
-      allow read: if request.auth != null;
+      allow read: if isAuthenticated();
       allow write: if false;
     }
 
-    // Eski API (Admin SDK) koleksiyonları — istemci erişemez
+    // API (Admin SDK) only — client cannot access
     match /users_by_email/{email} {
       allow read, write: if false;
     }

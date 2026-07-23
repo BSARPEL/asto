@@ -6,6 +6,10 @@ import { FIRESTORE_DATABASE_ID } from '@asto/shared';
 
 let app: App | undefined;
 
+function runningOnGcp(): boolean {
+  return Boolean(process.env.K_SERVICE || process.env.FUNCTION_TARGET || process.env.GCLOUD_PROJECT);
+}
+
 function resolveCredentialsPath(): string {
   const credPath =
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -19,22 +23,29 @@ export function isFirebaseConfigured(): boolean {
   return Boolean(
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
       process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-      process.env.FIREBASE_PROJECT_ID,
+      process.env.FIREBASE_PROJECT_ID ||
+      runningOnGcp(),
   );
 }
 
 export function getFirebaseApp(): App {
   if (!app) {
-    const resolved = resolveCredentialsPath();
-    const serviceAccount = JSON.parse(fs.readFileSync(resolved, 'utf8')) as ServiceAccount;
-    app = getApps().length
-      ? getApps()[0]!
-      : initializeApp({
-          credential: cert(serviceAccount),
-          projectId:
-            process.env.FIREBASE_PROJECT_ID ||
-            (serviceAccount as ServiceAccount & { project_id?: string }).project_id,
-        });
+    if (getApps().length) {
+      app = getApps()[0]!;
+    } else if (runningOnGcp()) {
+      app = initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || 'bn-astro',
+      });
+    } else {
+      const resolved = resolveCredentialsPath();
+      const serviceAccount = JSON.parse(fs.readFileSync(resolved, 'utf8')) as ServiceAccount;
+      app = initializeApp({
+        credential: cert(serviceAccount),
+        projectId:
+          process.env.FIREBASE_PROJECT_ID ||
+          (serviceAccount as ServiceAccount & { project_id?: string }).project_id,
+      });
+    }
   }
   return app;
 }

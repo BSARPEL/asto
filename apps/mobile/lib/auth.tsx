@@ -78,6 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(session.token);
           await storage.setItem(TOKEN_KEY, session.token);
         }
+      } catch (e) {
+        console.error('[auth] Oturum yüklenemedi:', e);
       } finally {
         setLoading(false);
       }

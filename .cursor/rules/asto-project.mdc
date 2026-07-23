@@ -10,29 +10,28 @@ AI destekli astroloji uygulaması (Astromatik benzeri özellik seti). Marka: **A
 ## Monorepo
 
 ```
-apps/mobile       Expo RN (iOS + Android), Expo Router
-packages/api      Express API: harita, AI, jeton, auth
-packages/shared   Ortak tipler ve sabitler (@asto/shared)
-supabase/         İsteğe bağlı Postgres şeması
+apps/mobile       Expo RN — Firebase (veri) + AI API (Gemini)
+packages/api      Express / Cloud Functions — yalnızca AI + Firestore Admin
+packages/shared   Tipler, chart engine, sabitler (@asto/shared)
+firebase/         Firestore rules, Functions bundle
 docs/             Mimari ve API dokümantasyonu
 ```
 
 ## Çalıştırma
 
 - `npm install` → `npm run build --workspace=@asto/shared`
-- **iOS (native, Metro yok):** `npm run ios:prebuild` → `npm run ios:open` → Xcode ⌘R veya Archive → TestFlight
-- API yalnız: `npm run api` → `http://localhost:8788/api`
-- **JS hot reload (simülatör, opsiyonel):** `npm run mobile` — yalnızca Metro; fiziksel cihaz/TestFlight için kullanılmaz
-- Shared değişince: otomatik `sync:shared` (hook + watcher)
-- `app.json` / native paket değişince: otomatik `sync:ios` (prebuild + pod install)
+- **iOS (native):** `npm run ios:prebuild` → `npm run ios:open` → Xcode ⌘R veya Archive
+- AI API yerel: `npm run api` → `http://localhost:8788/api`
+- AI API deploy: `firebase login` → `npm run deploy:ai-api`
+- Shared değişince: `npm run sync:shared`
 
 ## Temel ilkeler
 
 - UI metinleri Türkçe; kod/yorumlar İngilizce veya Türkçe tutarlı olsun
-- API anahtarları yalnızca `packages/api` (.env); mobile’da sadece `EXPO_PUBLIC_*`
-- Harita konumları backend’de hesaplanır; LLM’e hazır JSON verilir, model konum uydurmasın
+- Gemini/OpenAI anahtarları yalnızca `packages/api/.env`; mobile’da `EXPO_PUBLIC_FIREBASE_*` + `EXPO_PUBLIC_AI_API_URL`
+- Harita `computeNatalChart` ile hesaplanır (mobil → Firestore); LLM’e hazır JSON verilir
 - Jeton maliyetleri `@asto/shared` `TOKEN_COSTS` içinde; hardcode etme
-- Depolama varsayılan: `packages/api/data/db.json` (Supabase henüz bağlı değil)
+- Veri: Firestore (`bnastro`); legacy JSON store yalnızca API dev
 - IAP/AdMob anahtarsızken simülasyon (`lib/monetization.ts`)
 
 ## Dokümantasyon

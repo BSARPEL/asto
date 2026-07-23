@@ -1,12 +1,16 @@
-import { normalizeBirthInput, computeNatalChart, type BirthInput } from '@asto/shared';
+import { computeNatalChart, normalizeBirthInput, type BirthInput, type Profile } from '@asto/shared';
 import { firebaseSaveProfile } from './firebase-profile';
 
-export async function saveBirthProfile(
+/**
+ * Natal harita oluşturma — yalnızca cihazda hesap + Firebase Firestore.
+ * AI veya REST API kullanılmaz (bkz. lib/ai-api.ts).
+ */
+export async function saveUserBirth(
   userId: string,
-  displayName: string,
-  raw: BirthInput,
-) {
-  const birth = normalizeBirthInput(raw);
+  birthInput: BirthInput,
+  currentDisplayName?: string,
+): Promise<Profile> {
+  const birth = normalizeBirthInput(birthInput);
   if (!birth?.birthDate || !birth?.birthTime || birth.latitude == null || birth.longitude == null) {
     throw new Error('Doğum bilgileri eksik');
   }
@@ -15,10 +19,9 @@ export async function saveBirthProfile(
   }
 
   const natalChart = computeNatalChart(birth);
-  const profile = await firebaseSaveProfile(userId, {
+  return firebaseSaveProfile(userId, {
     birth,
     natalChart,
-    displayName: birth.name || displayName,
+    displayName: birth.name || currentDisplayName || 'Kullanıcı',
   });
-  return profile;
 }

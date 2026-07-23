@@ -1,16 +1,16 @@
 # Asto — AI Astroloji
 
-Astromatik benzeri özellik setine sahip, **Expo (React Native)** + **Node API** ile iOS/Android astroloji uygulaması.
+Astromatik benzeri özellik setine sahip **Expo (React Native)** uygulaması: **Firebase** (veri) + **Gemini AI API** (yorumlar).
 
 Yeni gelen developer veya AI agent için: **[AGENTS.md](./AGENTS.md)** ve **[docs/](./docs/)**.
 
 ## Özellikler
 
-- Doğum haritası (natal gezegenler, whole-sign evler, açılar)
-- Günlük transit öngörüsü (AI)
+- Doğum haritası (cihazda hesaplanır, Firestore’a kaydedilir)
+- Günlük transit öngörüsü (AI API + Gemini)
 - Haritaya dayalı soru-cevap (jetonlu)
 - İlişki / sinastri analizi
-- Jeton paketleri, abonelik stub, ödüllü reklam stub
+- Jeton paketleri, abonelik stub, ödüllü reklam
 
 ## Kurulum
 
@@ -18,65 +18,53 @@ Yeni gelen developer veya AI agent için: **[AGENTS.md](./AGENTS.md)** ve **[doc
 npm install
 npm run build --workspace=@asto/shared
 cp packages/api/.env.example packages/api/.env
+# packages/api/.env → GEMINI_API_KEY, Firebase Admin (AI API için)
 ```
 
-### API
+### AI API (yerel)
 
 ```bash
-# İsteğe bağlı: packages/api/.env içine OPENAI_API_KEY=
 npm run api
 ```
 
-API: `http://localhost:8788/api`
-
-Anahtar yoksa AI yanıtları demo metin üretir; harita hesaplama çalışır.
+`http://localhost:8788/api` — `GET /health` ile Gemini durumunu kontrol edin.
 
 ### Mobil
 
-```bash
-npm run mobile
+Firebase + AI URL: `apps/mobile/.env` (bkz. `.env.development` / `.env.production.example`).
+
+Fiziksel cihazda yerel AI testi:
+
+```env
+EXPO_PUBLIC_AI_API_URL=http://<bilgisayar-ip>:8788/api
 ```
 
-Android emülatörde API adresi otomatik `10.0.2.2:8788` olur. Fiziksel cihazda (yerel test):
-
-```bash
-# apps/mobile/.env — EXPO_PUBLIC_APP_ENV=development
-EXPO_PUBLIC_API_URL=http://<bilgisayar-ip>:8788/api
-```
-
-**App Store:** API internette HTTPS ile deploy edilir; bkz. [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+**App Store:** Firebase + HTTPS AI API — [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
 ## Yapı
 
 ```
 asto/
-  .cursor/rules/     Cursor AI kuralları (.mdc)
-  AGENTS.md          Agent’lar için hızlı rehber
-  docs/              Mimari, API, geliştirme
-  apps/mobile/       Expo uygulaması
-  packages/api/      Chart + AI + jeton API
-  packages/shared/   Tipler ve sabitler
-  supabase/          İsteğe bağlı Postgres şeması
+  apps/mobile/       Expo — Firebase SDK + ai-service
+  packages/api/      Gemini AI API (Express / Cloud Functions)
+  packages/shared/   Chart engine, tipler, TOKEN_COSTS
+  firebase/          Firestore rules, Functions
+  docs/
 ```
-
-Varsayılan depolama: `packages/api/data/db.json`.
 
 ## Ortam değişkenleri
 
 | Değişken | Nerede | Açıklama |
 |----------|--------|----------|
-| `OPENAI_API_KEY` | API | Gerçek AI yorumları |
-| `EXPO_PUBLIC_API_URL` | Mobile | Backend URL |
-| `EXPO_PUBLIC_REVENUECAT_API_KEY` | Mobile | RevenueCat (yoksa simülasyon) |
-| `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID` | Mobile | AdMob (yoksa simülasyon) |
+| `EXPO_PUBLIC_FIREBASE_*` | Mobile | Auth + Firestore |
+| `EXPO_PUBLIC_AI_API_URL` | Mobile | Gemini AI API (HTTPS prod) |
+| `GEMINI_API_KEY` | API | Gemini (mobilde yok) |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | API | Admin SDK → Firestore |
 
 ## Dokümantasyon
 
-- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — sistem tasarımı
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — Firebase + AI ayrımı
 - [docs/API.md](./docs/API.md) — endpoint referansı
-- [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) — geliştirme / EAS
+- [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) — geliştirme / iOS
+- [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) — production deploy
 - [AGENTS.md](./AGENTS.md) — AI agent bağlamı
-
-## Mağaza
-
-`apps/mobile/eas.json` ile EAS Build. Privacy/Terms ekranları yer tutucu metin içerir; yayın öncesi güncellenmeli.

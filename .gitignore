@@ -14,3 +14,6 @@ apps/mobile/dist/
 *.p12
 *.mobileprovision
 .asto/
+functions/.env
+functions/lib/
+functions/node_modules/

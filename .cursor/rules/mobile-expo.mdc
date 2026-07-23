@@ -1,5 +1,5 @@
 ---
-description: Expo mobil uygulama kuralları (ekranlar, auth, API client)
+description: Expo mobil uygulama kuralları (ekranlar, Firebase, AI API)
 globs: apps/mobile/**/*.{ts,tsx}
 alwaysApply: false
 ---
@@ -7,14 +7,14 @@ alwaysApply: false
 # Mobile (Expo → native App Store)
 
 - Router: `apps/mobile/app/` (Expo Router). Auth → onboarding birth → `(tabs)`
-- Tema: `constants/theme.ts` + `components/ui.tsx` (Syne / Manrope fontlar)
-- API: yalnızca `lib/api.ts` üzerinden; base URL `lib/config.ts`
-- **App Store:** `EXPO_PUBLIC_APP_ENV=production` + HTTPS `EXPO_PUBLIC_API_URL` (EAS secret). LAN/Metro yok.
-- **Yerel native test:** `development` + LAN IP → `npm run ios:prebuild` → Xcode ⌘R
-- Auth state: `lib/auth.tsx` + `lib/storage.ts` (SecureStore / AsyncStorage)
-- Doğum formu: `components/BirthForm.tsx` + `searchWorldCities` (@asto/shared)
-- Monetizasyon stub: `lib/monetization.ts`
-- Ortam: `app.config.js` + `EXPO_PUBLIC_APP_ENV` / `EXPO_PUBLIC_API_URL`
-- Native plugin: `plugins/withNativeIosStandalone.js` (gömülü bundle, Metro asla)
-- Dağıtım: `docs/DEPLOYMENT.md`
+- Tema: `constants/theme.ts` + `components/ui.tsx`
+- **Firebase:** auth, profil, harita kaydı, partner, jeton — `lib/firebase-*.ts`, `lib/birth-service.ts`, `lib/auth.tsx`
+- **AI API:** yalnızca `lib/ai-api.ts` + `lib/ai-service.ts`; base URL `EXPO_PUBLIC_AI_API_URL` (`lib/config.ts`)
+- **App Store:** `EXPO_PUBLIC_APP_ENV=production` + HTTPS `EXPO_PUBLIC_AI_API_URL` + Firebase `EXPO_PUBLIC_*`
+- **Yerel native test:** `development` + LAN IP AI API → `npm run ios:prebuild` → Xcode ⌘R
+- Auth state: `lib/auth.tsx` + Firebase Auth
+- Doğum formu: `components/BirthForm.tsx` — harita `birth-service.ts` (REST `/me/birth` kullanılmaz)
+- Monetizasyon: `lib/monetization.ts` (Firebase jeton)
+- Ortam: `app.config.js` + `EXPO_PUBLIC_*`
+- Native plugin: `plugins/withNativeIosStandalone.js` (gömülü bundle)
 - `@asto/shared` import et; sabitleri mobile içinde tekrar tanımlama

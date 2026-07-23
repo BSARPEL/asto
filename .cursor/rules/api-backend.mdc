@@ -1,17 +1,18 @@
 ---
-description: Asto API kuralları (chart, AI, jeton, auth)
+description: Asto API kuralları (AI routes, Gemini, Firestore store)
 globs: packages/api/**/*.{ts,js}
 alwaysApply: false
 ---
 
 # API (@asto/api)
 
-- Entry: `src/index.ts` → route’lar `src/routes.ts` (`/api` prefix)
-- Auth: Bearer token; `requireAuth` + `store.userFromToken`
-- Harita: `src/chart/engine.ts` — `astronomy-engine` ile geo ecliptic; whole-sign evler
-  - Güneş için `EclipticLongitude` kullanma → `GeoVector` + `Ecliptic`
-- AI: `src/ai.ts` — `OPENAI_API_KEY` yoksa `mockComplete`; prompt’a natal/transit özeti koy
-- Persist: `src/store.ts` → `data/db.json` (şifreler düz metin — sadece local MVP)
+- Entry: `src/index.ts` → `src/app.ts` → `src/routes.ts`
+- **AI routes** (`src/routes/ai-routes.ts`): mobil `lib/ai-api.ts` — günlük öngörü, chart narrative, ask, sinastri
+- **Legacy routes** (`src/routes/legacy-routes.ts`): auth, `/me`, partner CRUD, tokens — yalnızca JSON store / eski istemciler
+- Auth: Firebase ID token; `requireAuth` + `store.userFromToken` (Admin SDK verify)
+- Harita: `packages/shared/src/chart/engine.ts` — mobil ve API aynı engine
+- AI: `src/ai.ts` — `GEMINI_API_KEY` veya `OPENAI_API_KEY`; yoksa mock
+- Persist: `store-firestore.ts` (production) veya `store.ts` → `data/db.json` (local)
 - Jeton: `store.adjustTokens`; maliyetler `@asto/shared` TOKEN_COSTS
-- Hata: `{ error: string }` JSON, uygun HTTP status
-- Yeni endpoint eklerken mobile `lib/api.ts` ve `docs/API.md` güncelle
+- Hata: `{ error: string }` JSON
+- Yeni **AI** endpoint: `ai-routes.ts` + `apps/mobile/lib/ai-api.ts` + `ai-service.ts` + `docs/API.md`

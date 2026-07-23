@@ -42,14 +42,20 @@ OPENAI_MODEL=gpt-4o-mini
 
 ### `apps/mobile/.env` (yerel geliştirme)
 
-```
+```env
 EXPO_PUBLIC_APP_ENV=development
-EXPO_PUBLIC_API_URL=http://192.168.x.x:8788/api
+EXPO_PUBLIC_DATA_BACKEND=firebase
+EXPO_PUBLIC_FIREBASE_API_KEY=...
+EXPO_PUBLIC_FIREBASE_APP_ID=...
+EXPO_PUBLIC_FIREBASE_DATABASE_ID=bnastro
+EXPO_PUBLIC_AI_API_URL=http://192.168.x.x:8788/api
 ```
+
+Harita kaydı REST API kullanmaz — `birth-service.ts` + Firestore.
 
 ### App Store build
 
-`EXPO_PUBLIC_APP_ENV=production` ve HTTPS API URL — bkz. `.env.production.example` ve [DEPLOYMENT.md](./DEPLOYMENT.md).
+`EXPO_PUBLIC_APP_ENV=production`, Firebase + HTTPS `EXPO_PUBLIC_AI_API_URL` — bkz. `.env.production.example` ve [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## iOS — her zaman native standalone (Metro / Expo Go yok)
 
@@ -110,21 +116,18 @@ Yalnızca hızlı UI iterasyonu için: `npm run mobile` + simülatör. **Fizikse
 
 ## Test önerisi (manuel smoke)
 
-1. API ayağa kalksın: `GET /api/health`
-2. Register + birth kaydı
-3. Daily reading + bir soru
-4. Partner ekle + analyze
-5. Rewarded ad + token purchase
-6. Aynı akışı fiziksel cihazda (Xcode native build) tekrarla
+1. `npm run api` → `GET /api/health` (`ai: true` with GEMINI_API_KEY)
+2. Firebase register + doğum haritası (mobil veya `npm run test:auth`)
+3. Günlük öngörü + soru (`npm run test:ai`)
+4. Partner ekle + sinastri analyze
+5. Rewarded ad
+6. Aynı akışı fiziksel cihazda (Xcode native build)
 
 Chart unit smoke:
 
 ```bash
-cd packages/api
-npx tsx -e "import { computeNatalChart } from './src/chart/engine.ts'; console.log(computeNatalChart({ name:'T', birthDate:'1995-06-15', birthTime:'14:30', city:'Istanbul', latitude:41.0082, longitude:28.9784, timezone:'Europe/Istanbul' }).sunSign)"
+npm run test:birth
 ```
-
-Beklenen: `İkizler` (15 Haziran 1995).
 
 ## EAS / App Store
 
@@ -135,12 +138,9 @@ Tam rehber: **[docs/DEPLOYMENT.md](./DEPLOYMENT.md)**
 Özet:
 
 ```bash
-# API deploy (Docker / Fly / Railway)
-# Mobil production build
-cd apps/mobile
-eas secret:create --name EXPO_PUBLIC_API_URL --value https://api.asto.app/api
+# AI API deploy (Cloud Functions — bkz. DEPLOYMENT.md)
+eas secret:create --name EXPO_PUBLIC_AI_API_URL --value https://.../astoApi/api
 npm run build:ios
-eas submit --platform ios
 ```
 
 - `EXPO_PUBLIC_APP_ENV=production` → ATS sıkı (yalnızca HTTPS)

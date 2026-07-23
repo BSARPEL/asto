@@ -22,7 +22,9 @@ import {
 } from '@/components/ui';
 import { AstroGlyph } from '@/components/AstroGlyph';
 import { planetLabel } from '@/constants/astro';
-import { api } from '@/lib/api';
+import * as aiService from '@/lib/ai-service';
+import { aiApiUnavailableMessage } from '@/lib/ai-api';
+import { isAiApiConfigured } from '@/lib/config';
 import { useAuth } from '@/lib/auth';
 import { colors, spacing } from '@/constants/theme';
 
@@ -45,10 +47,14 @@ export default function ChartScreen() {
   const onNarrative = useCallback(
     async (force = false) => {
       if (!token) return;
+      if (!isAiApiConfigured()) {
+        setError(aiApiUnavailableMessage());
+        return;
+      }
       setError(null);
       setLoading(true);
       try {
-        const res = await api.chartNarrative(token, force);
+        const res = await aiService.generateChartNarrative(token, force);
         setNarrative(res.text);
         setNarrativeCached(res.cached);
         setProfile(res.profile);

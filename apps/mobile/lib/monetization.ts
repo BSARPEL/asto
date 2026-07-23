@@ -1,9 +1,8 @@
-import { IAP_PRODUCTS } from '@asto/shared';
-import { api } from './api';
+import { IAP_PRODUCTS, TOKEN_REWARDS } from '@asto/shared';
+import { firebaseClaimAdReward, firebaseSimulatePurchase } from './firebase-data';
 
 /**
- * RevenueCat + AdMob entegrasyonu için ince sarmalayıcı.
- * Anahtar yokken geliştirme modunda API üzerinden jeton/abonelik simüle eder.
+ * Jeton / abonelik — Firebase Firestore (AI API değil).
  */
 const REVENUECAT_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY;
 const ADMOB_REWARDED_ID = process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID;
@@ -14,24 +13,25 @@ export const monetization = {
 
   products: IAP_PRODUCTS,
 
-  async purchaseProduct(token: string, productId: string) {
-    // Production: Purchases.purchasePackage(...) then confirm on backend webhook.
-    // Dev: grant via API stub.
+  async purchaseProduct(userId: string, productId: string) {
     if (!REVENUECAT_KEY) {
-      return api.purchase(token, productId);
+      return firebaseSimulatePurchase(userId, productId);
     }
-    // Placeholder until native RevenueCat SDK is linked in a dev client / EAS build.
-    return api.purchase(token, productId);
+    return firebaseSimulatePurchase(userId, productId);
   },
 
-  async showRewardedAd(token: string) {
-    // Production: load + show AdMob rewarded, onEarnedReward -> api.rewardedAd
+  async showRewardedAd(userId: string) {
     if (!ADMOB_REWARDED_ID) {
-      // Simulate short ad watch in Expo Go
       await new Promise((r) => setTimeout(r, 900));
-      return api.rewardedAd(token);
+    } else {
+      await new Promise((r) => setTimeout(r, 900));
     }
-    await new Promise((r) => setTimeout(r, 900));
-    return api.rewardedAd(token);
+    const { profile, count } = await firebaseClaimAdReward(userId);
+    return {
+      profile,
+      count,
+      reward: TOKEN_REWARDS.rewardedAd,
+      maxPerDay: TOKEN_REWARDS.maxRewardedAdsPerDay,
+    };
   },
 };

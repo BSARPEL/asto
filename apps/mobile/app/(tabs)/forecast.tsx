@@ -31,7 +31,7 @@ import {
   tabScrollStyle,
 } from '@/components/ui';
 import { AstroGlyph } from '@/components/AstroGlyph';
-import { api } from '@/lib/api';
+import * as aiService from '@/lib/ai-service';
 import { useAuth } from '@/lib/auth';
 import { localTodayKey, userTimezone } from '@/lib/dates';
 import { colors, fonts, spacing } from '@/constants/theme';
@@ -76,7 +76,7 @@ export default function ForecastScreen() {
   const lastDayRef = useRef(todayKey);
 
   const applyDaily = useCallback(
-    (res: Awaited<ReturnType<typeof api.dailyReading>>) => {
+    (res: Awaited<ReturnType<typeof aiService.loadCachedDailyReading>>) => {
       if (res.today !== localTodayKey(tz)) {
         setReading(null);
         setConversation(null);
@@ -101,11 +101,11 @@ export default function ForecastScreen() {
 
   const loadDaily = useCallback(
     async (opts?: { silent?: boolean }) => {
-      if (!token) return;
+      if (!token || !profile?.id) return;
       if (!opts?.silent) setLoadingDaily(true);
       setError(null);
       try {
-        const res = await api.dailyReading(token);
+        const res = await aiService.loadCachedDailyReading(profile.id, tz);
         applyDaily(res);
       } catch (e) {
         setError((e as Error).message);
@@ -113,7 +113,7 @@ export default function ForecastScreen() {
         if (!opts?.silent) setLoadingDaily(false);
       }
     },
-    [token, applyDaily],
+    [token, profile?.id, tz, applyDaily],
   );
 
   useFocusEffect(
@@ -157,7 +157,7 @@ export default function ForecastScreen() {
     setError(null);
     setFetchingDaily(true);
     try {
-      const res = await api.fetchDailyReading(token, force);
+      const res = await aiService.generateDailyReading(token, force);
       if (res.today === localTodayKey(tz) && res.reading.date === res.today) {
         setReading(res.reading);
         setReadingCached(res.cached);
@@ -178,7 +178,7 @@ export default function ForecastScreen() {
     setError(null);
     setAsking(true);
     try {
-      const res = await api.ask(token, q.trim(), conversation?.id);
+      const res = await aiService.askDailyQuestion(token, q.trim(), conversation?.id);
       setConversation(res.conversation);
       setProfile(res.profile);
       setQuestion('');

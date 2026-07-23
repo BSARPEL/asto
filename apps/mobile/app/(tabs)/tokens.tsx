@@ -28,7 +28,7 @@ export default function TokensScreen() {
   const [info, setInfo] = useState<string | null>(null);
 
   const run = async (key: string, fn: () => Promise<void>) => {
-    if (!token) return;
+    if (!profile?.id) return;
     setError(null);
     setInfo(null);
     setLoading(key);
@@ -71,7 +71,7 @@ export default function TokensScreen() {
         loading={loading === 'sub'}
         onPress={() =>
           run('sub', async () => {
-            const res = await monetization.purchaseProduct(token!, IAP_PRODUCTS.monthly.id);
+            const res = await monetization.purchaseProduct(profile!.id, IAP_PRODUCTS.monthly.id);
             setProfile(res.profile);
             setInfo('Abonelik etkinleştirildi (geliştirme modu).');
           })
@@ -97,7 +97,7 @@ export default function TokensScreen() {
         loading={loading === 'ad'}
         onPress={() =>
           run('ad', async () => {
-            const res = await monetization.showRewardedAd(token!);
+            const res = await monetization.showRewardedAd(profile!.id);
             setProfile(res.profile);
             setInfo(`+${res.reward} jeton kazandın.`);
           })
@@ -134,7 +134,7 @@ export default function TokensScreen() {
                 loading={loading === p.id}
                 onPress={() =>
                   run(p.id, async () => {
-                    const res = await monetization.purchaseProduct(token!, p.id);
+                    const res = await monetization.purchaseProduct(profile!.id, p.id);
                     setProfile(res.profile);
                     setInfo(`+${p.tokens} jeton eklendi.`);
                   })

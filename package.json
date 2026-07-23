@@ -19,6 +19,11 @@
     "ios:open": "npm run ios:open --workspace=mobile",
     "ios:device": "npm run ios:device --workspace=mobile",
     "build:cities": "node scripts/build-world-cities.mjs",
+    "deploy:firestore-rules": "node scripts/deploy-firestore-rules.mjs",
+    "deploy:ai-api": "node scripts/deploy-ai-api.mjs",
+    "test:auth": "node scripts/test-mobile-auth-flow.mjs",
+    "test:birth": "node scripts/test-birth-flow.mjs",
+    "test:ai": "node scripts/test-ai-api.mjs",
     "shared:build": "npm run build --workspace=@asto/shared",
     "postinstall": "npm run shared:build"
   },

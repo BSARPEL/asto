@@ -60,8 +60,7 @@
     "extra": {
       "eas": {
         "projectId": "asto-local-dev"
-      },
-      "appEnv": "development"
+      }
     }
   }
 }

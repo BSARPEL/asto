@@ -1,14 +1,30 @@
 # Asto — Veritabanı
 
-Production depolama: **Firebase Firestore** (`bnastro` database). Yerel geliştirme için `STORE_BACKEND=json` ile `packages/api/data/db.json` kullanılabilir.
+Production depolama: **Firebase Firestore** (`bnastro` database, proje `bn-astro`).
 
-## Ortam değişkenleri (`packages/api/.env`)
+Mobil uygulama **doğrudan Firestore** kullanır (Firebase Auth ile). AI API sunucusu aynı veriyi **Firebase Admin SDK** ile okur/yazar.
+
+Yerel geliştirme için API tarafında `STORE_BACKEND=json` ile `packages/api/data/db.json` kullanılabilir (legacy REST testleri).
+
+## Ortam değişkenleri
+
+### Mobil (`apps/mobile/.env`)
+
+```env
+EXPO_PUBLIC_DATA_BACKEND=firebase
+EXPO_PUBLIC_FIREBASE_API_KEY=...
+EXPO_PUBLIC_FIREBASE_APP_ID=...
+EXPO_PUBLIC_FIREBASE_DATABASE_ID=bnastro
+```
+
+### API (`packages/api/.env`)
 
 ```env
 STORE_BACKEND=auto          # auto | firestore | json
 FIREBASE_PROJECT_ID=bn-astro
 FIREBASE_DATABASE_ID=bnastro
 FIREBASE_SERVICE_ACCOUNT_PATH=.secrets/firebase-adminsdk.json
+GEMINI_API_KEY=...
 ```
 
 ## Şema başlatma
@@ -17,16 +33,12 @@ FIREBASE_SERVICE_ACCOUNT_PATH=.secrets/firebase-adminsdk.json
 npm run db:init --workspace=@asto/api
 ```
 
-`_meta/schema` dokümanını yazar ve koleksiyon açıklamalarını kaydeder.
-
 ## Koleksiyonlar
 
 | Koleksiyon | Doc ID | Açıklama |
 |------------|--------|----------|
-| `users` | `userId` | Profil, `passwordHash`, doğum, harita |
-| `users_by_email` | `email` (lowercase) | E-posta → `userId` |
-| `sessions` | `token` | Oturum token → `userId` |
-| `partners` | `partnerId` | İlişki partnerleri |
+| `users` | `userId` (Firebase UID) | Profil, doğum, harita, jeton |
+| `partners` | `partnerId` | İlişki partnerleri (`userId` alanı) |
 | `conversations` | `convId` | Günlük / sinastri sohbetleri |
 | `readings` | `{userId}_{date}` | Günlük öngörüler |
 | `ledger` | `entryId` | Jeton hareketleri |
@@ -37,10 +49,10 @@ Tipler: `packages/shared/src/firestore-schema.ts`
 
 ## Güvenlik
 
-- Şifreler **bcrypt** ile hash'lenir (`passwordHash`); düz metin saklanmaz.
-- Mobil uygulama Firestore'a doğrudan bağlanmaz — yalnızca API (`Authorization: Bearer`).
-- `firebase/firestore.rules`: tüm client erişimi kapalı.
+- Mobil: Firebase Auth + `firebase/firestore.rules` (kullanıcı kendi verisine erişir).
+- AI API: Admin SDK — tüm koleksiyonlara sunucu erişimi; istemci Bearer = Firebase ID token.
+- Eski `sessions` / `users_by_email` koleksiyonları legacy JSON store içindi; Firestore modunda kullanılmaz.
 
 ## Supabase (isteğe bağlı)
 
-İleride Postgres'e geçiş için güncel SQL: `supabase/schema.sql`
+İleride Postgres'e geçiş için: `supabase/schema.sql`

@@ -1,7 +1,17 @@
 # API Referansı
 
-Base URL: `http://localhost:8788/api`  
-Auth: `Authorization: Bearer <token>` (register/login sonrası)
+Base URL: `http://localhost:8788/api` (yerel) veya `EXPO_PUBLIC_AI_API_URL` (mobil production)
+
+## Mobil hangi endpoint’leri kullanır?
+
+| Mobil modül | Endpoint’ler |
+|-------------|--------------|
+| `lib/ai-api.ts` | `GET /health`, `POST /readings/daily`, `POST /readings/chart-narrative`, `POST /conversations/ask`, `POST /partners/:id/analyze`, `POST /partners/:id/ask` |
+| Firebase SDK | Auth, profil, doğum, partner CRUD, jeton, okuma önbelleği |
+
+Auth (AI): `Authorization: Bearer <Firebase ID token>`
+
+Legacy REST (`routes/legacy-routes.ts`): `/auth/*`, `/me`, `PUT /me/birth`, partner CRUD, `/tokens/*` — yalnızca JSON store / eski istemciler.
 
 Başarısız yanıtlar: `{ "error": "mesaj" }`
 
@@ -9,15 +19,15 @@ Başarısız yanıtlar: `{ "error": "mesaj" }`
 
 ### `GET /health`
 
-Auth yok.
+Auth yok. AI API durumu.
 
 ```json
-{ "ok": true, "service": "asto-api", "ai": false }
+{ "ok": true, "service": "asto-ai-api", "ai": true, "provider": "gemini", "model": "gemini-flash-latest" }
 ```
 
-`ai: true` → `OPENAI_API_KEY` tanımlı.
+## Auth (legacy — JSON store)
 
-## Auth
+Mobil production **Firebase Auth** kullanır; aşağıdaki endpoint’ler yalnızca legacy REST içindir.
 
 ### `POST /auth/register`
 

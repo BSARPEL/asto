@@ -48,6 +48,15 @@ function wrapAuthError(e: unknown): Error {
   return new Error(authErrorMessage(code));
 }
 
+function wrapFirestoreError(e: unknown): Error {
+  const code = (e as { code?: string })?.code ?? '';
+  if (code === 'permission-denied') {
+    return new Error('Veritabanı erişim izni yok. Uygulamayı güncelleyin veya destek ile iletişime geçin.');
+  }
+  const message = (e as Error)?.message;
+  return new Error(message || 'Veritabanı hatası. Tekrar deneyin.');
+}
+
 export async function firebaseRegister(
   email: string,
   password: string,
@@ -77,14 +86,18 @@ export async function firebaseRegister(
   };
 
   const ledgerRef = doc(collection(db, FIRESTORE_COLLECTIONS.ledger));
-  await setDoc(doc(db, FIRESTORE_COLLECTIONS.users, user.uid), profile);
-  await setDoc(ledgerRef, {
-    id: ledgerRef.id,
-    userId: user.uid,
-    delta: TOKEN_REWARDS.signupBonus,
-    reason: 'signup_bonus',
-    createdAt: now,
-  });
+  try {
+    await setDoc(doc(db, FIRESTORE_COLLECTIONS.users, user.uid), profile);
+    await setDoc(ledgerRef, {
+      id: ledgerRef.id,
+      userId: user.uid,
+      delta: TOKEN_REWARDS.signupBonus,
+      reason: 'signup_bonus',
+      createdAt: now,
+    });
+  } catch (e) {
+    throw wrapFirestoreError(e);
+  }
 
   return profile;
 }
@@ -98,6 +111,8 @@ export async function firebaseLogin(email: string, password: string): Promise<Pr
     return profile;
   } catch (e) {
     if (e instanceof Error && e.message === 'Kullanıcı profili bulunamadı') throw e;
+    const code = (e as { code?: string })?.code ?? '';
+    if (code === 'permission-denied') throw wrapFirestoreError(e);
     throw wrapAuthError(e);
   }
 }
@@ -107,34 +122,43 @@ export async function firebaseLogout(): Promise<void> {
 }
 
 export async function firebaseGetProfile(userId: string): Promise<Profile | null> {
-  const snap = await getDoc(doc(getFirebaseDb(), FIRESTORE_COLLECTIONS.users, userId));
-  if (!snap.exists()) return null;
-  const data = snap.data() as Profile & { updatedAt?: string };
-  const { updatedAt: _, ...profile } = data;
-  return profile;
+  try {
+    const snap = await getDoc(doc(getFirebaseDb(), FIRESTORE_COLLECTIONS.users, userId));
+    if (!snap.exists()) return null;
+    const data = snap.data() as Profile & { updatedAt?: string };
+    const { updatedAt: _, ...profile } = data;
+    return profile;
+  } catch (e) {
+    throw wrapFirestoreError(e);
+  }
 }
 
 export async function firebaseGetAdCountToday(userId: string): Promise<number> {
-  const date = new Date().toISOString().slice(0, 10);
-  const snap = await getDoc(
-    doc(getFirebaseDb(), FIRESTORE_COLLECTIONS.adClaims, adClaimDocId(userId, date)),
-  );
-  return snap.exists() ? ((snap.data().count as number) ?? 0) : 0;
-}
-
-function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as Partial<T>;
+  try {
+    const date = new Date().toISOString().slice(0, 10);
+    const snap = await getDoc(
+      doc(getFirebaseDb(), FIRESTORE_COLLECTIONS.adClaims, adClaimDocId(userId, date)),
+    );
+    return snap.exists() ? ((snap.data().count as number) ?? 0) : 0;
+  } catch (e) {
+    const code = (e as { code?: string })?.code ?? '';
+    if (code === 'permission-denied') return 0;
+    throw wrapFirestoreError(e);
+  }
 }
 
 export async function firebaseSaveProfile(userId: string, patch: Partial<Profile>): Promise<Profile> {
   const ref = doc(getFirebaseDb(), FIRESTORE_COLLECTIONS.users, userId);
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('Kullanıcı bulunamadı');
+
+  const cleanPatch = Object.fromEntries(
+    Object.entries(patch).filter(([, v]) => v !== undefined),
+  ) as Partial<Profile>;
+
   const merged = {
     ...(snap.data() as Profile),
-    ...omitUndefined(patch as Record<string, unknown>),
+    ...cleanPatch,
     updatedAt: new Date().toISOString(),
   };
   await setDoc(ref, merged, { merge: true });

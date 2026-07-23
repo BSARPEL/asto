@@ -1,4 +1,5 @@
 import { FieldValue, type Transaction } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { nanoid } from 'nanoid';
 import {
   FIRESTORE_COLLECTIONS,
@@ -18,7 +19,7 @@ import {
 } from '@asto/shared';
 import { TOKEN_REWARDS } from '@asto/shared';
 import { hashPassword, verifyPassword } from './auth/password';
-import { getFirestore } from './firebase';
+import { getFirebaseApp, getFirestore } from './firebase';
 
 const db = () => getFirestore();
 
@@ -129,6 +130,16 @@ export const firestoreStore = {
 
   async userFromToken(token?: string | null): Promise<Profile | null> {
     if (!token) return null;
+
+    // Mobil Firebase Auth ID token (standalone uygulama)
+    try {
+      const decoded = await getAuth(getFirebaseApp()).verifyIdToken(token);
+      const userSnap = await db().collection(FIRESTORE_COLLECTIONS.users).doc(decoded.uid).get();
+      if (userSnap.exists) return strip(userSnap.data() as StoredUser);
+    } catch {
+      // session token'a düş
+    }
+
     const sessionSnap = await db().collection(FIRESTORE_COLLECTIONS.sessions).doc(token).get();
     if (!sessionSnap.exists) return null;
     const userId = (sessionSnap.data() as FirestoreSessionRecord).userId;

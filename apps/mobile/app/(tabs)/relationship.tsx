@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { TOKEN_COSTS, formatBirthPlace } from '@asto/shared';
+import { TOKEN_COSTS, formatBirthPlace, type BirthInput } from '@asto/shared';
 import type { Conversation, Partner } from '@asto/shared';
 import { AiChatPanel } from '@/components/AiChatPanel';
 import { AiMarkdown } from '@/components/AiMarkdown';
@@ -35,7 +35,7 @@ import {
   useLayout,
 } from '@/components/ui';
 import { signColor } from '@/constants/astro';
-import { api } from '@/lib/api';
+import * as aiService from '@/lib/ai-service';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
 
@@ -141,15 +141,15 @@ export default function RelationshipScreen() {
   const [loadingConversation, setLoadingConversation] = useState(false);
 
   const load = useCallback(async () => {
-    if (!token) return;
-    const res = await api.partners(token);
+    if (!profile?.id) return;
+    const res = await aiService.listPartners(profile.id);
     setPartners(res.partners);
     setSelectedId((prev) => {
       if (prev && res.partners.some((p) => p.id === prev)) return prev;
       const withAnalysis = res.partners.find((p) => p.analysis);
       return withAnalysis?.id ?? res.partners[0]?.id ?? null;
     });
-  }, [token]);
+  }, [profile?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -161,11 +161,13 @@ export default function RelationshipScreen() {
 
   const loadConversation = useCallback(
     async (partnerId: string) => {
-      if (!token) return;
+      if (!profile?.id) return;
       setLoadingConversation(true);
       setError(null);
       try {
-        const res = await api.partnerConversation(token, partnerId);
+        const partner = partners.find((p) => p.id === partnerId);
+        if (!partner) return;
+        const res = await aiService.loadPartnerConversation(profile.id, partner);
         setConversation(res.conversation);
         setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
       } catch (e) {
@@ -175,7 +177,7 @@ export default function RelationshipScreen() {
         setLoadingConversation(false);
       }
     },
-    [token],
+    [profile?.id, partners],
   );
 
   useEffect(() => {
@@ -193,7 +195,7 @@ export default function RelationshipScreen() {
     setLoadingId(partner.id);
     setSelectedId(partner.id);
     try {
-      const res = await api.analyzePartner(token, partner.id, force);
+      const res = await aiService.analyzePartner(token, partner.id, force);
       setProfile(res.profile);
       setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
       if (res.conversation) setConversation(res.conversation);
@@ -204,17 +206,17 @@ export default function RelationshipScreen() {
     }
   };
 
-  const addPartner = async (birth: Parameters<typeof api.addPartner>[1]) => {
-    if (!token) throw new Error('Oturum yok');
-    const res = await api.addPartner(token, birth);
+  const addPartner = async (birth: BirthInput) => {
+    if (!profile?.id) throw new Error('Oturum yok');
+    const res = await aiService.addPartner(profile.id, birth);
     setShowForm(false);
     await load();
     setSelectedId(res.partner.id);
   };
 
-  const savePartnerEdit = async (birth: Parameters<typeof api.updatePartner>[2]) => {
-    if (!token || !editingPartner) throw new Error('Oturum yok');
-    const res = await api.updatePartner(token, editingPartner.id, birth);
+  const savePartnerEdit = async (birth: BirthInput) => {
+    if (!profile?.id || !editingPartner) throw new Error('Oturum yok');
+    const res = await aiService.updatePartner(profile.id, editingPartner.id, birth);
     setEditingPartner(null);
     setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
     setSelectedId(res.partner.id);
@@ -236,7 +238,7 @@ export default function RelationshipScreen() {
     setAsking(true);
     setError(null);
     try {
-      const res = await api.askPartner(token, selected.id, q, conversation?.id);
+      const res = await aiService.askPartnerQuestion(token, selected.id, q, conversation?.id);
       setConversation(res.conversation);
       setProfile(res.profile);
       setQuestion('');
