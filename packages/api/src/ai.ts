@@ -11,7 +11,13 @@ import {
   mockRuntime,
   type RelationshipAnalysisResult,
 } from '@asto/shared';
-import type { BirthInput, ChartData, Gender, SynastryResult } from '@asto/shared';
+import type {
+  BirthInput,
+  ChartData,
+  Gender,
+  RelationshipType,
+  SynastryResult,
+} from '@asto/shared';
 
 export type { RelationshipAnalysisResult };
 
@@ -110,6 +116,8 @@ export async function answerSynastryQuestion(
     partnerGender?: Gender;
     selfBirth?: BirthInput;
     partnerBirth?: BirthInput;
+    relationshipType?: RelationshipType;
+    analysisFocus?: string;
   },
 ) {
   return sharedAnswerSynastry(
@@ -134,7 +142,12 @@ export async function generateRelationshipAnalysis(
   partnerName: string,
   partnerChart: ChartData,
   synastry: SynastryResult,
-  options?: { selfGender?: Gender; partnerGender?: Gender },
+  options?: {
+    selfGender?: Gender;
+    partnerGender?: Gender;
+    relationshipType?: RelationshipType;
+    analysisFocus?: string;
+  },
 ) {
   return sharedRelationshipAnalysis(
     selfName,

@@ -232,6 +232,8 @@ export function registerAiRoutes(router: Router): void {
           {
             selfGender: user.birth?.gender,
             partnerGender: partner.birth.gender,
+            relationshipType: partner.relationshipType,
+            analysisFocus: partner.analysisFocus,
           },
         );
       } catch (e) {
@@ -330,6 +332,8 @@ export function registerAiRoutes(router: Router): void {
           partnerGender: partner.birth.gender,
           selfBirth: user.birth,
           partnerBirth: partner.birth,
+          relationshipType: partner.relationshipType,
+          analysisFocus: partner.analysisFocus,
         },
       );
 

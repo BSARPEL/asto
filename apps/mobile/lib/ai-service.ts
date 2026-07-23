@@ -8,6 +8,7 @@ import {
   firebaseGetReading,
   firebaseListPartners,
   firebaseUpdatePartner,
+  firebaseUpdatePartnerFields,
 } from './firebase-data';
 import { localTodayKey } from './dates';
 
@@ -74,13 +75,28 @@ export async function listPartners(userId: string) {
   return { partners };
 }
 
-export async function addPartner(userId: string, birth: BirthInput) {
-  const partner = await firebaseAddPartner(userId, birth);
+export async function addPartner(
+  userId: string,
+  birth: BirthInput,
+  meta?: Partial<
+    Pick<Partner, 'relationshipType' | 'analysisFocus' | 'fullUnlocked' | 'previewSummary'>
+  >,
+) {
+  const partner = await firebaseAddPartner(userId, birth, meta);
   return { partner };
 }
 
 export async function updatePartner(userId: string, partnerId: string, birth: BirthInput) {
   const partner = await firebaseUpdatePartner(userId, partnerId, birth);
+  return { partner };
+}
+
+export async function updatePartnerMeta(
+  userId: string,
+  partnerId: string,
+  meta: Partial<Pick<Partner, 'relationshipType' | 'analysisFocus'>>,
+) {
+  const partner = await firebaseUpdatePartnerFields(userId, partnerId, meta);
   return { partner };
 }
 
@@ -106,6 +122,15 @@ export async function askPartnerQuestion(
 ) {
   if (!usesDirectGemini()) aiUnavailable();
   return directAi.directAskPartnerQuestion(partnerId, question, conversationId);
+}
+
+export async function unlockPartnerReport(
+  _firebaseIdToken: string,
+  partnerId: string,
+  method: 'tokens' | 'iap' | 'plus' = 'tokens',
+) {
+  if (!usesDirectGemini()) aiUnavailable();
+  return directAi.directUnlockPartnerReport(partnerId, method);
 }
 
 export function mergeProfile(current: Profile | null, next: Profile): Profile {

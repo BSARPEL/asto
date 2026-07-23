@@ -2,7 +2,8 @@ import { Dimensions, Platform, type TextStyle, type ViewStyle } from 'react-nati
 
 /**
  * BN Astro UI — Harmony akış dili + BN Astro markası.
- * Sıcak krem zemin, serif başlık, mor/rose aksan, logo splash koyu kalır.
+ * Sıcak krem zemin, serif başlık, mor/rose aksan.
+ * Açılış (splash) de krem; logo karesi cosmic mor kalır.
  */
 export const brand = {
   cosmic: '#280F5F',
@@ -41,7 +42,10 @@ export const colors = {
   star: 'rgba(107, 78, 122, 0.35)',
   glowTeal: 'rgba(107, 78, 122, 0.07)',
   glowMoon: 'rgba(201, 139, 155, 0.08)',
+  /** Logo karesi / adaptive icon — dark brand plate */
   splash: '#280F5F',
+  /** Native + JS açılış zemini (krem tema) */
+  splashBg: '#FBF8F4',
   nightCard: '#221E28',
   nightCardText: '#F1EDE5',
 };
@@ -115,7 +119,8 @@ export const screenGradient = ['#FBF8F4', '#F6F0EA', '#F1E9E1', '#FBF8F4'] as co
 
 export const accentGradient = ['#7A5A8C', '#6B4E7A', '#C98B9B'] as const;
 
-export const splashGradient = ['#1A083F', '#280F5F', '#3A1878', '#280F5F'] as const;
+/** Açılış — krem → soft rose wash (uygulama zeminiyle aynı dil) */
+export const splashGradient = ['#FBF8F4', '#F7F1EA', '#F3E8E4', '#FBF8F4'] as const;
 
 export const nightCardGradient = ['#2A2433', '#221E28', '#1A1620'] as const;
 

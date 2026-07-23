@@ -95,6 +95,19 @@ export default function ProfileScreen() {
         <ResponsiveSplit leading={identityCard} trailing={accountCard} />
 
         <Card compact>
+          <SectionTitle compact>Keşfet</SectionTitle>
+          <Link href="/tokens" style={styles.link}>
+            Jeton & Plus
+          </Link>
+          <Link href="/forecast" style={styles.link}>
+            Kişisel öngörü
+          </Link>
+          <Link href="/(analysis)/type" style={styles.link}>
+            Yeni ilişki analizi
+          </Link>
+        </Card>
+
+        <Card compact>
           <SectionTitle compact>Yasal</SectionTitle>
           <Link href="/legal/privacy" style={styles.link}>
             Gizlilik politikası
@@ -110,7 +123,7 @@ export default function ProfileScreen() {
           variant="danger"
           onPress={async () => {
             await logout();
-            router.replace('/(auth)/login');
+            router.replace('/(auth)/welcome');
           }}
         />
       </ScreenScroll>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import {
   AuthShell,
   BrandMark,
@@ -10,26 +10,28 @@ import {
   GlassCard,
   Screen,
   Subtitle,
+  SuccessBanner,
   Title,
   useLayout,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts, spacing } from '@/constants/theme';
 
-export default function LoginScreen() {
-  const { login } = useAuth();
+export default function ForgotPasswordScreen() {
+  const { resetPassword } = useAuth();
   const { isWide } = useLayout();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async () => {
     setError(null);
+    setInfo(null);
     setLoading(true);
     try {
-      await login(email.trim(), password);
-      router.replace('/');
+      await resetPassword(email);
+      setInfo('Şifre sıfırlama bağlantısı e-postana gönderildi.');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -39,17 +41,9 @@ export default function LoginScreen() {
 
   const form = (
     <>
-      {!isWide ? (
-        <>
-          <BrandMark size="lg" />
-          <Title>Tekrar hoş geldin</Title>
-          <Subtitle>
-            Hesabına gir; analizlerine, skoruna ve günlük ilişki içgörüne devam et.
-          </Subtitle>
-        </>
-      ) : (
-        <Title style={{ marginBottom: spacing.md }}>Giriş yap</Title>
-      )}
+      {!isWide ? <BrandMark size="lg" /> : null}
+      <Title>Şifremi unuttum</Title>
+      <Subtitle>E-posta adresine sıfırlama bağlantısı gönderelim.</Subtitle>
       <Field
         label="E-posta"
         autoCapitalize="none"
@@ -59,25 +53,12 @@ export default function LoginScreen() {
         onChangeText={setEmail}
         placeholder="ornek@mail.com"
       />
-      <Field
-        label="Şifre"
-        secureTextEntry
-        autoComplete="password"
-        value={password}
-        onChangeText={setPassword}
-        placeholder="••••••••"
-      />
       <ErrorText>{error}</ErrorText>
-      <Button label="Giriş yap" onPress={onSubmit} loading={loading} />
+      {info ? <SuccessBanner>{info}</SuccessBanner> : null}
+      <Button label="Bağlantı gönder" onPress={onSubmit} loading={loading} />
       <View style={styles.footer}>
-        <Link href="/(auth)/forgot" style={styles.link}>
-          Şifremi unuttum
-        </Link>
-        <Link href="/(auth)/register" style={styles.link}>
-          Hesabın yok mu? Kayıt ol
-        </Link>
-        <Link href="/legal/privacy" style={styles.linkMuted}>
-          Gizlilik
+        <Link href="/(auth)/login" style={styles.link}>
+          Girişe dön
         </Link>
       </View>
     </>
@@ -94,9 +75,7 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <AuthShell>
-            {isWide ? form : <GlassCard>{form}</GlassCard>}
-          </AuthShell>
+          <AuthShell>{isWide ? form : <GlassCard>{form}</GlassCard>}</AuthShell>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -105,8 +84,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center' },
-  footer: { marginTop: spacing.lg, gap: 12 },
-  link: { color: colors.teal, fontFamily: fonts.bodySemi, fontSize: 15 },
-  linkMuted: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 },
+  scroll: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center' },
+  footer: { marginTop: spacing.md, alignItems: 'center' },
+  link: { fontFamily: fonts.bodySemi, color: colors.teal, fontSize: 14 },
 });

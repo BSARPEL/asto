@@ -1,6 +1,7 @@
 import { Image, StyleSheet, Text, View, type ImageStyle, type StyleProp } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { BreathingOrbs } from '@/components/HarmonyOrbs';
 import { SoftPulse, FadeIn } from '@/components/motion';
 import { colors, fonts, splashGradient, spacing, typography } from '@/constants/theme';
 
@@ -13,7 +14,7 @@ const MARK_DIM: Record<MarkSize, number> = {
   sm: 56,
   md: 88,
   lg: 128,
-  hero: 220,
+  hero: 168,
 };
 
 /** Tam logo (∞ + BN ASTRO) */
@@ -59,18 +60,25 @@ export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
   );
 }
 
-/** Native splash sonrası / yüklenirken */
+/** Native splash sonrası / auth yüklenirken — krem Harmony açılışı */
 export function BrandSplash({ message }: { message?: string }) {
   return (
     <View style={styles.splashRoot}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <LinearGradient colors={[...splashGradient]} style={StyleSheet.absoluteFill} />
-      <FadeIn from="up" delayMs={80}>
+      <View style={styles.glowTop} pointerEvents="none" />
+      <View style={styles.glowMoon} pointerEvents="none" />
+
+      <FadeIn from="up" delayMs={60}>
         <View style={styles.splashInner}>
+          <Text style={styles.splashBrand}>BN Astro</Text>
+          <BreathingOrbs size={118} />
           <SoftPulse>
-            <BrandLogoMark size="hero" style={styles.splashMark} />
+            <View style={styles.splashMarkFrame}>
+              <BrandLogoMark size="hero" style={styles.splashMark} />
+            </View>
           </SoftPulse>
-          <Text style={styles.splashTag}>Sonsuz bağ · Natal stüdyo</Text>
+          <Text style={styles.splashTag}>Aranızdaki bağı daha iyi anlayın</Text>
           {message ? <Text style={styles.splashMsg}>{message}</Text> : null}
         </View>
       </FadeIn>
@@ -106,29 +114,66 @@ const styles = StyleSheet.create({
   },
   splashRoot: {
     flex: 1,
-    backgroundColor: colors.splash,
+    backgroundColor: colors.splashBg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  glowTop: {
+    position: 'absolute',
+    top: -120,
+    right: -90,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: colors.glowTeal,
+  },
+  glowMoon: {
+    position: 'absolute',
+    bottom: -70,
+    left: -70,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: colors.glowMoon,
   },
   splashInner: {
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  splashBrand: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 28,
+    letterSpacing: 2.4,
+    color: colors.text,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
+  },
+  splashMarkFrame: {
+    borderRadius: 36,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.splash,
   },
   splashMark: {
-    borderRadius: 40,
-    marginBottom: spacing.md,
+    borderRadius: 36,
   },
   splashTag: {
-    marginTop: spacing.sm,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    letterSpacing: 0.6,
-    color: 'rgba(230, 225, 241, 0.72)',
+    marginTop: spacing.xs,
+    fontFamily: fonts.display,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.text,
+    textAlign: 'center',
+    maxWidth: 280,
   },
   splashMsg: {
-    marginTop: spacing.lg,
+    marginTop: spacing.xs,
     fontFamily: fonts.body,
-    fontSize: 13,
-    color: 'rgba(230, 225, 241, 0.55)',
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });

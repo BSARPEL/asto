@@ -9,9 +9,16 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from 'expo-router';
+import { router, useFocusEffect, useNavigation } from 'expo-router';
+import { isPartnerReportUnlocked, setSelectedPartnerId } from '@/lib/analysis-draft';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TOKEN_COSTS, formatBirthPlace, type BirthInput } from '@asto/shared';
+import {
+  RELATIONSHIP_TYPES,
+  TOKEN_COSTS,
+  formatBirthPlace,
+  type BirthInput,
+  type RelationshipType,
+} from '@asto/shared';
 import type { Conversation, Partner, SoulmateReading } from '@asto/shared';
 import { AiChatPanel } from '@/components/AiChatPanel';
 import { AiMarkdown } from '@/components/AiMarkdown';
@@ -56,8 +63,10 @@ function soulmateRefreshLabel(isSubscribed: boolean, hasReading: boolean) {
 }
 
 function analyzeLabel(isSubscribed: boolean, hasAnalysis: boolean) {
-  if (isSubscribed) return hasAnalysis ? 'Yeniden yorumla' : 'Sinastri yorumu al';
-  return hasAnalysis ? `Yeniden yorumla (${TOKEN_COSTS.relationshipAnalysis} jeton)` : `Sinastri yorumu al (${TOKEN_COSTS.relationshipAnalysis} jeton)`;
+  if (isSubscribed) return hasAnalysis ? 'Yeniden yorumla' : 'Ön izleme oluştur';
+  return hasAnalysis
+    ? `Yeniden yorumla (${TOKEN_COSTS.relationshipAnalysis} jeton)`
+    : 'Ön izleme oluştur (ücretsiz)';
 }
 
 function formatHistoryDate(iso?: string) {
@@ -78,147 +87,116 @@ function analysisPreview(text?: string, max = 140) {
   return text.replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function PartnerCard({
+function AnalysisLibraryCard({
   partner,
-  active,
-  loading,
+  selfName,
   isSubscribed,
-  selfSun,
-  selfMoon,
-  onSelect,
+  loading,
   onAnalyze,
   onEdit,
-  onOpenReading,
 }: {
   partner: Partner;
-  active: boolean;
-  loading: boolean;
+  selfName: string;
   isSubscribed: boolean;
-  selfSun?: string;
-  selfMoon?: string;
-  onSelect: () => void;
+  loading: boolean;
   onAnalyze: (force: boolean) => void;
   onEdit: () => void;
-  onOpenReading: () => void;
 }) {
   const hasAnalysis = Boolean(partner.analysis);
+  const unlocked = isPartnerReportUnlocked(partner, isSubscribed);
+  const typeLabel =
+    RELATIONSHIP_TYPES.find((t) => t.id === partner.relationshipType)?.title || 'İlişki';
+  const names = `${selfName.split(' ')[0] || 'Sen'} & ${partner.birth.name}`;
+
+  const openPrimary = () => {
+    void setSelectedPartnerId(partner.id);
+    if (!hasAnalysis) {
+      onAnalyze(false);
+      return;
+    }
+    if (unlocked) {
+      router.push({ pathname: '/(analysis)/report', params: { partnerId: partner.id } });
+      return;
+    }
+    // Harmony list CTA for locked: open paywall (preview still reachable from there)
+    router.push({ pathname: '/(analysis)/paywall', params: { partnerId: partner.id } });
+  };
 
   return (
-    <Card compact elevated={active} accent={active ? colors.teal : undefined} style={active ? styles.cardActive : undefined}>
-      <Pressable onPress={onSelect}>
-        <View style={styles.partnerTop}>
-          <Avatar name={partner.birth.name} size="sm" />
+    <Card compact elevated style={styles.libraryCard}>
+      <Pressable onPress={openPrimary}>
+        <View style={styles.libraryTop}>
           <View style={styles.partnerMain}>
-            <View style={styles.nameRow}>
-              <Text style={styles.name}>{partner.birth.name}</Text>
-              {active ? <Chip label="Seçili" active compact /> : null}
-            </View>
-            <Text style={styles.meta} numberOfLines={2}>
-              {partner.birth.birthDate} · {partner.birth.birthTime} ·{' '}
-              {formatBirthPlace(partner.birth)}
+            <Text style={styles.libraryNames}>{names}</Text>
+            <Text style={styles.libraryMeta}>
+              {typeLabel}
+              {partner.synastryScore != null ? ` · %${partner.synastryScore}` : ''}
             </Text>
-            {partner.synastryScore == null ? (
-              <Text style={styles.hint}>Henüz sinastri analizi yok</Text>
-            ) : null}
           </View>
           {partner.synastryScore != null ? (
             <ScoreBadge score={partner.synastryScore} compact />
-          ) : (
-            <View style={styles.pendingBadge}>
-              <Text style={styles.pendingText}>Yeni</Text>
-            </View>
-          )}
+          ) : null}
         </View>
-        <SynastryBond
-          compact
-          selfSun={selfSun}
-          selfMoon={selfMoon}
-          partnerSun={partner.natalChart.sunSign}
-          partnerMoon={partner.natalChart.moonSign}
-          partnerName={partner.birth.name}
-        />
-        {partner.synastryScore != null ? (
-          <ScoreBar score={partner.synastryScore} compact />
-        ) : null}
+        <View style={styles.libraryStatusRow}>
+          <Chip
+            label={
+              !hasAnalysis ? 'HAZIR DEĞİL' : unlocked ? 'TAM RAPOR' : 'ÖN İZLEME'
+            }
+            active={unlocked}
+            compact
+          />
+          <Text style={styles.libraryCta}>
+            {!hasAnalysis
+              ? 'Ön izleme oluştur ›'
+              : unlocked
+                ? 'Raporu Aç ›'
+                : 'Tam Analizi Aç ›'}
+          </Text>
+        </View>
       </Pressable>
-
       <View style={styles.actions}>
-        {hasAnalysis ? (
-          <Button compact label="Yorumu aç" onPress={onOpenReading} variant="primary" />
-        ) : (
+        {!hasAnalysis ? (
           <Button
             compact
             label={analyzeLabel(isSubscribed, false)}
             onPress={() => onAnalyze(false)}
             loading={loading}
-            variant="primary"
           />
-        )}
-        {hasAnalysis ? (
+        ) : !unlocked ? (
           <Button
             compact
-            label={analyzeLabel(isSubscribed, true)}
-            onPress={() => onAnalyze(true)}
-            loading={loading}
+            label="Ön izleme"
             variant="ghost"
+            onPress={() => {
+              void setSelectedPartnerId(partner.id);
+              router.push({
+                pathname: '/(analysis)/preview',
+                params: { partnerId: partner.id },
+              });
+            }}
           />
         ) : null}
+        {!hasAnalysis ? null : !unlocked ? (
+          <Button
+            compact
+            label="Tam Analizi Aç"
+            onPress={() => {
+              void setSelectedPartnerId(partner.id);
+              router.push({
+                pathname: '/(analysis)/paywall',
+                params: { partnerId: partner.id },
+              });
+            }}
+          />
+        ) : (
+          <Button
+            compact
+            label="Raporu Aç"
+            onPress={openPrimary}
+          />
+        )}
         <Button compact label="Düzenle" variant="ghost" onPress={onEdit} />
       </View>
-    </Card>
-  );
-}
-
-function HistoryCard({
-  partner,
-  selfSun,
-  selfMoon,
-  onOpen,
-}: {
-  partner: Partner;
-  selfSun?: string;
-  selfMoon?: string;
-  onOpen: () => void;
-}) {
-  const dateLabel = formatHistoryDate(partner.analysisAt ?? partner.createdAt);
-  const preview = analysisPreview(partner.analysis);
-
-  return (
-    <Card compact elevated style={styles.historyCard}>
-      <View style={styles.partnerTop}>
-        <Avatar name={partner.birth.name} size="sm" />
-        <View style={styles.partnerMain}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{partner.birth.name}</Text>
-            {dateLabel ? <Chip label={dateLabel} compact /> : null}
-          </View>
-          <Text style={styles.meta} numberOfLines={2}>
-            {partner.birth.birthDate} · {partner.birth.birthTime} ·{' '}
-            {formatBirthPlace(partner.birth)}
-          </Text>
-        </View>
-        {partner.synastryScore != null ? (
-          <ScoreBadge score={partner.synastryScore} compact />
-        ) : null}
-      </View>
-      <SynastryBond
-        compact
-        selfSun={selfSun}
-        selfMoon={selfMoon}
-        partnerSun={partner.natalChart.sunSign}
-        partnerMoon={partner.natalChart.moonSign}
-        partnerName={partner.birth.name}
-      />
-      {partner.synastryScore != null ? (
-        <ScoreBar score={partner.synastryScore} compact />
-      ) : null}
-      {preview ? (
-        <Text style={styles.historyPreview} numberOfLines={3}>
-          {preview}
-          {partner.analysis && partner.analysis.length > preview.length ? '…' : ''}
-        </Text>
-      ) : null}
-      <Button compact label="Yorumu aç" onPress={onOpen} variant="primary" />
     </Card>
   );
 }
@@ -234,6 +212,8 @@ export default function RelationshipScreen() {
   const [hubTab, setHubTab] = useState<'partners' | 'history'>('partners');
   const [detailTab, setDetailTab] = useState<'analysis' | 'chat'>('analysis');
   const [showForm, setShowForm] = useState(false);
+  const [draftRelationshipType, setDraftRelationshipType] =
+    useState<RelationshipType>('love');
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -305,6 +285,7 @@ export default function RelationshipScreen() {
 
   const openDetail = (partnerId: string, from: 'partners' | 'history' = 'partners') => {
     setSelectedId(partnerId);
+    void setSelectedPartnerId(partnerId);
     if (from === 'history') setHubTab('history');
     setDetailTab('analysis');
     setError(null);
@@ -343,7 +324,7 @@ export default function RelationshipScreen() {
     const inDetailView = view === 'detail' && Boolean(selected);
     navigation.setOptions({
       headerShown: true,
-      title: inDetailView ? selected!.birth.name : 'Ruh eşi',
+      title: inDetailView ? selected!.birth.name : 'Analizler',
       headerBackVisible: false,
       headerLeft: inDetailView
         ? () => (
@@ -423,12 +404,18 @@ export default function RelationshipScreen() {
     };
   }, [view, selectedId, profile?.id]);
 
-  const analyze = async (partner: Partner, force = false) => {
-    if (!token) return;
+  const analyze = async (partner: Partner, force = false, typeOverride?: RelationshipType) => {
+    if (!token || !profile?.id) return;
     setError(null);
     setLoadingId(partner.id);
     setSelectedId(partner.id);
     try {
+      const relationshipType = typeOverride || partner.relationshipType || draftRelationshipType;
+      // Always persist type before AI so prompt never races a stale partner doc.
+      const meta = await aiService.updatePartnerMeta(profile.id, partner.id, {
+        relationshipType,
+      });
+      setPartners((prev) => prev.map((p) => (p.id === meta.partner.id ? meta.partner : p)));
       const res = await aiService.analyzePartner(token, partner.id, force);
       setProfile(res.profile);
       setPartners((prev) => prev.map((p) => (p.id === res.partner.id ? res.partner : p)));
@@ -444,8 +431,12 @@ export default function RelationshipScreen() {
 
   const addPartner = async (birth: BirthInput) => {
     if (!profile?.id) throw new Error('Oturum yok');
-    const res = await aiService.addPartner(profile.id, birth);
+    const res = await aiService.addPartner(profile.id, birth, {
+      relationshipType: draftRelationshipType,
+      fullUnlocked: false,
+    });
     setShowForm(false);
+    setDraftRelationshipType('love');
     await load();
     setSelectedId(res.partner.id);
   };
@@ -532,7 +523,34 @@ export default function RelationshipScreen() {
       {selected.synastryScoreNote ? (
         <Text style={styles.scoreNote}>{selected.synastryScoreNote}</Text>
       ) : null}
-      <AiMarkdown content={selected.analysis} compact />
+      {isPartnerReportUnlocked(selected, profile?.isSubscribed) ? (
+        <AiMarkdown content={selected.analysis} compact />
+      ) : (
+        <>
+          <Body>{selected.previewSummary || analysisPreview(selected.analysis, 280)}</Body>
+          <Button
+            compact
+            label="Tam analizi aç"
+            onPress={() =>
+              router.push({
+                pathname: '/(analysis)/paywall',
+                params: { partnerId: selected.id },
+              })
+            }
+          />
+          <Button
+            compact
+            label="Ön izleme ekranı"
+            variant="ghost"
+            onPress={() =>
+              router.push({
+                pathname: '/(analysis)/preview',
+                params: { partnerId: selected.id },
+              })
+            }
+          />
+        </>
+      )}
       <TrustNote>
         Sinastri bir rehberliktir; ilişki dinamiklerini yansıtır, kesin yargı değildir.
       </TrustNote>
@@ -636,11 +654,30 @@ export default function RelationshipScreen() {
             </View>
             {analysisContent}
           </Card>
-          <Button
-            compact
-            label="Sohbete geç"
-            onPress={() => setDetailTab('chat')}
-          />
+          {isPartnerReportUnlocked(selected, profile?.isSubscribed) ? (
+            <Button compact label="Sohbete geç" onPress={() => setDetailTab('chat')} />
+          ) : null}
+        </ScrollView>
+      );
+    }
+
+    if (!isPartnerReportUnlocked(selected, profile?.isSubscribed)) {
+      return (
+        <ScrollView contentContainerStyle={styles.detailEmptyContent}>
+          <Card compact>
+            <SectionTitle compact>Sohbet kilitli</SectionTitle>
+            <Body muted>Rapora sor özelliği tam analiz açıldıktan sonra gelir.</Body>
+            <Button
+              compact
+              label="Tam analizi aç"
+              onPress={() =>
+                router.push({
+                  pathname: '/(analysis)/paywall',
+                  params: { partnerId: selected.id },
+                })
+              }
+            />
+          </Card>
         </ScrollView>
       );
     }
@@ -702,10 +739,15 @@ export default function RelationshipScreen() {
           <ScreenScroll contentContainerStyle={tabScrollStyle()}>
           <HeaderRow
             compact
-            eyebrow="Sonsuz bağ · natal dil"
-            title="Ruh eşi"
-            subtitle="Haritana göre derin bağ öngörüsü ve partner sinastrisi"
+            title="Analizler"
+            subtitle="İlişki raporların ve ruh eşi öngörün"
             right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
+          />
+
+          <Button
+            compact
+            label="+ Yeni Analiz Oluştur"
+            onPress={() => router.push('/(analysis)/type')}
           />
 
           <HeroCard accent={colors.accent}>
@@ -799,23 +841,17 @@ export default function RelationshipScreen() {
           />
         ) : (
           <>
-            <SectionTitle compact>
-              Partnerlerim · {partners.length}
-            </SectionTitle>
+            <SectionTitle compact>Analizlerim · {partners.length}</SectionTitle>
             <View style={styles.list}>
               {partners.map((p) => (
-                <PartnerCard
+                <AnalysisLibraryCard
                   key={p.id}
                   partner={p}
-                  active={selectedId === p.id}
+                  selfName={profile?.displayName || 'Sen'}
                   loading={loadingId === p.id}
                   isSubscribed={profile?.isSubscribed ?? false}
-                  selfSun={natalChart?.sunSign}
-                  selfMoon={natalChart?.moonSign}
-                  onSelect={() => setSelectedId(p.id)}
                   onAnalyze={(force) => analyze(p, force)}
                   onEdit={() => openEdit(p)}
-                  onOpenReading={() => openDetail(p.id, 'partners')}
                 />
               ))}
             </View>
@@ -826,12 +862,46 @@ export default function RelationshipScreen() {
             <Card compact style={styles.promptCard}>
               <SectionTitle compact>{selected.birth.name} için sinastri</SectionTitle>
               <Body muted style={styles.promptBody}>
-                Partner kaydedildi. İki haritayı karşılaştırıp ilişki dinamiğini okumak için yorumu aç.
+                Önce ilişki türünü seç; AI yorumu buna göre yazılır.
               </Body>
+              <View style={styles.typeRow}>
+                {RELATIONSHIP_TYPES.map((t) => {
+                  const active =
+                    (selected.relationshipType || draftRelationshipType) === t.id;
+                  return (
+                    <Chip
+                      key={t.id}
+                      label={t.title}
+                      active={active}
+                      compact
+                      onPress={() => {
+                        setDraftRelationshipType(t.id);
+                        if (profile?.id) {
+                          void aiService
+                            .updatePartnerMeta(profile.id, selected.id, {
+                              relationshipType: t.id,
+                            })
+                            .then((res) => {
+                              setPartners((prev) =>
+                                prev.map((p) => (p.id === res.partner.id ? res.partner : p)),
+                              );
+                            });
+                        }
+                      }}
+                    />
+                  );
+                })}
+              </View>
               <Button
                 compact
                 label={analyzeLabel(profile?.isSubscribed ?? false, false)}
-                onPress={() => analyze(selected, false)}
+                onPress={() =>
+                  analyze(
+                    selected,
+                    false,
+                    selected.relationshipType || draftRelationshipType,
+                  )
+                }
                 loading={loadingId === selected.id}
               />
               <Button
@@ -853,18 +923,17 @@ export default function RelationshipScreen() {
         ) : (
           <>
             <ErrorText>{error}</ErrorText>
-            <SectionTitle compact>Sinastri geçmişi · {historyPartners.length}</SectionTitle>
-            <Body muted style={styles.historyHint}>
-              Geçmiş yorumları açıp ilişki dinamiği hakkında sorular sorabilirsin.
-            </Body>
+            <SectionTitle compact>Geçmiş · {historyPartners.length}</SectionTitle>
             <View style={styles.list}>
               {historyPartners.map((p) => (
-                <HistoryCard
+                <AnalysisLibraryCard
                   key={p.id}
                   partner={p}
-                  selfSun={natalChart?.sunSign}
-                  selfMoon={natalChart?.moonSign}
-                  onOpen={() => openDetail(p.id, 'history')}
+                  selfName={profile?.displayName || 'Sen'}
+                  loading={loadingId === p.id}
+                  isSubscribed={profile?.isSubscribed ?? false}
+                  onAnalyze={(force) => analyze(p, force)}
+                  onEdit={() => openEdit(p)}
                 />
               ))}
             </View>
@@ -880,6 +949,25 @@ export default function RelationshipScreen() {
         title={editingPartner ? 'Partneri düzenle' : 'Yeni partner'}
         showClose={false}
       >
+        {!editingPartner ? (
+          <>
+            <SectionTitle compact>İlişki türü</SectionTitle>
+            <Body muted style={styles.promptBody}>
+              Romantik, arkadaşlık, aile veya iş — yorum bu dile göre üretilir.
+            </Body>
+            <View style={styles.typeRow}>
+              {RELATIONSHIP_TYPES.map((t) => (
+                <Chip
+                  key={t.id}
+                  label={t.title}
+                  active={draftRelationshipType === t.id}
+                  compact
+                  onPress={() => setDraftRelationshipType(t.id)}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
         <BirthForm
           key={editingPartner?.id ?? 'new-partner'}
           variant="partner"
@@ -1131,6 +1219,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSoft,
   },
   promptBody: { fontSize: 13, marginBottom: 8 },
+  typeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  libraryCard: { marginBottom: 0 },
+  libraryTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 8,
+  },
+  libraryNames: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    color: colors.text,
+  },
+  libraryMeta: {
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  libraryStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
+  libraryCta: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    color: colors.teal,
+  },
   hubTabs: {
     flexDirection: 'row',
     flexWrap: 'wrap',

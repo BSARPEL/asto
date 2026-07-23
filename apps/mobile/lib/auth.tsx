@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import type { Profile } from '@asto/shared';
 import { TOKEN_REWARDS } from '@asto/shared';
 import { getFirebaseAuth, getFirebaseIdToken } from './firebase';
@@ -32,6 +32,7 @@ type AuthContextValue = {
   setProfile: (p: Profile) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -130,6 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const resetPassword = useCallback(async (email: string) => {
+    const trimmed = email.trim();
+    if (!trimmed) throw new Error('E-posta gerekli');
+    await sendPasswordResetEmail(getFirebaseAuth(), trimmed);
+  }, []);
+
   const logout = useCallback(async () => {
     await firebaseLogout();
     await storage.deleteItem(TOKEN_KEY);
@@ -149,9 +156,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile,
       login,
       register,
+      resetPassword,
       logout,
     }),
-    [token, profile, loading, adClaimsToday, maxAdsPerDay, refresh, login, register, logout],
+    [
+      token,
+      profile,
+      loading,
+      adClaimsToday,
+      maxAdsPerDay,
+      refresh,
+      login,
+      register,
+      resetPassword,
+      logout,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

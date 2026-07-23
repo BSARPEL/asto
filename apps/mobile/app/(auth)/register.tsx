@@ -47,9 +47,9 @@ export default function RegisterScreen() {
       {!isWide ? (
         <>
           <BrandMark size="lg" />
-          <Title>Gökyüzüne katıl</Title>
+          <Title>Hesap oluştur</Title>
           <Subtitle>
-            Haritanı çıkar, günlük gökyüzünü oku, sonsuz sinastri bağını keşfet.
+            İki haritayı karşılaştır, ilişkinin ritmini oku. Başlangıç hediyesi: 5 jeton.
           </Subtitle>
         </>
       ) : (

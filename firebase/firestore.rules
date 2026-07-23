@@ -1,6 +1,7 @@
 rules_version = '2';
 
 // BN Astro — mobil: Firebase Auth + Firestore (bnastro)
+// Schema v2: partners.relationshipType / analysisFocus / previewSummary / fullUnlocked
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAuthenticated() {
@@ -17,6 +18,41 @@ service cloud.firestore {
 
     function ownsRequest() {
       return isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    function validRelationshipType() {
+      return !('relationshipType' in request.resource.data)
+        || request.resource.data.relationshipType in ['love', 'friendship', 'family', 'work'];
+    }
+
+    function validPartnerCreate(partnerId) {
+      return ownsRequest()
+        && request.resource.data.keys().hasAll(['id', 'userId', 'birth', 'natalChart', 'createdAt'])
+        && request.resource.data.id == partnerId
+        && validRelationshipType()
+        && (
+          !('fullUnlocked' in request.resource.data)
+          || request.resource.data.fullUnlocked is bool
+        )
+        && (
+          !('analysisFocus' in request.resource.data)
+          || request.resource.data.analysisFocus is string
+        )
+        && (
+          !('previewSummary' in request.resource.data)
+          || request.resource.data.previewSummary is string
+        );
+    }
+
+    function validPartnerUpdate() {
+      return ownsResource()
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.id == resource.data.id
+        && validRelationshipType()
+        && (
+          !('fullUnlocked' in request.resource.data)
+          || request.resource.data.fullUnlocked is bool
+        );
     }
 
     match /users/{userId} {
@@ -39,8 +75,9 @@ service cloud.firestore {
     }
 
     match /partners/{partnerId} {
-      allow read, update, delete: if ownsResource();
-      allow create: if ownsRequest();
+      allow read, delete: if ownsResource();
+      allow create: if validPartnerCreate(partnerId);
+      allow update: if validPartnerUpdate();
     }
 
     match /conversations/{convId} {

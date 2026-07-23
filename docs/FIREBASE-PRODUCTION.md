@@ -76,10 +76,18 @@ curl https://europe-west1-bn-astro.cloudfunctions.net/astoApi/api/health
 # → {"ok":true,"ai":true,...}
 ```
 
-### 4. Firestore kuralları
+### 4. Firestore şema + kurallar + indeksler (Harmony funnel)
+
+Partner alanları (v2): `relationshipType`, `analysisFocus`, `previewSummary`, `fullUnlocked`, sinastri cache.
 
 ```bash
+# Tek komut: schema meta + rules + indexes
+npm run firebase:setup
+
+# veya ayrı
+npm run db:init                 # _meta/schema + partner_fields
 npm run deploy:firestore-rules
+npm run deploy:firestore-indexes
 ```
 
 ### 5. Mobil production env

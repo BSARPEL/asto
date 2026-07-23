@@ -4,6 +4,7 @@
  */
 import { getAuth } from 'firebase/auth';
 import {
+  IAP_PRODUCTS,
   TOKEN_COSTS,
   answerQuestion,
   answerSynastryQuestion,
@@ -29,6 +30,7 @@ import {
   firebaseGetUserProfile,
   firebaseSaveConversation,
   firebaseSaveReading,
+  firebaseSimulatePurchase,
   firebaseUpdatePartnerFields,
   firebaseUpdateUserProfile,
 } from './firebase-data';
@@ -292,6 +294,14 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
     };
   }
 
+  // Preview (first analysis) is free; re-analyze costs. Unlock is charged separately.
+  const hadAnalysis = Boolean(partner.analysis);
+  const cost =
+    profile.isSubscribed || !hadAnalysis ? 0 : TOKEN_COSTS.relationshipAnalysis;
+  if (cost > 0 && profile.tokenBalance < cost) {
+    throw new Error('Yetersiz jeton');
+  }
+
   const result = await generateRelationshipAnalysis(
     profile.displayName,
     selfChart,
@@ -302,6 +312,8 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
     {
       selfGender: profile.birth?.gender,
       partnerGender: partner.birth.gender,
+      relationshipType: partner.relationshipType ?? 'love',
+      analysisFocus: partner.analysisFocus,
     },
   );
 
@@ -316,6 +328,15 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
     partner.conversationId,
   );
 
+  // Preserve unlock state explicitly. Do NOT coerce legacy `undefined` → false
+  // (that would lock free pre-funnel reports on re-analyze).
+  const unlockPatch: { fullUnlocked?: boolean } = {};
+  if (profile.isSubscribed || partner.fullUnlocked === true) {
+    unlockPatch.fullUnlocked = true;
+  } else if (partner.fullUnlocked === false) {
+    unlockPatch.fullUnlocked = false;
+  }
+
   const updated = await firebaseUpdatePartnerFields(userId, partner.id, {
     synastryScore: result.score,
     synastryScoreNote: result.scoreNote || undefined,
@@ -324,20 +345,12 @@ export async function directAnalyzePartner(partnerId: string, force = false) {
     analysisAt: new Date().toISOString(),
     conversationId: conv.id,
     natalChart: partnerChart,
-    fullUnlocked: partner.fullUnlocked || profile.isSubscribed ? true : false,
+    ...unlockPatch,
+    relationshipType: partner.relationshipType ?? 'love',
   });
 
-  // Preview (first analysis) is free; re-analyze costs. Unlock is charged separately.
-  const hadAnalysis = Boolean(partner.analysis);
-  const cost =
-    profile.isSubscribed || !hadAnalysis
-      ? 0
-      : force
-        ? TOKEN_COSTS.relationshipAnalysis
-        : TOKEN_COSTS.relationshipAnalysis;
   let updatedProfile = profile;
   if (cost > 0) {
-    if (profile.tokenBalance < cost) throw new Error('Yetersiz jeton');
     updatedProfile = await firebaseAdjustTokens(userId, -cost, 'relationship_analysis');
   } else {
     updatedProfile = (await firebaseGetUserProfile(userId))!;
@@ -425,6 +438,10 @@ export async function directAskPartnerQuestion(
   const { userId, profile } = await requireProfile();
   const partner = await firebaseGetPartner(userId, partnerId);
   if (!partner?.analysis) throw new Error('Önce sinastri yorumu alın');
+  // New funnel sets fullUnlocked:false; legacy (undefined) stays open.
+  if (partner.fullUnlocked === false && !profile.isSubscribed) {
+    throw new Error('Tam analizi açmadan sohbet kullanılamaz');
+  }
 
   let conv: Conversation | null = conversationId
     ? await firebaseGetConversation(conversationId, userId)
@@ -468,6 +485,8 @@ export async function directAskPartnerQuestion(
       partnerGender: partner.birth.gender,
       selfBirth: profile.birth,
       partnerBirth: partner.birth,
+      relationshipType: partner.relationshipType,
+      analysisFocus: partner.analysisFocus,
     },
   );
 

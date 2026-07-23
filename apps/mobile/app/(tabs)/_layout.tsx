@@ -12,21 +12,19 @@ import { glyphTextStyle } from '@/constants/astro';
 import { SoftPulse } from '@/components/motion';
 
 const TAB_ICONS = {
-  chart: '☉',
-  forecast: '☽',
+  home: '⌂',
   relationship: '∞',
-  tokens: '◆',
-  profile: '✧',
+  ask: '✧',
+  chart: '☉',
+  profile: '☽',
 } as const;
 
 function TabIcon({
   glyph,
   focused,
-  soft,
 }: {
   glyph: string;
   focused: boolean;
-  soft?: boolean;
 }) {
   const scale = useSharedValue(focused ? 1 : 0.92);
 
@@ -40,28 +38,14 @@ function TabIcon({
 
   return (
     <Animated.View
-      style={[
-        styles.iconWrap,
-        focused && styles.iconWrapActive,
-        soft && !focused && styles.iconWrapSoft,
-        animStyle,
-      ]}
+      style={[styles.iconWrap, focused && styles.iconWrapActive, animStyle]}
     >
       {focused ? (
         <SoftPulse active style={styles.iconGlowHost}>
           <View style={styles.iconGlow} />
         </SoftPulse>
       ) : null}
-      <Text
-        style={[
-          styles.icon,
-          glyphTextStyle,
-          focused && styles.iconActive,
-          soft && !focused && styles.iconSoft,
-        ]}
-      >
-        {glyph}
-      </Text>
+      <Text style={[styles.icon, glyphTextStyle, focused && styles.iconActive]}>{glyph}</Text>
     </Animated.View>
   );
 }
@@ -89,7 +73,7 @@ export default function TabLayout() {
           paddingBottom: bottom,
           paddingTop: 6,
           ...(Platform.OS === 'web'
-            ? ({ boxShadow: '0 -4px 16px rgba(40, 15, 95, 0.08)' } as object)
+            ? ({ boxShadow: '0 -4px 16px rgba(34, 30, 40, 0.08)' } as object)
             : {}),
         },
         tabBarActiveTintColor: colors.teal,
@@ -103,58 +87,45 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="chart"
+        name="home"
         options={{
-          title: 'Haritam',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon glyph={TAB_ICONS.chart} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="forecast"
-        options={{
-          title: 'Öngörü',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon glyph={TAB_ICONS.forecast} focused={focused} />
-          ),
+          title: 'Home',
+          tabBarIcon: ({ focused }) => <TabIcon glyph={TAB_ICONS.home} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="relationship"
         options={{
-          title: 'Ruh eşi',
+          title: 'Analizler',
           tabBarIcon: ({ focused }) => (
             <TabIcon glyph={TAB_ICONS.relationship} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
-        name="tokens"
+        name="ask"
         options={{
-          title: 'Jeton',
-          tabBarLabelStyle: {
-            fontFamily: fonts.body,
-            fontSize: 10,
-            marginTop: 2,
-            letterSpacing: 0.1,
-            opacity: 0.85,
-          },
-          tabBarIcon: ({ focused }) => (
-            <TabIcon glyph={TAB_ICONS.tokens} focused={focused} soft />
-          ),
+          title: 'Sor',
+          tabBarIcon: ({ focused }) => <TabIcon glyph={TAB_ICONS.ask} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="chart"
+        options={{
+          title: 'Haritam',
+          tabBarIcon: ({ focused }) => <TabIcon glyph={TAB_ICONS.chart} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon glyph={TAB_ICONS.profile} focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon glyph={TAB_ICONS.profile} focused={focused} />,
         }}
       />
       <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="forecast" options={{ href: null }} />
+      <Tabs.Screen name="tokens" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -170,9 +141,6 @@ const styles = StyleSheet.create({
   },
   iconWrapActive: {
     backgroundColor: colors.tealDim,
-  },
-  iconWrapSoft: {
-    opacity: 0.88,
   },
   iconGlowHost: {
     ...StyleSheet.absoluteFillObject,
@@ -191,8 +159,5 @@ const styles = StyleSheet.create({
   },
   iconActive: {
     color: colors.teal,
-  },
-  iconSoft: {
-    fontSize: 13,
   },
 });

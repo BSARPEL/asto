@@ -1,5 +1,10 @@
 import type { BirthInput, ChartData, Gender, SynastryResult } from '../types';
-import { PLANET_LABELS_TR } from '../constants';
+import {
+  PLANET_LABELS_TR,
+  RELATIONSHIP_TYPE_AI,
+  RELATIONSHIP_TYPES,
+  type RelationshipType,
+} from '../constants';
 import { birthSummaryForPrompt } from '../birth';
 import { chartSummaryForPrompt } from '../chart/engine';
 import { computeTransits } from '../chart/engine';
@@ -259,6 +264,11 @@ Haritaya dayalı, net ve uygulanabilir bir yanıt ver.`,
   );
 }
 
+function resolveRelationshipLens(type?: RelationshipType) {
+  const id = type && type in RELATIONSHIP_TYPE_AI ? type : 'love';
+  return RELATIONSHIP_TYPE_AI[id as RelationshipType];
+}
+
 export async function answerSynastryQuestion(
   selfName: string,
   selfChart: ChartData,
@@ -274,6 +284,8 @@ export async function answerSynastryQuestion(
     partnerGender?: Gender;
     selfBirth?: BirthInput;
     partnerBirth?: BirthInput;
+    relationshipType?: RelationshipType;
+    analysisFocus?: string;
   },
 ): Promise<string> {
   const genderLine = [
@@ -299,9 +311,16 @@ export async function answerSynastryQuestion(
     .map((m) => `${m.role}: ${m.content}`)
     .join('\n');
 
+  const lens = resolveRelationshipLens(options?.relationshipType);
+  const focusLine = options?.analysisFocus?.trim()
+    ? `Kullanıcının odak sorusu: ${options.analysisFocus.trim()}`
+    : '';
+
   return runtime.complete(
     `SİNASTRİ SOHBETİ
-${birthBlock ? `DOĞUM BİLGİLERİ:\n${birthBlock}\n\n` : ''}${selfName} (Kişi A):
+İLİŞKİ TÜRÜ: ${lens.label}
+${lens.lens}
+${focusLine ? `${focusLine}\n` : ''}${birthBlock ? `DOĞUM BİLGİLERİ:\n${birthBlock}\n\n` : ''}${selfName} (Kişi A):
 ${chartSummaryForPrompt(selfChart, 'Kişi A')}
 ${partnerName} (Kişi B):
 ${chartSummaryForPrompt(partnerChart, 'Kişi B')}
@@ -316,6 +335,7 @@ Kullanıcı sorusu: ${question}
 
 Kurallar:
 - Yalnızca verilen harita ve sinastri yorumuna dayan; yeni gezegen konumu veya açı uydurma.
+- Yanıtı seçilen ilişki türü dilinde ver (${lens.label}).
 - İlişki dinamiğini ${selfName} ve ${partnerName} isimleriyle, sıcak ve net anlat.
 - Kısa paragraflar; kehanet dili kullanma.`,
   );
@@ -355,7 +375,12 @@ export async function generateRelationshipAnalysis(
   partnerChart: ChartData,
   synastry: SynastryResult,
   runtime: AiRuntime,
-  options?: { selfGender?: Gender; partnerGender?: Gender },
+  options?: {
+    selfGender?: Gender;
+    partnerGender?: Gender;
+    relationshipType?: RelationshipType;
+    analysisFocus?: string;
+  },
 ): Promise<RelationshipAnalysisResult> {
   const topAspects = synastry.aspects
     .slice(0, 10)
@@ -374,9 +399,20 @@ export async function generateRelationshipAnalysis(
     .filter(Boolean)
     .join(' | ');
 
+  const lens = resolveRelationshipLens(options?.relationshipType);
+  const typeTitle =
+    RELATIONSHIP_TYPES.find((t) => t.id === (options?.relationshipType ?? 'love'))?.title ??
+    lens.label;
+  const focusLine = options?.analysisFocus?.trim()
+    ? `KULLANICI ODAK SORUSU (yanıtı buna yaklaştır): ${options.analysisFocus.trim()}`
+    : '';
+
   return parseRelationshipAnalysis(
     await runtime.complete(
       `İLİŞKİ ANALİZİ (SİNASTRİ)
+İLİŞKİ TÜRÜ: ${typeTitle} (${lens.label})
+${lens.lens}
+${focusLine ? `${focusLine}\n` : ''}
 ${selfName} (Kişi A):
 ${chartSummaryForPrompt(selfChart, 'Kişi A')}
 ${partnerName} (Kişi B):
@@ -394,25 +430,18 @@ ENGINE SİNASTRİ VERİSİ — 6 ZORUNLU ODAK (açı uydurma; yalnızca bunları
 ${synastryFocusAreasForPrompt(synastry.focusAreas)}
 
 ZORUNLU KURALLAR:
-- Yukarıdaki 6 odak başlığının HER BİRİNİ aşağıdaki sırayla, ayrı bölüm olarak yaz; atlama.
+- Tüm metni seçilen ilişki türü dilinde yaz (${typeTitle}). Yanlış türe kayma.
+- Engine’deki 6 odağın her birini işle; veriyi ${typeTitle} çerçevesinde yorumla.
 - Engine verisinde olmayan yeni açı, gezegen konumu veya burç uydurma.
-- Motor skoru referans al; kendi değerlendirmenle 0–100 arası nihai sinastri skoru ver.
+- Motor skoru referans al; kendi değerlendirmenle 0–100 arası nihai uyum skoru ver (bu tür için anlamlı olsun).
 - Her bölüm 2-4 cümle; gereksiz uzatma.
-
+${focusLine ? '- Odak sorusuna özellikle Genel dinamik, Güçlü yönler ve Kısa öneri bölümlerinde değin.\n' : ''}
 BAŞLIKLAR (sırayla):
-1) Genel dinamik
-2) Kadın Güneş – Erkek Ay ilişkisi
-3) Ay + Ay ilişkisi
-4) Kadın Mars – Erkek Venüs ilişkisi
-5) Ay düğümleri arasındaki ilişki
-6) Yükselen (Asc) üzerinde diğer kişinin faktörü var mı?
-7) Alçalan (Dsc) üzerinde diğer kişinin faktörü var mı?
-8) Güçlü yönler ve gelişime açık alanlar
-9) Kısa öneri
+${lens.sections.join('\n')}
 
 METİN BİTTİKTEN SONRA (ayrı satırlar, zorunlu):
 SİNASTRİ_SKORU: <0-100 tam sayı>
-SKOR_GEREKÇESİ: <1-2 cümle, neden bu puan>`,
+SKOR_GEREKÇESİ: <1-2 cümle, neden bu puan — ${typeTitle} bağlamında>`,
       { maxOutputTokens: 8192 },
     ),
     synastry.score,

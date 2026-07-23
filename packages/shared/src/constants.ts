@@ -33,8 +33,8 @@ export const RELATIONSHIP_TYPES: Array<{
 }> = [
   {
     id: 'love',
-    title: 'Çekim / Aşk',
-    subtitle: 'Duygusal bağ ve uzun vadeli dinamikler',
+    title: 'Romantik',
+    subtitle: 'Çekim, duygusal bağ ve uzun vadeli dinamikler',
   },
   {
     id: 'friendship',
@@ -43,15 +43,86 @@ export const RELATIONSHIP_TYPES: Array<{
   },
   {
     id: 'family',
-    title: 'Aile / Bağlar',
-    subtitle: 'Roller ve iletişim kalıpları',
+    title: 'Aile',
+    subtitle: 'Bağlar, roller ve iletişim kalıpları',
   },
   {
     id: 'work',
-    title: 'İş birliği',
-    subtitle: 'Karar alma ve çatışma yönetimi',
+    title: 'İş',
+    subtitle: 'İş birliği, karar alma ve çatışma yönetimi',
   },
 ];
+
+/** AI prompt framing per relationship lens */
+export const RELATIONSHIP_TYPE_AI: Record<
+  RelationshipType,
+  { label: string; lens: string; sections: string[] }
+> = {
+  love: {
+    label: 'Romantik ilişki / çekim',
+    lens:
+      'Bu bir ROMANTİK / duygusal bağ analizidir. Çekim, yakınlık, uzun vadeli uyum ve ilişki dinamiği dilinde yaz. Flört veya partner dili uygundur.',
+    sections: [
+      '1) Genel dinamik',
+      '2) Kadın Güneş – Erkek Ay ilişkisi',
+      '3) Ay + Ay ilişkisi',
+      '4) Kadın Mars – Erkek Venüs ilişkisi',
+      '5) Ay düğümleri arasındaki ilişki',
+      '6) Yükselen (Asc) üzerinde diğer kişinin faktörü var mı?',
+      '7) Alçalan (Dsc) üzerinde diğer kişinin faktörü var mı?',
+      '8) Güçlü yönler ve gelişime açık alanlar',
+      '9) Kısa öneri',
+    ],
+  },
+  friendship: {
+    label: 'Arkadaşlık',
+    lens:
+      'Bu bir ARKADAŞLIK analizidir. Romantik/cinsel çekim dili KULLANMA. Güven, destek, mizah, sınırlar ve dostluğun ritmine odaklan. Engine’deki Güneş/Ay/Mars/Venüs verilerini arkadaşlık dinamikleri olarak yorumla.',
+    sections: [
+      '1) Genel dinamik — dostluk ritmi',
+      '2) Duygusal destek (Güneş–Ay etkileşimleri)',
+      '3) Empati ve anlaşılma (Ay–Ay)',
+      '4) Enerji ve motivasyon (Mars–Venüs / eylem uyumu)',
+      '5) Ortak büyüme ve yön (Ay düğümleri)',
+      '6) Sosyal uyum — yükselen (Asc) etkileri',
+      '7) Tamamlayıcı roller — alçalan (Dsc) etkileri',
+      '8) Güçlü yönler ve sürtünme noktaları',
+      '9) Kısa öneri (arkadaşlık için)',
+    ],
+  },
+  family: {
+    label: 'Aile / bağlar',
+    lens:
+      'Bu bir AİLE / bağ analizidir. Romantik dil KULLANMA. Roller, iletişim kalıpları, bakım, sınırlar ve aile içi dinamiklere odaklan. Engine verisini aile ilişkisi çerçevesinde yorumla.',
+    sections: [
+      '1) Genel dinamik — aile bağı',
+      '2) Kimlik ve tanınma (Güneş–Ay)',
+      '3) Duygusal ihtiyaçlar (Ay–Ay)',
+      '4) Tempo ve gerilim (Mars–Venüs / eylem)',
+      '5) Ortak kader / öğrenme (Ay düğümleri)',
+      '6) İlk izlenim ve tutum (Asc)',
+      '7) Karşı tarafın tamamladığı alan (Dsc)',
+      '8) Güçlü yönler ve hassas alanlar',
+      '9) Kısa öneri (aile iletişimi için)',
+    ],
+  },
+  work: {
+    label: 'İş birliği / profesyonel',
+    lens:
+      'Bu bir İŞ / profesyonel iş birliği analizidir. Romantik dil KULLANMA. Karar alma, sorumluluk paylaşımı, çatışma yönetimi, tempo ve güvenilirliğe odaklan. Engine verisini çalışma dinamiği olarak yorumla.',
+    sections: [
+      '1) Genel dinamik — iş birliği ritmi',
+      '2) Liderlik ve görünürlük (Güneş–Ay)',
+      '3) İletişim ve ihtiyaçlar (Ay–Ay)',
+      '4) Tempo, motivasyon ve çekişme (Mars–Venüs)',
+      '5) Uzun vadeli yön (Ay düğümleri)',
+      '6) İlk izlenim / profesyonel duruş (Asc)',
+      '7) Tamamlayıcı beceriler (Dsc)',
+      '8) Güçlü yönler ve risk alanları',
+      '9) Kısa öneri (iş birliği için)',
+    ],
+  },
+};
 
 export const SIGNS_TR = [
   'Koç',

@@ -9,11 +9,10 @@ export default function Index() {
   useEffect(() => {}, [loading, profile]);
 
   if (loading) {
-    return <BrandSplash message="Haritan hazırlanıyor…" />;
+    return <BrandSplash message="İlişki analizin hazırlanıyor…" />;
   }
 
-  // Oturum: Firebase Auth kalıcı (AsyncStorage) — çıkış yapılana kadar açık kalır
-  if (!profile) return <Redirect href="/(auth)/login" />;
+  if (!profile) return <Redirect href="/(auth)/welcome" />;
   if (!profile.natalChart) return <Redirect href="/(onboarding)/birth" />;
-  return <Redirect href="/(tabs)/chart" />;
+  return <Redirect href="/(tabs)/home" />;
 }
