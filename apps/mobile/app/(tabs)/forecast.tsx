@@ -260,7 +260,7 @@ export default function ForecastScreen() {
         />
       </View>
       {isTodayReading && reading ? (
-        <TrustNote>
+        <TrustNote style={styles.trustLine}>
           Günlük öngörü rehberliktir; harita verisine dayanır, kesin kehanet değildir.
         </TrustNote>
       ) : null}
@@ -309,6 +309,7 @@ export default function ForecastScreen() {
           }
         >
           <HeaderRow
+            compact
             eyebrow="Transit · natal bağlam"
             title="Öngörü"
             subtitle={todayLabel()}
@@ -350,6 +351,7 @@ const styles = StyleSheet.create({
   dailySummary: { fontSize: 14, lineHeight: 21, flexShrink: 1 },
   themes: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, width: '100%' },
   fetchBtn: { marginTop: 10 },
+  trustLine: { marginTop: spacing.sm },
   askHint: { fontSize: 13, marginBottom: 6 },
   chatCard: {
     marginBottom: spacing.sm,

@@ -109,19 +109,9 @@ function PartnerCard({
               {partner.birth.birthDate} · {partner.birth.birthTime} ·{' '}
               {formatBirthPlace(partner.birth)}
             </Text>
-            <SynastryBond
-              compact
-              selfSun={selfSun}
-              selfMoon={selfMoon}
-              partnerSun={partner.natalChart.sunSign}
-              partnerMoon={partner.natalChart.moonSign}
-              partnerName={partner.birth.name}
-            />
-            {partner.synastryScore != null ? (
-              <ScoreBar score={partner.synastryScore} compact />
-            ) : (
+            {partner.synastryScore == null ? (
               <Text style={styles.hint}>Henüz sinastri analizi yok</Text>
-            )}
+            ) : null}
           </View>
           {partner.synastryScore != null ? (
             <ScoreBadge score={partner.synastryScore} compact />
@@ -131,6 +121,17 @@ function PartnerCard({
             </View>
           )}
         </View>
+        <SynastryBond
+          compact
+          selfSun={selfSun}
+          selfMoon={selfMoon}
+          partnerSun={partner.natalChart.sunSign}
+          partnerMoon={partner.natalChart.moonSign}
+          partnerName={partner.birth.name}
+        />
+        {partner.synastryScore != null ? (
+          <ScoreBar score={partner.synastryScore} compact />
+        ) : null}
       </Pressable>
 
       <View style={styles.actions}>
@@ -145,18 +146,16 @@ function PartnerCard({
             variant="primary"
           />
         )}
-        <View style={styles.actionSecondary}>
-          {hasAnalysis ? (
-            <Button
-              compact
-              label={analyzeLabel(isSubscribed, true)}
-              onPress={() => onAnalyze(true)}
-              loading={loading}
-              variant="ghost"
-            />
-          ) : null}
-          <Button compact label="Düzenle" variant="ghost" onPress={onEdit} />
-        </View>
+        {hasAnalysis ? (
+          <Button
+            compact
+            label={analyzeLabel(isSubscribed, true)}
+            onPress={() => onAnalyze(true)}
+            loading={loading}
+            variant="ghost"
+          />
+        ) : null}
+        <Button compact label="Düzenle" variant="ghost" onPress={onEdit} />
       </View>
     </Card>
   );
@@ -189,28 +188,28 @@ function HistoryCard({
             {partner.birth.birthDate} · {partner.birth.birthTime} ·{' '}
             {formatBirthPlace(partner.birth)}
           </Text>
-          <SynastryBond
-            compact
-            selfSun={selfSun}
-            selfMoon={selfMoon}
-            partnerSun={partner.natalChart.sunSign}
-            partnerMoon={partner.natalChart.moonSign}
-            partnerName={partner.birth.name}
-          />
-          {partner.synastryScore != null ? (
-            <ScoreBar score={partner.synastryScore} compact />
-          ) : null}
-          {preview ? (
-            <Text style={styles.historyPreview} numberOfLines={3}>
-              {preview}
-              {partner.analysis && partner.analysis.length > preview.length ? '…' : ''}
-            </Text>
-          ) : null}
         </View>
         {partner.synastryScore != null ? (
           <ScoreBadge score={partner.synastryScore} compact />
         ) : null}
       </View>
+      <SynastryBond
+        compact
+        selfSun={selfSun}
+        selfMoon={selfMoon}
+        partnerSun={partner.natalChart.sunSign}
+        partnerMoon={partner.natalChart.moonSign}
+        partnerName={partner.birth.name}
+      />
+      {partner.synastryScore != null ? (
+        <ScoreBar score={partner.synastryScore} compact />
+      ) : null}
+      {preview ? (
+        <Text style={styles.historyPreview} numberOfLines={3}>
+          {preview}
+          {partner.analysis && partner.analysis.length > preview.length ? '…' : ''}
+        </Text>
+      ) : null}
       <Button compact label="Yorumu aç" onPress={onOpen} variant="primary" />
     </Card>
   );
@@ -649,12 +648,13 @@ export default function RelationshipScreen() {
           keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
         >
           <ScreenScroll contentContainerStyle={tabScrollStyle()}>
-        <HeaderRow
-          eyebrow="İki harita · bir bağ"
-          title="Sinastri"
-          subtitle="Güneş–Ay karşılaştırması ve ilişki dinamiği"
-          right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
-        />
+          <HeaderRow
+            compact
+            eyebrow="İki harita · bir bağ"
+            title="Sinastri"
+            subtitle="Güneş–Ay karşılaştırması ve ilişki dinamiği"
+            right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
+          />
 
         <View style={styles.hubTabs}>
           <Chip
@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(61, 154, 148, 0.25)',
+    borderColor: colors.borderStrong,
   },
   addIconGlyph: {
     fontFamily: fonts.body,
@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
   },
   list: { gap: spacing.sm },
   cardActive: {
-    backgroundColor: 'rgba(61, 154, 148, 0.04)',
+    backgroundColor: 'rgba(98, 189, 181, 0.06)',
   },
   partnerTop: {
     flexDirection: 'row',
@@ -968,14 +968,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 11,
     color: colors.textMuted,
-    marginBottom: 6,
+    marginBottom: 2,
   },
   hint: {
     fontFamily: fonts.body,
     fontSize: 11,
     color: colors.textMuted,
-    marginTop: 2,
-    marginBottom: 4,
+    marginTop: 4,
   },
   pendingBadge: {
     paddingHorizontal: 8,
@@ -992,13 +991,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  actions: { marginTop: 2, gap: 6 },
-  actionSecondary: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-    justifyContent: 'flex-end',
-  },
+  actions: { marginTop: 2, gap: 4 },
   analysisHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1055,7 +1048,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     color: colors.textMuted,
-    marginTop: 4,
+    marginTop: 6,
   },
   historyHint: {
     fontSize: 12,

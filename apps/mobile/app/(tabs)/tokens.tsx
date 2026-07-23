@@ -23,7 +23,7 @@ import { monetization } from '@/lib/monetization';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function TokensScreen() {
-  const { token, profile, setProfile, adClaimsToday, maxAdsPerDay, refresh } = useAuth();
+  const { profile, setProfile, adClaimsToday, maxAdsPerDay, refresh } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -112,13 +112,14 @@ export default function TokensScreen() {
     <Screen>
       <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
+          compact
           eyebrow="Stüdyo bakiyesi"
           title="Jeton"
           subtitle="Öngörü, soru ve sinastri için"
           right={<TokenBadge compact balance={profile?.tokenBalance ?? 0} />}
         />
 
-        <TrustNote>
+        <TrustNote style={styles.trustLine}>
           Jetonlar yorum üretimi içindir; harita hesabı her zaman ücretsiz kalır.
         </TrustNote>
 
@@ -158,6 +159,10 @@ export default function TokensScreen() {
 
 const styles = StyleSheet.create({
   plusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  trustLine: {
+    marginTop: 0,
+    marginBottom: spacing.sm,
+  },
   price: {
     fontFamily: fonts.display,
     fontSize: 22,

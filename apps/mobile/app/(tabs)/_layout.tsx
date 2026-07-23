@@ -43,7 +43,7 @@ function TabIcon({
       style={[
         styles.iconWrap,
         focused && styles.iconWrapActive,
-        soft && styles.iconWrapSoft,
+        soft && !focused && styles.iconWrapSoft,
         animStyle,
       ]}
     >
@@ -57,7 +57,7 @@ function TabIcon({
           styles.icon,
           glyphTextStyle,
           focused && styles.iconActive,
-          soft && styles.iconSoft,
+          soft && !focused && styles.iconSoft,
         ]}
       >
         {glyph}

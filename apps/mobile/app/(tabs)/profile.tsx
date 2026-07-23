@@ -27,7 +27,7 @@ import { useAuth } from '@/lib/auth';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function ProfileScreen() {
-  const { profile, token, setProfile, logout } = useAuth();
+  const { profile, setProfile, logout } = useAuth();
   const [editBirth, setEditBirth] = useState(false);
   const chart = profile?.natalChart;
 
@@ -47,7 +47,7 @@ export default function ProfileScreen() {
       </View>
       {chart ? (
         <>
-          <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} />
+          <SignTrio sun={chart.sunSign} moon={chart.moonSign} rising={chart.risingSign} compact />
           <Body muted style={styles.natalHint}>
             Natal kimliğin — Güneş, Ay ve yükselen.
           </Body>
@@ -85,6 +85,7 @@ export default function ProfileScreen() {
     <Screen>
       <ScreenScroll contentContainerStyle={tabScrollStyle()}>
         <HeaderRow
+          compact
           eyebrow="Natal kimlik"
           title={profile?.displayName ?? 'Profil'}
           subtitle="Doğum verisi ve hesap"

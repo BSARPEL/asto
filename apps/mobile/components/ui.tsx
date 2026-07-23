@@ -411,28 +411,30 @@ export function SynastryBond({
 }) {
   return (
     <View style={[styles.bondRow, compact && styles.bondRowCompact]}>
-      <View style={styles.bondSide}>
+      <View style={[styles.bondSide, compact && styles.bondSideCompact]}>
         {selfSun ? (
-          <View style={styles.bondGlyphPair}>
+          <View style={[styles.bondGlyphPair, compact && styles.bondGlyphPairCompact]}>
             <AstroGlyph planetKey="Sun" size="sm" color={signColor(selfSun)} />
             <AstroGlyph planetKey="Moon" size="sm" color={signColor(selfMoon || selfSun)} />
           </View>
         ) : (
-          <Text style={[styles.bondYou, glyphTextStyle]}>☉</Text>
+          <Text style={[styles.bondYou, compact && styles.bondYouCompact, glyphTextStyle]}>☉</Text>
         )}
-        <Text style={styles.bondLabel}>Sen</Text>
+        <Text style={[styles.bondLabel, styles.bondLabelStatic, compact && styles.bondLabelCompact]} numberOfLines={1}>
+          Sen
+        </Text>
       </View>
-      <View style={styles.bondCenter}>
-        <View style={styles.bondLine} />
-        <Text style={[styles.bondAspect, glyphTextStyle]}>☍</Text>
-        <View style={styles.bondLine} />
+      <View style={[styles.bondCenter, compact && styles.bondCenterCompact]}>
+        <View style={[styles.bondLine, compact && styles.bondLineCompact]} />
+        <Text style={[styles.bondAspect, compact && styles.bondAspectCompact, glyphTextStyle]}>☍</Text>
+        <View style={[styles.bondLine, compact && styles.bondLineCompact]} />
       </View>
-      <View style={styles.bondSide}>
-        <View style={styles.bondGlyphPair}>
+      <View style={[styles.bondSide, compact && styles.bondSideCompact]}>
+        <View style={[styles.bondGlyphPair, compact && styles.bondGlyphPairCompact]}>
           <AstroGlyph planetKey="Sun" size="sm" color={signColor(partnerSun)} />
           <AstroGlyph planetKey="Moon" size="sm" color={signColor(partnerMoon)} />
         </View>
-        <Text style={styles.bondLabel} numberOfLines={1}>
+        <Text style={[styles.bondLabel, compact && styles.bondLabelCompact]} numberOfLines={1}>
           {partnerName || 'Partner'}
         </Text>
       </View>
@@ -441,12 +443,14 @@ export function SynastryBond({
 }
 
 /** Güven / kehanet değil notu */
-export function TrustNote({ children }: { children: React.ReactNode }) {
-  return (
-    <Text style={styles.trustNote}>
-      {children}
-    </Text>
-  );
+export function TrustNote({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<TextStyle>;
+}) {
+  return <Text style={[styles.trustNote, style]}>{children}</Text>;
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -1306,10 +1310,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSoft,
     borderWidth: 1,
     borderColor: colors.border,
+    width: '100%',
+    alignSelf: 'stretch',
   },
   bondRowCompact: {
-    paddingVertical: 8,
-    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    marginBottom: 6,
+    gap: 4,
   },
   bondSide: {
     flex: 1,
@@ -1317,37 +1325,65 @@ const styles = StyleSheet.create({
     gap: 4,
     minWidth: 0,
   },
+  bondSideCompact: {
+    gap: 2,
+  },
   bondGlyphPair: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
+  bondGlyphPairCompact: {
+    gap: 4,
+  },
   bondYou: {
     fontSize: 16,
     color: colors.accentStrong,
   },
+  bondYouCompact: {
+    fontSize: 14,
+  },
   bondLabel: {
     ...typography.caption,
     fontSize: 10,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+    letterSpacing: 0.3,
     color: colors.textMuted,
     maxWidth: '100%',
+    textAlign: 'center',
+  },
+  bondLabelStatic: {
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  bondLabelCompact: {
+    fontSize: 9,
+    letterSpacing: 0.2,
   },
   bondCenter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 4,
+    flexShrink: 0,
+  },
+  bondCenterCompact: {
+    gap: 4,
+    paddingHorizontal: 2,
   },
   bondLine: {
     width: 14,
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.borderStrong,
   },
+  bondLineCompact: {
+    width: 10,
+  },
   bondAspect: {
     fontSize: 14,
     color: colors.teal,
+  },
+  bondAspectCompact: {
+    fontSize: 12,
   },
   trustNote: {
     ...typography.caption,
